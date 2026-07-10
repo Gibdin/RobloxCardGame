@@ -9,6 +9,7 @@ local InventoryService = require(Services.InventoryService)
 local PackService      = require(Services.PackService)
 local PityService      = require(Services.PityService)
 local TowerService     = require(Services.TowerService)
+local DungeonService   = require(Services.DungeonService)
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
 
@@ -41,6 +42,12 @@ local rfTowerNextFloor = RF("Tower_NextFloor")
 local rfTowerPickBuff  = RF("Tower_PickBuff")
 local rfTowerGetState  = RF("Tower_GetState")
 local rfTowerAbandon   = RF("Tower_Abandon")
+
+local rfDungeonStart       = RF("Dungeon_Start")
+local rfDungeonGetState    = RF("Dungeon_GetState")
+local rfDungeonChooseNode  = RF("Dungeon_ChooseNode")
+local rfDungeonPickBuff    = RF("Dungeon_PickEliteBuff")
+local rfDungeonAbandon     = RF("Dungeon_Abandon")
 
 -- ── Remote handlers ──────────────────────────────────────────────────────────
 
@@ -99,6 +106,26 @@ rfTowerAbandon.OnServerInvoke = function(player)
 	return TowerService:Abandon(player.UserId)
 end
 
+rfDungeonStart.OnServerInvoke = function(player)
+	return DungeonService:Start(player.UserId)
+end
+
+rfDungeonGetState.OnServerInvoke = function(player)
+	return DungeonService:GetState(player.UserId)
+end
+
+rfDungeonChooseNode.OnServerInvoke = function(player, nodeId)
+	return DungeonService:ChooseNode(player.UserId, nodeId)
+end
+
+rfDungeonPickBuff.OnServerInvoke = function(player, choiceIndex, targetCardId)
+	return DungeonService:PickEliteBuff(player.UserId, choiceIndex, targetCardId)
+end
+
+rfDungeonAbandon.OnServerInvoke = function(player)
+	return DungeonService:Abandon(player.UserId)
+end
+
 -- ── Player lifecycle ──────────────────────────────────────────────────────────
 
 Players.PlayerAdded:Connect(function(player)
@@ -107,6 +134,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	TowerService:Cleanup(player.UserId)
+	DungeonService:Cleanup(player.UserId)
 	InventoryService:Cleanup(player.UserId)
 	PityService:Cleanup(player.UserId)
 end)

@@ -1,12 +1,13 @@
 -- DungeonController — orchestrates the battle modes behind the BATTLE button:
--- mode select → Endless Tower (dungeon runs arrive in a later phase).
--- Initialized by PackOpeningController like the other UI modules.
+-- mode select → Endless Tower | Dungeon Run. Initialized by
+-- PackOpeningController like the other UI modules.
 
 local DungeonController = {}
 
 local deps           -- { remotes, CardDatabase, RarityConfig, CombatConfig, TowerConfig, DungeonConfig, onRewardsGranted }
-local ModeSelectUI, TowerUI, EliteBuffUI, RunTeamPanel, BattleUI, BattleController
-local towerRun       -- latest tower run snapshot (nil = no active run)
+local ModeSelectUI, TowerUI, EliteBuffUI, RunTeamPanel, BattleUI, BattleController, DungeonMapUI
+local towerRun        -- latest tower run snapshot (nil = no active run)
+local dungeonRun       -- latest dungeon run snapshot (nil = no active run)
 local busy = false
 
 local function invoke(rf, ...)
@@ -21,6 +22,34 @@ local function invoke(rf, ...)
 	return res
 end
 
+local function describeRewards(rewards)
+	local lines = {}
+	if rewards and rewards.xp then
+		local levelUps = {}
+		for idStr, rep in pairs(rewards.xp) do
+			if rep.leveledUp then
+				local card = deps.CardDatabase:GetById(tonumber(idStr))
+				table.insert(levelUps, (card and card.name or idStr) .. " -> Lv" .. rep.level)
+			end
+		end
+		if #levelUps > 0 then
+			table.insert(lines, "Level up: " .. table.concat(levelUps, ", "))
+		end
+	end
+	if rewards and rewards.gold and rewards.gold > 0 then
+		table.insert(lines, "Gold earned: " .. rewards.gold)
+	end
+	if rewards and rewards.packs then
+		local parts = {}
+		for packType, n in pairs(rewards.packs) do
+			table.insert(parts, n .. "x " .. packType:gsub("Pack", " Pack"))
+		end
+		table.insert(lines, "Packs earned: " .. table.concat(parts, ", "))
+		if deps.onRewardsGranted then deps.onRewardsGranted() end
+	end
+	return lines
+end
+
 -- ── Tower flow ────────────────────────────────────────────────────────────────
 
 local function refreshTowerPanel()
@@ -28,7 +57,8 @@ local function refreshTowerPanel()
 	RunTeamPanel:Update(towerRun)
 end
 
-local function handleBuffChoices(run)
+local function handleTowerBuffChoices()
+	local run = towerRun
 	if not run or run.state ~= "PickingBuff" then return end
 	local teamIds = {}
 	for _, id in ipairs(run.team) do
@@ -41,31 +71,6 @@ local function handleBuffChoices(run)
 			refreshTowerPanel()
 		end
 	end)
-end
-
-local function describeRewards(rewards)
-	local lines = {}
-	if rewards and rewards.xp then
-		local levelUps = {}
-		for idStr, rep in pairs(rewards.xp) do
-			if rep.leveledUp then
-				local card = deps.CardDatabase:GetById(tonumber(idStr))
-				table.insert(levelUps, (card and card.name or idStr) .. " → Lv" .. rep.level)
-			end
-		end
-		if #levelUps > 0 then
-			table.insert(lines, "Level up: " .. table.concat(levelUps, ", "))
-		end
-	end
-	if rewards and rewards.packs then
-		local parts = {}
-		for packType, n in pairs(rewards.packs) do
-			table.insert(parts, n .. "x " .. packType:gsub("Pack", " Pack"))
-		end
-		table.insert(lines, "Packs earned: " .. table.concat(parts, ", "))
-		if deps.onRewardsGranted then deps.onRewardsGranted() end
-	end
-	return lines
 end
 
 local function fightFloor()
@@ -99,7 +104,7 @@ local function fightFloor()
 						BattleUI:Hide()
 						refreshTowerPanel()
 						TowerUI:Show()
-						handleBuffChoices(towerRun)
+						handleTowerBuffChoices()
 					end },
 				},
 			})
@@ -144,13 +149,149 @@ local function openTower()
 	refreshTowerPanel()
 	RunTeamPanel:Show()
 	TowerUI:Show()
-	handleBuffChoices(towerRun)
+	handleTowerBuffChoices()
 end
 
 local function abandonTower()
 	invoke(deps.remotes.towerAbandon)
 	towerRun = nil
 	TowerUI:Hide()
+	RunTeamPanel:Hide()
+	ModeSelectUI:Show(DungeonController:_modeInfo())
+end
+
+-- ── Dungeon flow ──────────────────────────────────────────────────────────────
+
+local function refreshDungeonPanel()
+	DungeonMapUI:Render(dungeonRun)
+	RunTeamPanel:Update(dungeonRun)
+end
+
+local function handleDungeonBuffChoices()
+	local run = dungeonRun
+	if not run or run.state ~= "PickingBuff" then return end
+	local teamIds = {}
+	for _, id in ipairs(run.team) do
+		if id then table.insert(teamIds, id) end
+	end
+	EliteBuffUI:Show(run.pendingBuffChoices, teamIds, function(choiceIndex, targetCardId)
+		local res = invoke(deps.remotes.dungeonPickBuff, choiceIndex, targetCardId)
+		if res and res.success then
+			dungeonRun = res.run
+			refreshDungeonPanel()
+		end
+	end)
+end
+
+local function chooseNode(nodeId)
+	if busy or not dungeonRun then return end
+	busy = true
+
+	task.spawn(function()
+		local res = invoke(deps.remotes.dungeonChooseNode, nodeId)
+		if not res or not res.success then
+			if res then warn("[Dungeon]", res.error) end
+			busy = false
+			return
+		end
+
+		if res.nodeType == "Rest" then
+			dungeonRun = res.run
+			refreshDungeonPanel()
+			busy = false
+			return
+		end
+
+		if res.nodeType == "Shop" then
+			dungeonRun = res.run
+			refreshDungeonPanel()
+			busy = false
+			return
+		end
+
+		-- Mob / Elite / Boss: play the battle.
+		DungeonMapUI:Hide()
+		local label = res.nodeType == "Boss" and "DUNGEON — BOSS"
+			or (res.nodeType == "Elite" and "DUNGEON — ELITE" or "DUNGEON")
+		BattleController:Play(res.battle, label)
+
+		local lines = describeRewards(res.rewards)
+		if res.victory then
+			dungeonRun = res.run
+			table.insert(lines, 1, res.nodeType .. " defeated!")
+			if res.complete then
+				BattleUI:ShowResult({
+					victory = true,
+					title = "DUNGEON CLEARED",
+					lines = lines,
+					buttons = {
+						{ text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = function()
+							BattleUI:Hide()
+							RunTeamPanel:Hide()
+							dungeonRun = nil
+							ModeSelectUI:Show(DungeonController:_modeInfo())
+						end },
+					},
+				})
+			else
+				BattleUI:ShowResult({
+					victory = true,
+					title = "VICTORY",
+					lines = lines,
+					buttons = {
+						{ text = "CONTINUE", color = Color3.fromRGB(70, 170, 90), cb = function()
+							BattleUI:Hide()
+							refreshDungeonPanel()
+							DungeonMapUI:Show()
+							handleDungeonBuffChoices()
+						end },
+					},
+				})
+			end
+		else
+			local deepest = res.deepestRow or (dungeonRun and dungeonRun.deepestRow) or 0
+			dungeonRun = nil
+			BattleUI:ShowResult({
+				victory = false,
+				title = "DEFEATED",
+				lines = { "You fell at row " .. deepest },
+				buttons = {
+					{ text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = function()
+						BattleUI:Hide()
+						RunTeamPanel:Hide()
+						ModeSelectUI:Show(DungeonController:_modeInfo())
+					end },
+				},
+			})
+		end
+		busy = false
+	end)
+end
+
+local function openDungeon()
+	ModeSelectUI:Hide()
+	local state = invoke(deps.remotes.dungeonGetState)
+	if state then
+		dungeonRun = state
+	else
+		local res = invoke(deps.remotes.dungeonStart)
+		if not res or not res.success then
+			if res then warn("[Dungeon]", res.error) end
+			ModeSelectUI:Show(DungeonController:_modeInfo())
+			return
+		end
+		dungeonRun = res.run
+	end
+	refreshDungeonPanel()
+	RunTeamPanel:Show()
+	DungeonMapUI:Show()
+	handleDungeonBuffChoices()
+end
+
+local function abandonDungeon()
+	invoke(deps.remotes.dungeonAbandon)
+	dungeonRun = nil
+	DungeonMapUI:Hide()
 	RunTeamPanel:Hide()
 	ModeSelectUI:Show(DungeonController:_modeInfo())
 end
@@ -163,7 +304,8 @@ function DungeonController:_modeInfo()
 	return {
 		towerBest = best,
 		towerActive = invoke(deps.remotes.towerGetState) ~= nil,
-		dungeonReady = false,  -- flips on when dungeon runs ship
+		dungeonActive = invoke(deps.remotes.dungeonGetState) ~= nil,
+		dungeonReady = true,
 	}
 end
 
@@ -175,6 +317,7 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	RunTeamPanel = uiModules.RunTeamPanel
 	BattleUI = uiModules.BattleUI
 	BattleController = uiModules.BattleController
+	DungeonMapUI = uiModules.DungeonMapUI
 
 	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig)
 	BattleController:Init(BattleUI, deps.CombatConfig)
@@ -184,35 +327,49 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 		onFight = fightFloor,
 		onAbandon = abandonTower,
 	})
+	DungeonMapUI:Init(screenGui, {
+		onNodeClick = chooseNode,
+		onAbandon = abandonDungeon,
+	})
 	ModeSelectUI:Init(screenGui, {
-		onDungeon = function() end,  -- phase 3
+		onDungeon = openDungeon,
 		onTower = openTower,
 	})
 end
 
 function DungeonController:Toggle()
 	if BattleController:IsPlaying() then return end
-	if ModeSelectUI:GetPanel().Visible or TowerUI:GetPanel().Visible then
+	if ModeSelectUI:GetPanel().Visible or TowerUI:GetPanel().Visible or DungeonMapUI:GetPanel().Visible then
 		self:Hide()
 		return
 	end
-	-- Resume straight into the tower panel if a run is live.
-	local state = invoke(deps.remotes.towerGetState)
-	if state then
-		towerRun = state
+	-- Resume straight into whichever run is live.
+	local tState = invoke(deps.remotes.towerGetState)
+	if tState then
+		towerRun = tState
 		refreshTowerPanel()
 		RunTeamPanel:Show()
 		TowerUI:Show()
-		handleBuffChoices(towerRun)
-	else
-		ModeSelectUI:Show(self:_modeInfo())
+		handleTowerBuffChoices()
+		return
 	end
+	local dState = invoke(deps.remotes.dungeonGetState)
+	if dState then
+		dungeonRun = dState
+		refreshDungeonPanel()
+		RunTeamPanel:Show()
+		DungeonMapUI:Show()
+		handleDungeonBuffChoices()
+		return
+	end
+	ModeSelectUI:Show(self:_modeInfo())
 end
 
 function DungeonController:Hide()
 	if BattleController:IsPlaying() then return end
 	ModeSelectUI:Hide()
 	TowerUI:Hide()
+	DungeonMapUI:Hide()
 	BattleUI:Hide()
 end
 

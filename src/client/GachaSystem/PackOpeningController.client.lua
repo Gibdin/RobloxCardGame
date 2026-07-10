@@ -30,6 +30,11 @@ local rfTowerNextFloor = remotes:WaitForChild("Tower_NextFloor")
 local rfTowerPickBuff  = remotes:WaitForChild("Tower_PickBuff")
 local rfTowerGetState  = remotes:WaitForChild("Tower_GetState")
 local rfTowerAbandon   = remotes:WaitForChild("Tower_Abandon")
+local rfDungeonStart      = remotes:WaitForChild("Dungeon_Start")
+local rfDungeonGetState   = remotes:WaitForChild("Dungeon_GetState")
+local rfDungeonChooseNode = remotes:WaitForChild("Dungeon_ChooseNode")
+local rfDungeonPickBuff   = remotes:WaitForChild("Dungeon_PickEliteBuff")
+local rfDungeonAbandon    = remotes:WaitForChild("Dungeon_Abandon")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -63,6 +68,7 @@ local ModeSelectUI      = require(uiFolder.ModeSelectUI)
 local TowerUI           = require(uiFolder.TowerUI)
 local EliteBuffUI       = require(uiFolder.EliteBuffUI)
 local RunTeamPanel      = require(uiFolder.RunTeamPanel)
+local DungeonMapUI      = require(uiFolder.DungeonMapUI)
 
 -- Root ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -97,6 +103,11 @@ DungeonController:Init(screenGui, {
 		towerPickBuff = rfTowerPickBuff,
 		towerGetState = rfTowerGetState,
 		towerAbandon = rfTowerAbandon,
+		dungeonStart = rfDungeonStart,
+		dungeonGetState = rfDungeonGetState,
+		dungeonChooseNode = rfDungeonChooseNode,
+		dungeonPickBuff = rfDungeonPickBuff,
+		dungeonAbandon = rfDungeonAbandon,
 		getInventory = rfGetInventory,
 	},
 	CardDatabase = CardDatabase,
@@ -115,6 +126,7 @@ DungeonController:Init(screenGui, {
 	RunTeamPanel = RunTeamPanel,
 	BattleUI = BattleUI,
 	BattleController = BattleController,
+	DungeonMapUI = DungeonMapUI,
 })
 
 -- State
