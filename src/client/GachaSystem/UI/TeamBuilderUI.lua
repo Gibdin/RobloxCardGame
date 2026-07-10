@@ -347,10 +347,10 @@ local function selectCard(card)
 	if detMP  then detMP.Text  = tostring(card.mp)     end
 
 	if detPassiveChip then
-		local ptColor = PASSIVE_COLOR[card.passive_type] or Color3.fromRGB(100, 100, 180)
+		local ptColor = PASSIVE_COLOR[card.passive] or Color3.fromRGB(100, 100, 180)
 		detPassiveChip.BackgroundColor3 = ptColor
 		local lbl = detPassiveChip:FindFirstChild("Lbl")
-		if lbl then lbl.Text = card.passive_type or "—" end
+		if lbl then lbl.Text = card.passive or "—" end
 	end
 
 	if detPassiveDesc then
@@ -359,8 +359,8 @@ local function selectCard(card)
 		if roleDef then
 			if roleDef.passiveDesc then
 				desc = roleDef.passiveDesc
-			elseif roleDef.passives and card.passive_type then
-				desc = roleDef.passives[card.passive_type] or ""
+			elseif roleDef.passives and card.passive then
+				desc = roleDef.passives[card.passive] or ""
 			end
 		end
 		detPassiveDesc.Text = desc
