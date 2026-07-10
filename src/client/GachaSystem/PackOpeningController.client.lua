@@ -25,12 +25,20 @@ local rfGetPityInfo  = remotes:WaitForChild("GetPityInfo")
 local rfGetInventory = remotes:WaitForChild("GetInventory")
 local rfGetTeam      = remotes:WaitForChild("GetTeam")
 local rfSetTeam      = remotes:WaitForChild("SetTeam")
+local rfTowerStart     = remotes:WaitForChild("Tower_Start")
+local rfTowerNextFloor = remotes:WaitForChild("Tower_NextFloor")
+local rfTowerPickBuff  = remotes:WaitForChild("Tower_PickBuff")
+local rfTowerGetState  = remotes:WaitForChild("Tower_GetState")
+local rfTowerAbandon   = remotes:WaitForChild("Tower_Abandon")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
 local RarityConfig = require(gachaShared:WaitForChild("RarityConfig"))
 local RoleConfig   = require(gachaShared:WaitForChild("RoleConfig"))
 local CardDatabase = require(gachaShared:WaitForChild("CardDatabase"))
+local CombatConfig  = require(gachaShared:WaitForChild("CombatConfig"))
+local TowerConfig   = require(gachaShared:WaitForChild("TowerConfig"))
+local DungeonConfig = require(gachaShared:WaitForChild("DungeonConfig"))
 
 -- VFX modules
 local vfxFolder    = script.Parent.VFX
@@ -46,6 +54,15 @@ local SideMenuUI    = require(uiFolder.SideMenuUI)
 local InventoryUI   = require(uiFolder.InventoryUI)
 local GlobalTeamBar = require(uiFolder.GlobalTeamBar)
 local TeamBuilderUI = require(uiFolder.TeamBuilderUI)
+
+-- Battle modules
+local DungeonController = require(script.Parent.DungeonController)
+local BattleController  = require(script.Parent.BattleController)
+local BattleUI          = require(uiFolder.BattleUI)
+local ModeSelectUI      = require(uiFolder.ModeSelectUI)
+local TowerUI           = require(uiFolder.TowerUI)
+local EliteBuffUI       = require(uiFolder.EliteBuffUI)
+local RunTeamPanel      = require(uiFolder.RunTeamPanel)
 
 -- Root ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -72,6 +89,33 @@ end)
 GlobalTeamBar:SetOnSynergyClick(function(synName)
 	InventoryUI:NavigateToSynergy(synName)
 end)
+
+DungeonController:Init(screenGui, {
+	remotes = {
+		towerStart = rfTowerStart,
+		towerNextFloor = rfTowerNextFloor,
+		towerPickBuff = rfTowerPickBuff,
+		towerGetState = rfTowerGetState,
+		towerAbandon = rfTowerAbandon,
+		getInventory = rfGetInventory,
+	},
+	CardDatabase = CardDatabase,
+	RarityConfig = RarityConfig,
+	CombatConfig = CombatConfig,
+	TowerConfig = TowerConfig,
+	DungeonConfig = DungeonConfig,
+	onRewardsGranted = function()
+		local ok, packs = pcall(function() return rfGetPacks:InvokeServer() end)
+		if ok and packs then PackOpeningUI:UpdatePackList(packs) end
+	end,
+}, {
+	ModeSelectUI = ModeSelectUI,
+	TowerUI = TowerUI,
+	EliteBuffUI = EliteBuffUI,
+	RunTeamPanel = RunTeamPanel,
+	BattleUI = BattleUI,
+	BattleController = BattleController,
+})
 
 -- State
 local isOpening       = false
@@ -211,6 +255,7 @@ local function closeAllExcept(except)
 	if except~="packs"     then PackOpeningUI:ClosePacksDrawer() end
 	if except~="inventory" then InventoryUI:Hide() end
 	if except~="team"      then TeamBuilderUI:Hide() end
+	if except~="battle"    then DungeonController:Hide() end
 	if except~="settings"  then settingsPanel.Visible=false end
 end
 SideMenuUI:Init(screenGui,{
@@ -223,6 +268,7 @@ SideMenuUI:Init(screenGui,{
 		if TeamBuilderUI:GetPanel().Visible then TeamBuilderUI:Hide()
 		else closeAllExcept("team"); TeamBuilderUI:Show() end
 	end,
+	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
 	settings=function() closeAllExcept("settings"); settingsPanel.Visible=not settingsPanel.Visible end,
 })
 

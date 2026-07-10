@@ -25,6 +25,7 @@ local function blank()
 		packs     = { StandardPack = 3 },   -- starter packs for new players
 		pity      = { totalRolls = 0 },
 		team      = {},
+		tower     = { bestFloor = 0 },
 	}
 end
 
@@ -48,6 +49,7 @@ function InventoryService:Load(userId)
 	d.packs     = d.packs     or { StandardPack = 3 }
 	d.pity      = d.pity      or { totalRolls = 0 }
 	d.team      = d.team      or {}
+	d.tower     = d.tower     or { bestFloor = 0 }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -134,6 +136,21 @@ function InventoryService:GetNextAvailablePack(userId)
 	return nil
 end
 
+-- ── Tower progress ───────────────────────────────────────────────────────────
+
+function InventoryService:GetBestFloor(userId)
+	local d = get(userId)
+	return d and d.tower.bestFloor or 0
+end
+
+-- Max-only write: never lowers the recorded best.
+function InventoryService:SetBestFloor(userId, floor)
+	local d = get(userId)
+	if d and type(floor) == "number" and floor > d.tower.bestFloor then
+		d.tower.bestFloor = floor
+	end
+end
+
 -- Full data snapshot sent to the client.
 function InventoryService:GetFullData(userId)
 	return {
@@ -141,6 +158,7 @@ function InventoryService:GetFullData(userId)
 		awakening = get(userId).awakening,
 		packs     = get(userId).packs,
 		team      = self:GetTeam(userId),
+		tower     = get(userId).tower,
 	}
 end
 

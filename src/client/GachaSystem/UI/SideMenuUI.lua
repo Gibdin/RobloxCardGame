@@ -17,6 +17,7 @@ local BUTTONS = {
 	{ id="packs",     label="MY PACKS",  color=Color3.fromRGB(80, 130, 210) },
 	{ id="inventory", label="INVENTORY", color=Color3.fromRGB(70, 180, 110) },
 	{ id="team",      label="TEAM",      color=Color3.fromRGB(210, 140,  50) },
+	{ id="battle",    label="BATTLE",    color=Color3.fromRGB(200,  70,  70) },
 	{ id="settings",  label="SETTINGS",  color=Color3.fromRGB(100,  90, 170) },
 }
 

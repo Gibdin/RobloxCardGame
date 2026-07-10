@@ -8,6 +8,7 @@ local Services         = script.Parent.Services
 local InventoryService = require(Services.InventoryService)
 local PackService      = require(Services.PackService)
 local PityService      = require(Services.PityService)
+local TowerService     = require(Services.TowerService)
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
 
@@ -34,6 +35,12 @@ local rfGetPityInfo  = RF("GetPityInfo")
 local rfGetTeam      = RF("GetTeam")
 local rfSetTeam      = RF("SetTeam")
 RE("AutoRollToggled")   -- client fires this; no server handler needed (state is client-only)
+
+local rfTowerStart     = RF("Tower_Start")
+local rfTowerNextFloor = RF("Tower_NextFloor")
+local rfTowerPickBuff  = RF("Tower_PickBuff")
+local rfTowerGetState  = RF("Tower_GetState")
+local rfTowerAbandon   = RF("Tower_Abandon")
 
 -- ── Remote handlers ──────────────────────────────────────────────────────────
 
@@ -72,6 +79,26 @@ rfSetTeam.OnServerInvoke = function(player, teamTable)
 	return { success = true }
 end
 
+rfTowerStart.OnServerInvoke = function(player)
+	return TowerService:Start(player.UserId)
+end
+
+rfTowerNextFloor.OnServerInvoke = function(player)
+	return TowerService:NextFloor(player.UserId)
+end
+
+rfTowerPickBuff.OnServerInvoke = function(player, choiceIndex, targetCardId)
+	return TowerService:PickBuff(player.UserId, choiceIndex, targetCardId)
+end
+
+rfTowerGetState.OnServerInvoke = function(player)
+	return TowerService:GetState(player.UserId)
+end
+
+rfTowerAbandon.OnServerInvoke = function(player)
+	return TowerService:Abandon(player.UserId)
+end
+
 -- ── Player lifecycle ──────────────────────────────────────────────────────────
 
 Players.PlayerAdded:Connect(function(player)
@@ -79,6 +106,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+	TowerService:Cleanup(player.UserId)
 	InventoryService:Cleanup(player.UserId)
 	PityService:Cleanup(player.UserId)
 end)
