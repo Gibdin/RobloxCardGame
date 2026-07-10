@@ -1,0 +1,23 @@
+{
+  "name": "RoguelikeTCG",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "GachaSystem": {
+        "$path": "src/shared/GachaSystem"
+      }
+    },
+    "ServerScriptService": {
+      "GachaSystem": {
+        "$path": "src/server/GachaSystem"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "GachaSystem": {
+          "$path": "src/client/GachaSystem"
+        }
+      }
+    }
+  }
+}
