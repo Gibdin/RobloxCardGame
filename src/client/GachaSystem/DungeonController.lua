@@ -5,7 +5,7 @@
 local DungeonController = {}
 
 local deps           -- { remotes, CardDatabase, RarityConfig, CombatConfig, TowerConfig, DungeonConfig, onRewardsGranted }
-local ModeSelectUI, TowerUI, EliteBuffUI, RunTeamPanel, BattleUI, BattleController, DungeonMapUI
+local ModeSelectUI, TowerUI, EliteBuffUI, RunTeamPanel, BattleUI, BattleController, DungeonMapUI, ShopUI
 local towerRun        -- latest tower run snapshot (nil = no active run)
 local dungeonRun       -- latest dungeon run snapshot (nil = no active run)
 local busy = false
@@ -204,7 +204,8 @@ local function chooseNode(nodeId)
 
 		if res.nodeType == "Shop" then
 			dungeonRun = res.run
-			refreshDungeonPanel()
+			DungeonMapUI:Hide()
+			ShopUI:Show(res.shop, dungeonRun)
 			busy = false
 			return
 		end
@@ -268,6 +269,45 @@ local function chooseNode(nodeId)
 	end)
 end
 
+local function shopBuyItem(offerIndex, targetCardId)
+	local res = invoke(deps.remotes.dungeonBuyItem, offerIndex, targetCardId)
+	if res and res.success then
+		dungeonRun = res.run
+		ShopUI:Show(res.shop, dungeonRun)
+		RunTeamPanel:Update(dungeonRun)
+	elseif res then
+		warn("[Dungeon shop]", res.error)
+	end
+end
+
+local function shopBuyService(serviceId, targetCardId)
+	local res = invoke(deps.remotes.dungeonBuyService, serviceId, targetCardId)
+	if res and res.success then
+		dungeonRun = res.run
+		ShopUI:UpdateGold(res.gold)
+		RunTeamPanel:Update(dungeonRun)
+	elseif res then
+		warn("[Dungeon shop]", res.error)
+	end
+end
+
+local function shopReroll()
+	local res = invoke(deps.remotes.dungeonReroll)
+	if res and res.success then
+		dungeonRun = res.run
+		ShopUI:Show(res.shop, dungeonRun)
+	elseif res then
+		warn("[Dungeon shop]", res.error)
+	end
+end
+
+local function shopLeave()
+	ShopUI:Hide()
+	refreshDungeonPanel()
+	DungeonMapUI:Show()
+	handleDungeonBuffChoices()
+end
+
 local function openDungeon()
 	ModeSelectUI:Hide()
 	local state = invoke(deps.remotes.dungeonGetState)
@@ -318,6 +358,7 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	BattleUI = uiModules.BattleUI
 	BattleController = uiModules.BattleController
 	DungeonMapUI = uiModules.DungeonMapUI
+	ShopUI = uiModules.ShopUI
 
 	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig)
 	BattleController:Init(BattleUI, deps.CombatConfig)
@@ -330,6 +371,12 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	DungeonMapUI:Init(screenGui, {
 		onNodeClick = chooseNode,
 		onAbandon = abandonDungeon,
+	})
+	ShopUI:Init(screenGui, deps.DungeonConfig, deps.CardDatabase, {
+		onBuyItem = shopBuyItem,
+		onBuyService = shopBuyService,
+		onReroll = shopReroll,
+		onLeave = shopLeave,
 	})
 	ModeSelectUI:Init(screenGui, {
 		onDungeon = openDungeon,
@@ -370,6 +417,7 @@ function DungeonController:Hide()
 	ModeSelectUI:Hide()
 	TowerUI:Hide()
 	DungeonMapUI:Hide()
+	ShopUI:Hide()
 	BattleUI:Hide()
 end
 

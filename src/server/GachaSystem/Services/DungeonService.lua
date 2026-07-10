@@ -119,6 +119,31 @@ local function drawBuffChoices(seed)
 	return choices
 end
 
+local function generateShopStock(run, node, rerollCount)
+	local rng = Random.new(run.seed + node.row * 7777 + node.col * 13 + rerollCount * 999)
+	local ids = {}
+	for id in pairs(DungeonConfig.Items) do table.insert(ids, id) end
+	table.sort(ids)
+	local offers = {}
+	for _ = 1, DungeonConfig.Shop.OfferCount do
+		if #ids == 0 then break end
+		local itemId = table.remove(ids, rng:NextInteger(1, #ids))
+		table.insert(offers, { itemId = itemId, price = DungeonConfig.Items[itemId].price, sold = false })
+	end
+	return offers
+end
+
+local function rerollCost(stock)
+	return DungeonConfig.Shop.RerollBase + stock.rerolls * DungeonConfig.Shop.RerollStep
+end
+
+local function currentShopNode(run)
+	if run.position == false then return nil end
+	local node = run.mapIndex[run.position]
+	if node and node.type == "Shop" then return node end
+	return nil
+end
+
 local function reachableNodeIds(run)
 	local reachable = {}
 	if run.position == false then
@@ -277,8 +302,15 @@ function DungeonService:ChooseNode(userId, nodeId)
 		end
 		return { success = true, nodeType = "Rest", restHeal = DungeonConfig.RestHealPct, run = self:GetState(userId) }
 	elseif node.type == "Shop" then
-		-- Ships in Phase 5; nodes of this type aren't generated yet.
-		return { success = true, nodeType = "Shop", run = self:GetState(userId) }
+		if not run.shopStock[nodeId] then
+			run.shopStock[nodeId] = { offers = generateShopStock(run, node, 0), rerolls = 0 }
+		end
+		local stock = run.shopStock[nodeId]
+		return {
+			success = true, nodeType = "Shop",
+			shop = { offers = stock.offers, rerollCost = rerollCost(stock) },
+			run = self:GetState(userId),
+		}
 	end
 
 	return { success = false, error = "Unknown node type." }
@@ -301,6 +333,73 @@ function DungeonService:PickEliteBuff(userId, choiceIndex, targetCardId)
 	run.pendingBuffChoices = nil
 	run.state = "Map"
 	return { success = true, run = self:GetState(userId) }
+end
+
+function DungeonService:BuyItem(userId, offerIndex, targetCardId)
+	local run = runs[userId]
+	if not run then return { success = false, error = "No dungeon run active." } end
+	local node = currentShopNode(run)
+	if not node then return { success = false, error = "Not at a shop." } end
+	local stock = run.shopStock[node.id]
+	local offer = type(offerIndex) == "number" and stock.offers[offerIndex]
+	if not offer then return { success = false, error = "Invalid offer." } end
+	if offer.sold then return { success = false, error = "That item is sold out." } end
+	local cs = type(targetCardId) == "number" and run.cards[targetCardId]
+	if not cs then return { success = false, error = "Invalid target card." } end
+	if #cs.items >= DungeonConfig.MaxItemsPerCard then
+		return { success = false, error = "That card already holds the max items." }
+	end
+	if run.gold < offer.price then return { success = false, error = "Not enough gold." } end
+
+	run.gold = run.gold - offer.price
+	offer.sold = true
+	table.insert(cs.items, offer.itemId)
+	return {
+		success = true, gold = run.gold,
+		shop = { offers = stock.offers, rerollCost = rerollCost(stock) },
+		run = self:GetState(userId),
+	}
+end
+
+function DungeonService:BuyService(userId, serviceId, targetCardId)
+	local run = runs[userId]
+	if not run then return { success = false, error = "No dungeon run active." } end
+	local node = currentShopNode(run)
+	if not node then return { success = false, error = "Not at a shop." } end
+	local svc = type(serviceId) == "string" and DungeonConfig.Shop.Services[serviceId]
+	if not svc then return { success = false, error = "Invalid service." } end
+	if run.gold < svc.price then return { success = false, error = "Not enough gold." } end
+
+	if svc.target == "one" then
+		local cs = type(targetCardId) == "number" and run.cards[targetCardId]
+		if not cs then return { success = false, error = "Invalid target card." } end
+		cs.hpPct = math.min(1, (cs.hpPct or 1) + svc.healPct)
+	else
+		for _, cs in pairs(run.cards) do
+			cs.hpPct = math.min(1, (cs.hpPct or 1) + svc.healPct)
+		end
+	end
+	run.gold = run.gold - svc.price
+	return { success = true, gold = run.gold, run = self:GetState(userId) }
+end
+
+function DungeonService:RerollShop(userId)
+	local run = runs[userId]
+	if not run then return { success = false, error = "No dungeon run active." } end
+	local node = currentShopNode(run)
+	if not node then return { success = false, error = "Not at a shop." } end
+	local stock = run.shopStock[node.id]
+	local cost = rerollCost(stock)
+	if run.gold < cost then return { success = false, error = "Not enough gold." } end
+
+	run.gold = run.gold - cost
+	stock.rerolls = stock.rerolls + 1
+	stock.offers = generateShopStock(run, node, stock.rerolls)
+	return {
+		success = true, gold = run.gold,
+		shop = { offers = stock.offers, rerollCost = rerollCost(stock) },
+		run = self:GetState(userId),
+	}
 end
 
 function DungeonService:Abandon(userId)

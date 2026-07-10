@@ -47,6 +47,9 @@ local rfDungeonStart       = RF("Dungeon_Start")
 local rfDungeonGetState    = RF("Dungeon_GetState")
 local rfDungeonChooseNode  = RF("Dungeon_ChooseNode")
 local rfDungeonPickBuff    = RF("Dungeon_PickEliteBuff")
+local rfDungeonBuyItem     = RF("Dungeon_BuyItem")
+local rfDungeonBuyService  = RF("Dungeon_BuyService")
+local rfDungeonReroll      = RF("Dungeon_RerollShop")
 local rfDungeonAbandon     = RF("Dungeon_Abandon")
 
 -- ── Remote handlers ──────────────────────────────────────────────────────────
@@ -120,6 +123,18 @@ end
 
 rfDungeonPickBuff.OnServerInvoke = function(player, choiceIndex, targetCardId)
 	return DungeonService:PickEliteBuff(player.UserId, choiceIndex, targetCardId)
+end
+
+rfDungeonBuyItem.OnServerInvoke = function(player, offerIndex, targetCardId)
+	return DungeonService:BuyItem(player.UserId, offerIndex, targetCardId)
+end
+
+rfDungeonBuyService.OnServerInvoke = function(player, serviceId, targetCardId)
+	return DungeonService:BuyService(player.UserId, serviceId, targetCardId)
+end
+
+rfDungeonReroll.OnServerInvoke = function(player)
+	return DungeonService:RerollShop(player.UserId)
 end
 
 rfDungeonAbandon.OnServerInvoke = function(player)

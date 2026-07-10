@@ -15,7 +15,7 @@ DungeonConfig.Map = {
 	MinShops = 2, MinElites = 2, MinRests = 1,
 	-- Phase switch: Elite/Shop nodes are generated as Mob until their systems
 	-- ship (Phase 4/5). Flip to true to enable — no generator changes needed.
-	EnabledTypes = { Mob = true, Elite = true, Shop = false, Rest = true },
+	EnabledTypes = { Mob = true, Elite = true, Shop = true, Rest = true },
 }
 
 -- ── Card XP / leveling (run-scoped) ───────────────────────────────────────────

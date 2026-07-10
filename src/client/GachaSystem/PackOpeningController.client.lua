@@ -34,6 +34,9 @@ local rfDungeonStart      = remotes:WaitForChild("Dungeon_Start")
 local rfDungeonGetState   = remotes:WaitForChild("Dungeon_GetState")
 local rfDungeonChooseNode = remotes:WaitForChild("Dungeon_ChooseNode")
 local rfDungeonPickBuff   = remotes:WaitForChild("Dungeon_PickEliteBuff")
+local rfDungeonBuyItem    = remotes:WaitForChild("Dungeon_BuyItem")
+local rfDungeonBuyService = remotes:WaitForChild("Dungeon_BuyService")
+local rfDungeonReroll     = remotes:WaitForChild("Dungeon_RerollShop")
 local rfDungeonAbandon    = remotes:WaitForChild("Dungeon_Abandon")
 
 -- Shared modules
@@ -69,6 +72,7 @@ local TowerUI           = require(uiFolder.TowerUI)
 local EliteBuffUI       = require(uiFolder.EliteBuffUI)
 local RunTeamPanel      = require(uiFolder.RunTeamPanel)
 local DungeonMapUI      = require(uiFolder.DungeonMapUI)
+local ShopUI            = require(uiFolder.ShopUI)
 
 -- Root ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -107,6 +111,9 @@ DungeonController:Init(screenGui, {
 		dungeonGetState = rfDungeonGetState,
 		dungeonChooseNode = rfDungeonChooseNode,
 		dungeonPickBuff = rfDungeonPickBuff,
+		dungeonBuyItem = rfDungeonBuyItem,
+		dungeonBuyService = rfDungeonBuyService,
+		dungeonReroll = rfDungeonReroll,
 		dungeonAbandon = rfDungeonAbandon,
 		getInventory = rfGetInventory,
 	},
@@ -127,6 +134,7 @@ DungeonController:Init(screenGui, {
 	BattleUI = BattleUI,
 	BattleController = BattleController,
 	DungeonMapUI = DungeonMapUI,
+	ShopUI = ShopUI,
 })
 
 -- State
