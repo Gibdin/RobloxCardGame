@@ -141,14 +141,20 @@ function DungeonMapUI:Render(run)
 				local p1, p2 = positions[node.id], positions[targetId]
 				if p1 and p2 then
 					local delta = p2 - p1
-					local length = delta.Magnitude
+					-- Trim a node-radius off each end so the line runs edge-to-edge
+					-- instead of poking through the circles.
+					local length = math.max(0, delta.Magnitude - NODE_SIZE)
+					local mid = (p1 + p2) / 2
 					local target = nodesById[targetId]
 					local traveled = node.visited and target and target.visited
 					local edge = Instance.new("Frame")
 					edge.Name = "Edge"
 					edge.Size = UDim2.new(0, length, 0, 2)
-					edge.Position = UDim2.new(0, p1.X, 0, p1.Y)
-					edge.AnchorPoint = Vector2.new(0, 0.5)
+					-- Roblox rotates frames about their center, so the frame's
+					-- center must sit on the segment midpoint for the line to
+					-- actually connect the two nodes.
+					edge.Position = UDim2.new(0, mid.X, 0, mid.Y)
+					edge.AnchorPoint = Vector2.new(0.5, 0.5)
 					edge.Rotation = math.deg(math.atan2(delta.Y, delta.X))
 					edge.BackgroundColor3 = traveled and Color3.fromRGB(200, 120, 60) or Color3.fromRGB(50, 50, 74)
 					edge.BorderSizePixel = 0

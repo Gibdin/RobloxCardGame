@@ -7,8 +7,10 @@
 -- Round order (this ordering IS the spec — changing it changes outcomes):
 --   1. Round start: clear Shadow marks, regen (Nature's Call T4 + item/buff regen)
 --   2. Active casts: P side then E side, units in slot order, cast when MP full
---   3. Basic attacks: P frontline attacks E frontline, then E attacks P
---      (frontline = lowest-slot living unit; replacements attack the same round)
+--   3. Basic attacks: EVERY living P unit attacks the E frontline in slot
+--      order (each attacker gains MP per hit), then every living E unit
+--      attacks the P frontline. Frontline = lowest-slot living unit, so if a
+--      frontliner dies mid-phase, later attackers hit the replacement.
 --   4. Round end: Medic heals, MP round gain (batched mp events), win check
 --
 -- Divine Pantheon T4 revive is STUBBED in v1 (emits a synergy event with
@@ -481,10 +483,17 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 			end
 			if defeated(P) or defeated(E) then break end
 
-			-- 3. Basic attacks: P then E (replacement units attack the same round).
-			self:basicAttack(P, front(P))
-			if defeated(P) or defeated(E) then break end
-			self:basicAttack(E, front(E))
+			-- 3. Basic attacks: every living unit on each side attacks the
+			-- opposing frontline, whole P team first, then the whole E team.
+			for _, side in ipairs(self.sideList) do
+				for _, u in ipairs(side.units) do
+					if u.alive then
+						self:basicAttack(side, u)
+						if defeated(P) or defeated(E) then break end
+					end
+				end
+				if defeated(P) or defeated(E) then break end
+			end
 			if defeated(P) or defeated(E) then break end
 
 			-- 4. Round end: Medic heals, then batched MP gain.
