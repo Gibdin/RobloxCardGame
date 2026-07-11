@@ -22,6 +22,10 @@ local function invoke(rf, ...)
 	return res
 end
 
+local function playSound(name)
+	if deps.SoundManager then deps.SoundManager:Play(name) end
+end
+
 local function describeRewards(rewards)
 	local lines = {}
 	if rewards and rewards.xp then
@@ -68,6 +72,7 @@ local function handleTowerBuffChoices()
 		local res = invoke(deps.remotes.towerPickBuff, choiceIndex, targetCardId)
 		if res and res.success then
 			towerRun = res.run
+			playSound("buff_pick")
 			refreshTowerPanel()
 		end
 	end)
@@ -178,6 +183,7 @@ local function handleDungeonBuffChoices()
 		local res = invoke(deps.remotes.dungeonPickBuff, choiceIndex, targetCardId)
 		if res and res.success then
 			dungeonRun = res.run
+			playSound("buff_pick")
 			refreshDungeonPanel()
 		end
 	end)
@@ -186,6 +192,7 @@ end
 local function chooseNode(nodeId)
 	if busy or not dungeonRun then return end
 	busy = true
+	playSound("node_select")
 
 	task.spawn(function()
 		local res = invoke(deps.remotes.dungeonChooseNode, nodeId)
@@ -197,6 +204,7 @@ local function chooseNode(nodeId)
 
 		if res.nodeType == "Rest" then
 			dungeonRun = res.run
+			playSound("rest_heal")
 			refreshDungeonPanel()
 			busy = false
 			return
@@ -273,6 +281,7 @@ local function shopBuyItem(offerIndex, targetCardId)
 	local res = invoke(deps.remotes.dungeonBuyItem, offerIndex, targetCardId)
 	if res and res.success then
 		dungeonRun = res.run
+		playSound("shop_buy")
 		ShopUI:Show(res.shop, dungeonRun)
 		RunTeamPanel:Update(dungeonRun)
 	elseif res then
@@ -284,6 +293,7 @@ local function shopBuyService(serviceId, targetCardId)
 	local res = invoke(deps.remotes.dungeonBuyService, serviceId, targetCardId)
 	if res and res.success then
 		dungeonRun = res.run
+		playSound("shop_buy")
 		ShopUI:UpdateGold(res.gold)
 		RunTeamPanel:Update(dungeonRun)
 	elseif res then
@@ -375,7 +385,7 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	DungeonMapUI = uiModules.DungeonMapUI
 	ShopUI = uiModules.ShopUI
 
-	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig)
+	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig, deps.SoundManager)
 	BattleController:Init(BattleUI, deps.CombatConfig)
 	RunTeamPanel:Init(screenGui, deps.CardDatabase)
 	EliteBuffUI:Init(screenGui, deps.DungeonConfig, deps.CardDatabase)

@@ -141,7 +141,9 @@ VFXConfig.Ring = {
 	dotSize  = 8,
 }
 
--- Sound slots — replace "rbxassetid://0" with real IDs
+-- Sound slots — replace "rbxassetid://0" with real IDs.
+-- pitchVariance: random +/- applied per play so rapid repeats don't fatigue.
+-- pooled: true = round-robin clones so overlapping plays don't cut each other off.
 VFXConfig.Sounds = {
 	pack_select      = { id = "rbxassetid://0", volume = 0.8,  pitch = 1.00 },
 	rip_click_1      = { id = "rbxassetid://0", volume = 0.70, pitch = 1.05 },
@@ -155,6 +157,36 @@ VFXConfig.Sounds = {
 	reveal_mythic    = { id = "rbxassetid://0", volume = 1.00, pitch = 0.95 },
 	reveal_god       = { id = "rbxassetid://0", volume = 1.00, pitch = 0.88 },
 	reveal_secret    = { id = "rbxassetid://0", volume = 1.00, pitch = 0.70 },
+
+	-- battle (free Creator Store picks — audition in Studio and swap ids freely)
+	battle_start     = { id = "rbxassetid://1840076509", volume = 0.55, pitch = 1.00 },
+	attack_hit       = { id = "rbxassetid://101309544882556", volume = 0.55, pitch = 1.00, pitchVariance = 0.08, pooled = true },
+	attack_crit      = { id = "rbxassetid://7171761940", volume = 0.85, pitch = 0.95, pitchVariance = 0.05, pooled = true },
+	cast             = { id = "rbxassetid://88350532436520", volume = 0.65, pitch = 1.00, pitchVariance = 0.06 },
+	heal             = { id = "rbxassetid://86488607363887", volume = 0.45, pitch = 1.05, pitchVariance = 0.06, pooled = true },
+	shield_gain      = { id = "rbxassetid://120055142560965", volume = 0.55, pitch = 1.00 },
+	unit_death       = { id = "rbxassetid://7130144078", volume = 0.80, pitch = 0.85 },  -- player-side, heavier
+	enemy_death      = { id = "rbxassetid://83416379007273", volume = 0.65, pitch = 1.00, pitchVariance = 0.06, pooled = true },
+	synergy_proc     = { id = "rbxassetid://84811684053512", volume = 0.60, pitch = 1.00 },
+	low_hp_warn      = { id = "rbxassetid://0", volume = 0.60, pitch = 1.00 },
+
+	-- results
+	victory_sting    = { id = "rbxassetid://1836860398", volume = 0.90, pitch = 1.00 },
+	defeat_sting     = { id = "rbxassetid://9040193225", volume = 0.75, pitch = 0.90 },
+	gold_tick        = { id = "rbxassetid://8646410774", volume = 0.35, pitch = 1.10, pooled = true },
+	xp_tick          = { id = "rbxassetid://7381723941", volume = 0.30, pitch = 1.15, pooled = true },
+	level_up         = { id = "rbxassetid://99980076888596", volume = 0.85, pitch = 1.00 },
+	count_finish     = { id = "rbxassetid://1293433423", volume = 0.60, pitch = 1.00 },
+	new_record       = { id = "rbxassetid://84872960927850", volume = 0.90, pitch = 1.00 },
+	bonus_loot       = { id = "rbxassetid://1169806635", volume = 1.00, pitch = 1.00 },
+	mvp_reveal       = { id = "rbxassetid://100288208393628", volume = 0.70, pitch = 1.00 },
+
+	-- map / meta
+	node_select      = { id = "rbxassetid://116115230622905", volume = 0.50, pitch = 1.00, pitchVariance = 0.05 },
+	node_commit      = { id = "rbxassetid://70413169991999", volume = 0.70, pitch = 1.00 },
+	rest_heal        = { id = "rbxassetid://1347153667", volume = 0.60, pitch = 1.00 },
+	shop_buy         = { id = "rbxassetid://135483737426662", volume = 0.65, pitch = 1.00, pitchVariance = 0.05 },
+	buff_pick        = { id = "rbxassetid://84872960927850", volume = 0.75, pitch = 1.10 },
 }
 
 return VFXConfig

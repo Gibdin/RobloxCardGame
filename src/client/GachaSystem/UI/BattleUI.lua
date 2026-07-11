@@ -14,6 +14,7 @@ local frames = {}        -- ["P3"] = { frame, hpBar, hpText, mpBar, shieldBar, s
 local lastActor          -- last unit to attack/cast; attributes the next damage line
 local screenGui
 local CardDatabase, RarityConfig
+local Sound = { Play = function() end, Stop = function() end }  -- no-op until Init provides one
 local speedIndex = 1
 local speeds = { 1, 2 }
 local onSkip
@@ -184,10 +185,11 @@ end
 
 -- ── Init / panel construction ─────────────────────────────────────────────────
 
-function BattleUI:Init(gui, cardDb, rarityConf)
+function BattleUI:Init(gui, cardDb, rarityConf, soundManager)
 	screenGui = gui
 	CardDatabase = cardDb
 	RarityConfig = rarityConf
+	if soundManager then Sound = soundManager end
 
 	panel = Instance.new("Frame")
 	panel.Name = "BattlePanel"
@@ -314,6 +316,7 @@ function BattleUI:BeginBattle(playerStart, enemyStart, floorLabel)
 	headerFloor.Text = floorLabel or "BATTLE"
 	headerRound.Text = ""
 	panel.Visible = true
+	Sound:Play("battle_start")
 end
 
 function BattleUI:SetRound(n)
@@ -350,6 +353,7 @@ function BattleUI:ApplyDamage(ev)
 	setHpVisual(entry, ev.newHp, ev.newShield)
 	local color = ev.crit and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(255, 90, 80)
 	floatText(entry, (ev.crit and "-" .. ev.amount .. "!" or "-" .. ev.amount), color)
+	Sound:Play(ev.crit and "attack_crit" or "attack_hit")
 
 	-- Hit flash so the defender reads at a glance.
 	entry.frame.BackgroundColor3 = HIT_BG
@@ -371,6 +375,7 @@ function BattleUI:ApplyHeal(ev)
 	if not entry then return end
 	setHpVisual(entry, ev.newHp)
 	floatText(entry, "+" .. ev.amount, Color3.fromRGB(120, 235, 140))
+	Sound:Play("heal")
 	logLine(entry.name .. " heals " .. ev.amount .. (ev.source and (" (" .. ev.source .. ")") or ""), Color3.fromRGB(120, 210, 140))
 end
 
@@ -387,6 +392,7 @@ function BattleUI:PlayCast(ev)
 	lastActor = entry
 	entry.mpBar.Size = UDim2.new(0, 0, 1, 0)
 	floatText(entry, "CAST!", Color3.fromRGB(140, 180, 255))
+	Sound:Play("cast")
 	logLine(entry.name .. " casts their active!", Color3.fromRGB(140, 180, 255))
 end
 
@@ -396,6 +402,7 @@ function BattleUI:ApplyShield(ev)
 	local sRatio = math.clamp(ev.newShield / entry.maxHp, 0, 1)
 	TweenService:Create(entry.shieldBar, TweenInfo.new(0.2), { Size = UDim2.new(sRatio, 0, 1, 0) }):Play()
 	floatText(entry, "+" .. ev.amount .. " shield", SH_COL)
+	Sound:Play("shield_gain")
 end
 
 function BattleUI:PlayDeath(ev)
@@ -409,6 +416,7 @@ function BattleUI:PlayDeath(ev)
 		end
 	end
 	logLine(entry.name .. " is defeated!", Color3.fromRGB(235, 90, 80))
+	Sound:Play(ev.dst.side == "E" and "enemy_death" or "unit_death")
 end
 
 function BattleUI:PlayAdvance(ev)
@@ -431,12 +439,14 @@ function BattleUI:ShowSynergy(ev)
 		TextTransparency = 1,
 	}):Play()
 	logLine((ev.side == "P" and "Your " or "Enemy ") .. ev.name .. " synergy (tier " .. ev.tier .. ") is active", Color3.fromRGB(255, 220, 120))
+	if ev.side == "P" then Sound:Play("synergy_proc") end
 end
 
 -- ── Result overlay ────────────────────────────────────────────────────────────
 
 -- payload: { victory, title, lines = {string...}, buttons = { {text, color, cb}... } }
 function BattleUI:ShowResult(payload)
+	Sound:Play(payload.victory and "victory_sting" or "defeat_sting")
 	if resultOverlay then resultOverlay:Destroy() end
 	resultOverlay = Instance.new("Frame")
 	resultOverlay.Size = UDim2.new(1, 0, 1, 0)

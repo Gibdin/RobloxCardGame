@@ -124,6 +124,7 @@ DungeonController:Init(screenGui, {
 	CombatConfig = CombatConfig,
 	TowerConfig = TowerConfig,
 	DungeonConfig = DungeonConfig,
+	SoundManager = SoundManager,
 	onRewardsGranted = function()
 		local ok, packs = pcall(function() return rfGetPacks:InvokeServer() end)
 		if ok and packs then PackOpeningUI:UpdatePackList(packs) end
