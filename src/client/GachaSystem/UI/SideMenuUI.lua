@@ -3,6 +3,7 @@
 -- No other changes required.
 
 local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local SideMenuUI = {}
 
@@ -20,6 +21,11 @@ local BUTTONS = {
 	{ id="battle",    label="BATTLE",    color=Color3.fromRGB(200,  70,  70) },
 	{ id="settings",  label="SETTINGS",  color=Color3.fromRGB(100,  90, 170) },
 }
+
+-- Studio-only test shortcut; never appears on a published server.
+if RunService:IsStudio() then
+	table.insert(BUTTONS, { id="debug", label="DEBUG TEST", color=Color3.fromRGB(255, 200, 40) })
+end
 
 local handlers = {}
 local activeBtn = nil

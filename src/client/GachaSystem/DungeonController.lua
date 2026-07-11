@@ -336,6 +336,21 @@ local function abandonDungeon()
 	ModeSelectUI:Show(DungeonController:_modeInfo())
 end
 
+-- ── Debug (Studio-only) ───────────────────────────────────────────────────────
+
+-- One-click test shortcut: seeds a competent team and drops straight into a
+-- fresh dungeon run, abandoning any run already in progress.
+function DungeonController:DebugQuickStart()
+	local setup = invoke(deps.remotes.debugQuickSetup)
+	if not setup or not setup.success then
+		warn("[Debug] QuickSetup failed:", setup and setup.error)
+		return
+	end
+	if invoke(deps.remotes.towerGetState) then invoke(deps.remotes.towerAbandon) end
+	if invoke(deps.remotes.dungeonGetState) then invoke(deps.remotes.dungeonAbandon) end
+	openDungeon()
+end
+
 -- ── Public API ────────────────────────────────────────────────────────────────
 
 function DungeonController:_modeInfo()

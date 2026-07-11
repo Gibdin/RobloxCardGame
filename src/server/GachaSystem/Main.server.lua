@@ -10,6 +10,7 @@ local PackService      = require(Services.PackService)
 local PityService      = require(Services.PityService)
 local TowerService     = require(Services.TowerService)
 local DungeonService   = require(Services.DungeonService)
+local DebugService     = require(Services.DebugService)
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
 
@@ -51,6 +52,8 @@ local rfDungeonBuyItem     = RF("Dungeon_BuyItem")
 local rfDungeonBuyService  = RF("Dungeon_BuyService")
 local rfDungeonReroll      = RF("Dungeon_RerollShop")
 local rfDungeonAbandon     = RF("Dungeon_Abandon")
+
+local rfDebugQuickSetup = RF("Debug_QuickSetup")
 
 -- ── Remote handlers ──────────────────────────────────────────────────────────
 
@@ -139,6 +142,10 @@ end
 
 rfDungeonAbandon.OnServerInvoke = function(player)
 	return DungeonService:Abandon(player.UserId)
+end
+
+rfDebugQuickSetup.OnServerInvoke = function(player)
+	return DebugService:QuickSetup(player.UserId)
 end
 
 -- ── Player lifecycle ──────────────────────────────────────────────────────────

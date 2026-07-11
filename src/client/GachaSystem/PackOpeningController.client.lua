@@ -38,6 +38,7 @@ local rfDungeonBuyItem    = remotes:WaitForChild("Dungeon_BuyItem")
 local rfDungeonBuyService = remotes:WaitForChild("Dungeon_BuyService")
 local rfDungeonReroll     = remotes:WaitForChild("Dungeon_RerollShop")
 local rfDungeonAbandon    = remotes:WaitForChild("Dungeon_Abandon")
+local rfDebugQuickSetup   = remotes:WaitForChild("Debug_QuickSetup")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -115,6 +116,7 @@ DungeonController:Init(screenGui, {
 		dungeonBuyService = rfDungeonBuyService,
 		dungeonReroll = rfDungeonReroll,
 		dungeonAbandon = rfDungeonAbandon,
+		debugQuickSetup = rfDebugQuickSetup,
 		getInventory = rfGetInventory,
 	},
 	CardDatabase = CardDatabase,
@@ -290,6 +292,7 @@ SideMenuUI:Init(screenGui,{
 	end,
 	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
 	settings=function() closeAllExcept("settings"); settingsPanel.Visible=not settingsPanel.Visible end,
+	debug=function() closeAllExcept("battle"); DungeonController:DebugQuickStart() end,
 })
 
 refreshPacks()
