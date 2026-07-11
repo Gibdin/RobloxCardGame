@@ -8,7 +8,10 @@ local BattleUI = {}
 
 local panel, headerRound, headerFloor, speedBtn, skipBtn
 local enemyRow, playerRow, toastLabel, resultOverlay
-local frames = {}        -- ["P3"] = { frame, hpBar, hpText, mpBar, shieldBar, scale, unit }
+local logFrame, logLayout
+local logCount = 0
+local frames = {}        -- ["P3"] = { frame, hpBar, hpText, mpBar, shieldBar, scale, name, baseScale }
+local lastActor          -- last unit to attack/cast; attributes the next damage line
 local screenGui
 local CardDatabase, RarityConfig
 local speedIndex = 1
@@ -20,12 +23,57 @@ local HP_HI   = Color3.fromRGB(70, 200, 110)
 local HP_LO   = Color3.fromRGB(210, 70, 60)
 local MP_COL  = Color3.fromRGB(80, 140, 240)
 local SH_COL  = Color3.fromRGB(200, 220, 255)
+local FRAME_BG = Color3.fromRGB(22, 22, 38)
+local HIT_BG   = Color3.fromRGB(120, 35, 45)
+
+local MAX_LOG_LINES = 60
 
 local function corner(inst, r)
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = inst
 end
 
 local function key(refT) return refT.side .. refT.slot end
+
+-- ── Damage log ────────────────────────────────────────────────────────────────
+
+local function logLine(text, color)
+	if not logFrame then return end
+	logCount = logCount + 1
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -6, 0, 16)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.TextColor3 = color or Color3.fromRGB(190, 190, 215)
+	lbl.TextSize = 13
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.TextTruncate = Enum.TextTruncate.AtEnd
+	lbl.LayoutOrder = logCount
+	lbl.ZIndex = 32
+	lbl.Parent = logFrame
+
+	-- Trim old lines and keep the view pinned to the newest entry.
+	local children = logFrame:GetChildren()
+	local labels = {}
+	for _, c in ipairs(children) do
+		if c:IsA("TextLabel") then table.insert(labels, c) end
+	end
+	if #labels > MAX_LOG_LINES then
+		table.sort(labels, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+		for i = 1, #labels - MAX_LOG_LINES do labels[i]:Destroy() end
+	end
+	logFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 4)
+	logFrame.CanvasPosition = Vector2.new(0, math.max(0, logLayout.AbsoluteContentSize.Y - logFrame.AbsoluteSize.Y))
+end
+
+local function clearLog()
+	if not logFrame then return end
+	for _, c in ipairs(logFrame:GetChildren()) do
+		if c:IsA("TextLabel") then c:Destroy() end
+	end
+	logCount = 0
+	logFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+end
 
 -- ── Unit frames ───────────────────────────────────────────────────────────────
 
@@ -99,6 +147,7 @@ local function buildUnitFrame(parent, unit, order)
 		frame = f, hpBar = hpBar, hpText = hpText, mpBar = mpBar,
 		shieldBar = shieldBar, scale = scale,
 		maxHp = unit.maxHp, maxMp = unit.maxMp,
+		name = unit.name, baseScale = 1,
 	}
 end
 
@@ -194,7 +243,7 @@ function BattleUI:Init(gui, cardDb, rarityConf)
 
 	local function row(yScale)
 		local r = Instance.new("Frame")
-		r.Size = UDim2.new(1, -24, 0.34, 0)
+		r.Size = UDim2.new(1, -24, 0.32, 0)
 		r.Position = UDim2.new(0, 12, yScale, 0)
 		r.BackgroundTransparency = 1
 		r.ZIndex = 31
@@ -209,7 +258,29 @@ function BattleUI:Init(gui, cardDb, rarityConf)
 		return r
 	end
 	enemyRow = row(0.08)
-	playerRow = row(0.56)
+	playerRow = row(0.54)
+
+	-- Damage log strip along the bottom of the panel.
+	logFrame = Instance.new("ScrollingFrame")
+	logFrame.Name = "DamageLog"
+	logFrame.Size = UDim2.new(1, -24, 0.11, 0)
+	logFrame.Position = UDim2.new(0, 12, 0.875, 0)
+	logFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+	logFrame.BackgroundTransparency = 0.35
+	logFrame.BorderSizePixel = 0
+	logFrame.ScrollBarThickness = 4
+	logFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	logFrame.ZIndex = 31
+	logFrame.Parent = panel
+	corner(logFrame, 6)
+	logLayout = Instance.new("UIListLayout")
+	logLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	logLayout.Padding = UDim.new(0, 1)
+	logLayout.Parent = logFrame
+	local logPad = Instance.new("UIPadding")
+	logPad.PaddingLeft = UDim.new(0, 6)
+	logPad.PaddingTop = UDim.new(0, 3)
+	logPad.Parent = logFrame
 
 	toastLabel = Instance.new("TextLabel")
 	toastLabel.Size = UDim2.new(0.5, 0, 0, 26)
@@ -226,6 +297,8 @@ end
 function BattleUI:BeginBattle(playerStart, enemyStart, floorLabel)
 	for _, entry in pairs(frames) do entry.frame:Destroy() end
 	frames = {}
+	lastActor = nil
+	clearLog()
 	if resultOverlay then resultOverlay:Destroy(); resultOverlay = nil end
 
 	for i, unit in ipairs(enemyStart) do
@@ -245,18 +318,29 @@ end
 
 function BattleUI:SetRound(n)
 	headerRound.Text = "Round " .. n
+	logLine("— Round " .. n .. " —", Color3.fromRGB(120, 120, 155))
 end
 
 function BattleUI:PlayAttack(ev)
 	local entry = frames[key(ev.src)]
 	if not entry then return end
+	lastActor = entry
+	-- The unit frames live under a UIListLayout, which owns their Position —
+	-- so the bump animates Scale and Rotation (layout-safe) instead: a quick
+	-- pop toward the target with a tilt, then settle back.
 	local dir = ev.src.side == "P" and -1 or 1
-	local orig = entry.frame.Position
-	TweenService:Create(entry.frame, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = orig + UDim2.new(0, 0, 0.08 * dir, 0),
+	entry.frame.Rotation = 0
+	TweenService:Create(entry.scale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Scale = entry.baseScale * 1.16,
 	}):Play()
-	task.delay(0.14, function()
-		TweenService:Create(entry.frame, TweenInfo.new(0.15), { Position = orig }):Play()
+	TweenService:Create(entry.frame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Rotation = 7 * dir,
+	}):Play()
+	task.delay(0.12, function()
+		TweenService:Create(entry.scale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = entry.baseScale,
+		}):Play()
+		TweenService:Create(entry.frame, TweenInfo.new(0.18), { Rotation = 0 }):Play()
 	end)
 end
 
@@ -266,6 +350,20 @@ function BattleUI:ApplyDamage(ev)
 	setHpVisual(entry, ev.newHp, ev.newShield)
 	local color = ev.crit and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(255, 90, 80)
 	floatText(entry, (ev.crit and "-" .. ev.amount .. "!" or "-" .. ev.amount), color)
+
+	-- Hit flash so the defender reads at a glance.
+	entry.frame.BackgroundColor3 = HIT_BG
+	TweenService:Create(entry.frame, TweenInfo.new(0.3), { BackgroundColor3 = FRAME_BG }):Play()
+
+	local suffix = ev.crit and "  CRIT!" or ""
+	if ev.source == "reflect" then
+		logLine(entry.name .. " takes " .. ev.amount .. " reflected damage", Color3.fromRGB(200, 160, 120))
+	elseif ev.source == "chain" then
+		logLine((lastActor and lastActor.name or "?") .. " chains to " .. entry.name .. " for " .. ev.amount .. suffix, Color3.fromRGB(140, 190, 255))
+	else
+		logLine((lastActor and lastActor.name or "?") .. " hits " .. entry.name .. " for " .. ev.amount .. suffix,
+			ev.crit and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(230, 140, 130))
+	end
 end
 
 function BattleUI:ApplyHeal(ev)
@@ -273,6 +371,7 @@ function BattleUI:ApplyHeal(ev)
 	if not entry then return end
 	setHpVisual(entry, ev.newHp)
 	floatText(entry, "+" .. ev.amount, Color3.fromRGB(120, 235, 140))
+	logLine(entry.name .. " heals " .. ev.amount .. (ev.source and (" (" .. ev.source .. ")") or ""), Color3.fromRGB(120, 210, 140))
 end
 
 function BattleUI:SetMp(ev)
@@ -285,8 +384,10 @@ end
 function BattleUI:PlayCast(ev)
 	local entry = frames[key(ev.src)]
 	if not entry then return end
+	lastActor = entry
 	entry.mpBar.Size = UDim2.new(0, 0, 1, 0)
 	floatText(entry, "CAST!", Color3.fromRGB(140, 180, 255))
+	logLine(entry.name .. " casts their active!", Color3.fromRGB(140, 180, 255))
 end
 
 function BattleUI:ApplyShield(ev)
@@ -307,6 +408,7 @@ function BattleUI:PlayDeath(ev)
 			TweenService:Create(child, TweenInfo.new(0.4), { TextTransparency = 0.6 }):Play()
 		end
 	end
+	logLine(entry.name .. " is defeated!", Color3.fromRGB(235, 90, 80))
 end
 
 function BattleUI:PlayAdvance(ev)
@@ -314,8 +416,9 @@ function BattleUI:PlayAdvance(ev)
 	for k, entry in pairs(frames) do
 		if k:sub(1, 1) == ev.side then
 			local isFront = k == ev.side .. ev.newFrontSlot
+			entry.baseScale = isFront and 1.12 or 1
 			TweenService:Create(entry.scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Scale = isFront and 1.12 or 1,
+				Scale = entry.baseScale,
 			}):Play()
 		end
 	end
@@ -327,6 +430,7 @@ function BattleUI:ShowSynergy(ev)
 	TweenService:Create(toastLabel, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		TextTransparency = 1,
 	}):Play()
+	logLine((ev.side == "P" and "Your " or "Enemy ") .. ev.name .. " synergy (tier " .. ev.tier .. ") is active", Color3.fromRGB(255, 220, 120))
 end
 
 -- ── Result overlay ────────────────────────────────────────────────────────────
