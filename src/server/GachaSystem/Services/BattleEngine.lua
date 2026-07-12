@@ -13,8 +13,8 @@
 --      frontliner dies mid-phase, later attackers hit the replacement.
 --   4. Round end: Medic heals, MP round gain (batched mp events), win check
 --
--- Divine Pantheon T4 revive is STUBBED in v1 (emits a synergy event with
--- meta.stubbed = true at battle start); item-based reviveOnce IS implemented.
+-- Revives: item-based reviveOnce and Divine Pantheon T4 (members, once per
+-- battle, at revivePct of max HP) are both implemented in applyDamage.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CombatConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CombatConfig"))
@@ -140,7 +140,7 @@ function BattleEngine.BuildUnit(card, slot, teamContext, mods)
 			lowHpAtkBonus   = mods.lowHpAtkBonus or 0,
 			reviveOnce      = mods.reviveOnce or false,
 		},
-		flags = { survivedLethal = false, reviveUsed = false, marked = false },
+		flags = { survivedLethal = false, reviveUsed = false, synergyReviveUsed = false, marked = false },
 	}
 end
 
@@ -302,12 +302,29 @@ function Resolver:applyDamage(srcSide, src, dstSide, dst, final, source, crit, a
 	if dst.hp > 0 and dst.passive == "Drain" then
 		self:heal(dstSide, dst, final * Passives.Drain.healPctOfDamageTaken, "Drain")
 	end
+	-- Lifesteal: attacker heals for a share of damage dealt. Basic attacks and
+	-- actives only — reflect/chain excluded so reflected damage can't double-dip.
+	-- Synergy lifesteal (Abyssal Order) is member-only, matching the tidal gate.
+	if src and src.alive and (source == "attack" or source == "active") then
+		local ls = src.mods.lifestealPct
+		if (srcSide.syn.lifestealPct or 0) > 0 and isMember(src, "Abyssal Order") then
+			ls = ls + srcSide.syn.lifestealPct
+		end
+		if ls > 0 then
+			self:heal(srcSide, src, final * ls, "lifesteal")
+		end
+	end
 	self:checkTidal(dstSide)
 
 	if dst.hp <= 0 then
 		if dst.mods.reviveOnce and not dst.flags.reviveUsed then
 			dst.flags.reviveUsed = true
 			dst.hp = math.max(1, math.floor(0.30 * dst.maxHp))
+			self:emit({ t = "heal", dst = ref(dstSide, dst), amount = dst.hp, newHp = dst.hp, source = "revive" })
+		elseif (dstSide.syn.revivePct or 0) > 0 and isMember(dst, "Divine Pantheon") and not dst.flags.synergyReviveUsed then
+			dst.flags.synergyReviveUsed = true
+			dst.hp = math.max(1, math.floor(dstSide.syn.revivePct * dst.maxHp))
+			self:emit({ t = "synergy", side = dstSide.key, name = "Divine Pantheon", tier = 4, meta = { proc = "revive", slot = dst.slot } })
 			self:emit({ t = "heal", dst = ref(dstSide, dst), amount = dst.hp, newHp = dst.hp, source = "revive" })
 		else
 			self:kill(dstSide, dst, srcSide, src)
@@ -439,13 +456,10 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 	P.enemy, E.enemy = E, P
 	self.sideList = { P, E }
 
-	-- Announce active synergies (UI toasts; also surfaces the Divine T4 stub).
+	-- Announce active synergies (UI toasts).
 	for _, side in ipairs(self.sideList) do
 		for series, tier in pairs(side.tiers) do
-			self:emit({
-				t = "synergy", side = side.key, name = series, tier = tier,
-				meta = { stubbed = CombatConfig.Synergies[series][tier].reviveStub or nil },
-			})
+			self:emit({ t = "synergy", side = side.key, name = series, tier = tier, meta = {} })
 		end
 	end
 

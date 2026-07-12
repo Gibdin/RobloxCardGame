@@ -97,6 +97,40 @@ DungeonConfig.Rewards = {
 	BossPacks  = { RarePack = 2 },
 }
 
+-- ── Bonus loot: rare surprise drop on Mob/Elite wins (Boss always pays) ───────
+DungeonConfig.BonusLoot = {
+	Chance  = 0.12,
+	Weights = { goldJackpot = 50, freeItem = 30, bonusPack = 20 },
+	GoldJackpot = { MultLo = 2, MultHi = 3 },   -- × the node's normal gold award
+	BonusPack   = { StandardPack = 1 },
+}
+
+-- ── Map-node previews (baked at run start; shown before committing a node) ────
+DungeonConfig.Preview = {
+	-- Which battle node types reveal the actual enemy cards in the tooltip.
+	ShowCardsFor = { Elite = true, Boss = true },
+	DangerStars = function(kind, row)
+		if kind == "Boss" then return 5 end
+		local stars = (row <= 3 and 1) or (row <= 6 and 2) or (row <= 9 and 3) or 4
+		if kind == "Elite" then stars = math.min(5, stars + 1) end
+		return stars
+	end,
+	RewardHint = function(kind, row)
+		if kind == "Mob" then
+			return "~" .. (45 + 6 * row + 5) .. "g + XP"
+		elseif kind == "Elite" then
+			return "Pack + Blessing + " .. (100 + 8 * row) .. "g"
+		elseif kind == "Boss" then
+			return "2x Rare Pack + 250g"
+		elseif kind == "Rest" then
+			return "Heal team 35% HP"
+		elseif kind == "Shop" then
+			return "Buy items & heals"
+		end
+		return ""
+	end,
+}
+
 -- ── Enemy scaling ─────────────────────────────────────────────────────────────
 DungeonConfig.Enemies = {
 	TeamSize = function(row)

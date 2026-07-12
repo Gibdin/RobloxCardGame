@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gachaShared   = ReplicatedStorage:WaitForChild("GachaSystem")
 local CardDatabase  = require(gachaShared:WaitForChild("CardDatabase"))
 local DungeonConfig = require(gachaShared:WaitForChild("DungeonConfig"))
+local RarityConfig  = require(gachaShared:WaitForChild("RarityConfig"))
 
 local BattleEngine     = require(script.Parent.BattleEngine)
 local EnemyGenerator   = require(script.Parent.EnemyGenerator)
@@ -157,6 +158,96 @@ local function reachableNodeIds(run)
 	return reachable
 end
 
+-- Seed formula for a node's battle. Previews are baked with the SAME formula
+-- (see bakePreviews), which is what makes them honest: the enemies shown are
+-- exactly the enemies fought. Keep the two call sites in sync.
+local function nodeSeedFor(run, node)
+	return run.seed * 1000 + node.row * 10 + node.col
+end
+
+-- Annotates every battle node with an honest preview at run start. Enemy
+-- generation is cheap (a few table picks), so ~40 nodes is negligible.
+local function bakePreviews(run)
+	for r = 1, run.map.maxRow do
+		for _, node in ipairs(run.map.rows[r]) do
+			if node.type == "Mob" or node.type == "Elite" or node.type == "Boss" then
+				local gen = EnemyGenerator.Generate(node.type, node.row, nodeSeedFor(run, node))
+				local bandOrder, band = 0, "Common"
+				for _, card in ipairs(gen.cards) do
+					local o = RarityConfig:GetOrder(card.rarity)
+					if o > bandOrder then bandOrder, band = o, card.rarity end
+				end
+				local preview = {
+					enemyCount = #gen.cards,
+					rarityBand = band,
+					danger = DungeonConfig.Preview.DangerStars(node.type, node.row),
+				}
+				if DungeonConfig.Preview.ShowCardsFor[node.type] then
+					local ids = {}
+					for _, card in ipairs(gen.cards) do table.insert(ids, card.id) end
+					preview.cards = ids
+				end
+				node.preview = preview
+			end
+		end
+	end
+end
+
+-- Seeded bonus-drop roll on a Mob/Elite win. Dedicated rng stream (offset 31)
+-- so it never correlates with the gold roll at offset 7.
+local function rollBonusLoot(userId, run, nodeSeed, goldAward)
+	local conf = DungeonConfig.BonusLoot
+	local rng = Random.new(nodeSeed + 31)
+	if rng:NextNumber() >= conf.Chance then return nil end
+
+	-- Weighted kind pick (sorted keys for deterministic iteration).
+	local kinds = {}
+	local total = 0
+	for k, w in pairs(conf.Weights) do
+		table.insert(kinds, k)
+		total = total + w
+	end
+	table.sort(kinds)
+	local roll = rng:NextNumber() * total
+	local acc, kind = 0, kinds[#kinds]
+	for _, k in ipairs(kinds) do
+		acc = acc + conf.Weights[k]
+		if roll <= acc then kind = k break end
+	end
+
+	if kind == "freeItem" then
+		-- Grant a random item to a random team card with a free slot;
+		-- fall back to a gold jackpot if everyone is full.
+		local itemIds = {}
+		for id in pairs(DungeonConfig.Items) do table.insert(itemIds, id) end
+		table.sort(itemIds)
+		local itemId = itemIds[rng:NextInteger(1, #itemIds)]
+		local candidates = {}
+		for _, id in ipairs(run.team) do
+			if id and run.cards[id] and #run.cards[id].items < DungeonConfig.MaxItemsPerCard then
+				table.insert(candidates, id)
+			end
+		end
+		if #candidates > 0 then
+			local cardId = candidates[rng:NextInteger(1, #candidates)]
+			table.insert(run.cards[cardId].items, itemId)
+			return { kind = "freeItem", itemId = itemId, cardId = cardId }
+		end
+		kind = "goldJackpot"
+	end
+
+	if kind == "goldJackpot" then
+		local mult = rng:NextInteger(conf.GoldJackpot.MultLo, conf.GoldJackpot.MultHi)
+		local extra = goldAward * mult
+		run.gold = run.gold + extra
+		return { kind = "goldJackpot", gold = extra }
+	end
+
+	-- bonusPack
+	grantPacks(userId, conf.BonusPack)
+	return { kind = "bonusPack", packs = conf.BonusPack }
+end
+
 -- ── Public API ────────────────────────────────────────────────────────────────
 
 function DungeonService:GetState(userId)
@@ -208,7 +299,7 @@ function DungeonService:Start(userId)
 	local seed = Random.new():NextInteger(1, 2 ^ 30)
 	local map = MapGenerator.Generate(seed)
 
-	runs[userId] = {
+	local run = {
 		userId = userId, seed = seed,
 		map = map, mapIndex = MapGenerator.Index(map),
 		position = false, gold = DungeonConfig.Gold.Start,
@@ -216,11 +307,17 @@ function DungeonService:Start(userId)
 		pendingBuffChoices = nil, shopStock = {},
 		state = "Map", inBattle = false, deepestRow = 0,
 	}
+	bakePreviews(run)
+	runs[userId] = run
 	return { success = true, run = self:GetState(userId) }
 end
 
 local function finishRun(userId, run, finalState)
 	run.state = finalState
+	InventoryService:RecordDungeonResult(userId, {
+		deepestRow = run.deepestRow,
+		completed = finalState == "Complete",
+	})
 	runs[userId] = nil
 	RunLock.Release(userId)
 end
@@ -245,7 +342,8 @@ function DungeonService:ChooseNode(userId, nodeId)
 	if node.type == "Mob" or node.type == "Elite" or node.type == "Boss" then
 		run.inBattle = true
 		local row = node.row
-		local nodeSeed = run.seed * 1000 + row * 10 + node.col
+		-- Same formula bakePreviews used, so the preview always matches.
+		local nodeSeed = nodeSeedFor(run, node)
 
 		local playerUnits = buildPlayerUnits(run)
 		local gen = EnemyGenerator.Generate(node.type, row, nodeSeed)
@@ -276,6 +374,9 @@ function DungeonService:ChooseNode(userId, nodeId)
 
 			payload.rewards = { xp = xpReport, gold = goldAward }
 
+			-- Career-best check BEFORE finishRun records this run.
+			payload.newDeepest = run.deepestRow > InventoryService:GetDungeonStats(userId).deepestRow
+
 			if node.type == "Elite" then
 				local packs = grantPacks(userId, DungeonConfig.Rewards.ElitePacks)
 				payload.rewards.packs = packs
@@ -286,12 +387,23 @@ function DungeonService:ChooseNode(userId, nodeId)
 				payload.rewards.packs = packs
 				payload.runOver = true
 				payload.complete = true
+			end
+
+			-- Surprise drop on Mob/Elite wins (boss reward is already the jackpot).
+			if node.type ~= "Boss" then
+				payload.rewards.bonus = rollBonusLoot(userId, run, nodeSeed, goldAward)
+			end
+
+			if node.type == "Boss" then
 				finishRun(userId, run, "Complete")
+				payload.records = InventoryService:GetDungeonStats(userId)
 			end
 		else
 			payload.runOver = true
 			payload.deepestRow = run.deepestRow
+			payload.newDeepest = run.deepestRow > InventoryService:GetDungeonStats(userId).deepestRow
 			finishRun(userId, run, "Dead")
+			payload.records = InventoryService:GetDungeonStats(userId)
 		end
 
 		payload.run = runs[userId] and self:GetState(userId) or nil
@@ -406,13 +518,17 @@ function DungeonService:Abandon(userId)
 	local run = runs[userId]
 	if not run then return { success = false } end
 	local deepestRow = run.deepestRow
+	InventoryService:RecordDungeonResult(userId, { deepestRow = deepestRow, completed = false })
 	runs[userId] = nil
 	RunLock.Release(userId)
 	return { success = true, deepestRow = deepestRow }
 end
 
 function DungeonService:Cleanup(userId)
-	if runs[userId] then
+	local run = runs[userId]
+	if run then
+		-- Disconnect mid-run still counts toward career records.
+		InventoryService:RecordDungeonResult(userId, { deepestRow = run.deepestRow, completed = false })
 		runs[userId] = nil
 		RunLock.Release(userId)
 	end

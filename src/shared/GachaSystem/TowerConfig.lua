@@ -53,4 +53,10 @@ TowerConfig.Milestones = {
 TowerConfig.RepeatEvery = 10       -- floors 30, 40, 50, ...
 TowerConfig.RepeatPacks = { RarePack = 1 }
 
+-- ── Bonus loot: rare surprise pack on floor wins ──────────────────────────────
+TowerConfig.BonusLoot = {
+	Chance = 0.10,
+	Pack   = { StandardPack = 1 },
+}
+
 return TowerConfig

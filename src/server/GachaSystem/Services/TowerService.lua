@@ -228,11 +228,20 @@ function TowerService:NextFloor(userId)
 		local packs = grantPacks(userId, milestonePacks(floor))
 		InventoryService:SetBestFloor(userId, floor)
 
+		-- Surprise pack drop (dedicated seeded stream; offset 31 mirrors the
+		-- dungeon's bonus-loot stream).
+		local bonus
+		local lootRng = Random.new(floorSeed + 31)
+		if lootRng:NextNumber() < TowerConfig.BonusLoot.Chance then
+			grantPacks(userId, TowerConfig.BonusLoot.Pack)
+			bonus = { kind = "bonusPack", packs = TowerConfig.BonusLoot.Pack }
+		end
+
 		if floor % TowerConfig.BuffPickEvery == 0 then
 			run.pendingBuffChoices = drawBuffChoices(run.seed + floor * 31337)
 			run.state = "PickingBuff"
 		end
-		payload.rewards = { xp = xpReport, packs = packs }
+		payload.rewards = { xp = xpReport, packs = packs, bonus = bonus }
 	else
 		run.state = "Dead"
 		payload.runOver = true

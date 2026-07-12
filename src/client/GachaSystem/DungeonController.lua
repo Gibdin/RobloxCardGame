@@ -2,13 +2,17 @@
 -- mode select → Endless Tower | Dungeon Run. Initialized by
 -- PackOpeningController like the other UI modules.
 
+local BattleStats = require(script.Parent.BattleStats)
+
 local DungeonController = {}
 
-local deps           -- { remotes, CardDatabase, RarityConfig, CombatConfig, TowerConfig, DungeonConfig, onRewardsGranted }
+local deps           -- { remotes, CardDatabase, RarityConfig, CombatConfig, TowerConfig, DungeonConfig, RoleConfig, VFXConfig, SoundManager, onRewardsGranted, onOpenPackNow }
 local ModeSelectUI, TowerUI, EliteBuffUI, RunTeamPanel, BattleUI, BattleController, DungeonMapUI, ShopUI
 local towerRun        -- latest tower run snapshot (nil = no active run)
 local dungeonRun       -- latest dungeon run snapshot (nil = no active run)
 local busy = false
+
+local GOLD_BTN = Color3.fromRGB(220, 170, 50)
 
 local function invoke(rf, ...)
 	local args = { ... }
@@ -26,32 +30,73 @@ local function playSound(name)
 	if deps.SoundManager then deps.SoundManager:Play(name) end
 end
 
-local function describeRewards(rewards)
-	local lines = {}
-	if rewards and rewards.xp then
-		local levelUps = {}
-		for idStr, rep in pairs(rewards.xp) do
-			if rep.leveledUp then
-				local card = deps.CardDatabase:GetById(tonumber(idStr))
-				table.insert(levelUps, (card and card.name or idStr) .. " -> Lv" .. rep.level)
-			end
-		end
-		if #levelUps > 0 then
-			table.insert(lines, "Level up: " .. table.concat(levelUps, ", "))
+-- ── Result payload building ───────────────────────────────────────────────────
+
+local function summarizeXp(xpReport)
+	if not xpReport then return nil, nil end
+	local total = 0
+	local levelUps = {}
+	for idStr, rep in pairs(xpReport) do
+		total = total + (rep.gained or 0)
+		if rep.leveledUp then
+			local card = deps.CardDatabase:GetById(tonumber(idStr))
+			table.insert(levelUps, (card and card.name or idStr) .. " reached Lv " .. rep.level .. "!")
 		end
 	end
-	if rewards and rewards.gold and rewards.gold > 0 then
-		table.insert(lines, "Gold earned: " .. rewards.gold)
+	return total, levelUps
+end
+
+local function buildSummary(battle)
+	local stats = BattleStats.Fold(battle)
+	local summary = {
+		rounds = stats.rounds,
+		totalDamage = stats.totalDamage,
+		kills = stats.kills,
+	}
+	if stats.mvp and stats.mvp.damageDealt > 0 then
+		summary.mvpName = stats.mvp.name
+		summary.mvpDamage = stats.mvp.damageDealt
+		local card = deps.CardDatabase:GetById(stats.mvp.cardId)
+		local rarityDef = card and deps.RarityConfig.Rarities[card.rarity]
+		summary.mvpColor = rarityDef and rarityDef.color or nil
 	end
-	if rewards and rewards.packs then
+	return summary
+end
+
+local function buildBonus(bonus)
+	if not bonus then return nil end
+	local out = { kind = bonus.kind, gold = bonus.gold }
+	if bonus.kind == "freeItem" then
+		local item = deps.DungeonConfig.Items[bonus.itemId]
+		out.itemName = item and item.name or bonus.itemId
+		local card = bonus.cardId and deps.CardDatabase:GetById(bonus.cardId)
+		out.cardName = card and card.name or "?"
+	elseif bonus.kind == "bonusPack" then
 		local parts = {}
-		for packType, n in pairs(rewards.packs) do
+		for packType, n in pairs(bonus.packs or {}) do
 			table.insert(parts, n .. "x " .. packType:gsub("Pack", " Pack"))
 		end
-		table.insert(lines, "Packs earned: " .. table.concat(parts, ", "))
-		if deps.onRewardsGranted then deps.onRewardsGranted() end
+		out.packLabel = table.concat(parts, ", ")
 	end
-	return lines
+	return out
+end
+
+-- Notifies the packs drawer and inserts an OPEN NOW button when packs dropped.
+local function withOpenNow(buttons, rewards, continueCb)
+	local packs = rewards and rewards.packs
+	local bonusPacks = rewards and rewards.bonus and rewards.bonus.packs
+	local packType = (packs and next(packs)) or (bonusPacks and next(bonusPacks))
+	if (packs or bonusPacks) and deps.onRewardsGranted then
+		deps.onRewardsGranted()
+	end
+	if packType and deps.onOpenPackNow then
+		table.insert(buttons, 1, { text = "OPEN NOW", color = GOLD_BTN, cb = function()
+			BattleUI:Hide()
+			deps.onOpenPackNow(packType)
+			continueCb()
+		end })
+	end
+	return buttons
 end
 
 -- ── Tower flow ────────────────────────────────────────────────────────────────
@@ -96,40 +141,47 @@ local function fightFloor()
 		local label = res.boss and ("TOWER — FLOOR " .. res.floor .. " (BOSS)") or ("TOWER — FLOOR " .. res.floor)
 		BattleController:Play(res.battle, label)
 
-		local lines = describeRewards(res.rewards)
 		if res.victory then
 			towerRun = res.run
-			table.insert(lines, 1, "Floor " .. res.floor .. " cleared!")
+			refreshTowerPanel()
+			RunTeamPanel:PlayXpGains(res.rewards and res.rewards.xp)
+
+			local xpTotal, levelUps = summarizeXp(res.rewards and res.rewards.xp)
+			local continueCb = function()
+				BattleUI:Hide()
+				refreshTowerPanel()
+				TowerUI:Show()
+				handleTowerBuffChoices()
+			end
 			BattleUI:ShowResult({
 				victory = true,
-				title = "VICTORY",
-				lines = lines,
-				buttons = {
-					{ text = "CONTINUE", color = Color3.fromRGB(70, 170, 90), cb = function()
-						BattleUI:Hide()
-						refreshTowerPanel()
-						TowerUI:Show()
-						handleTowerBuffChoices()
-					end },
-				},
+				title = "FLOOR " .. res.floor .. " CLEARED",
+				summary = buildSummary(res.battle),
+				xpTotal = xpTotal,
+				levelUps = levelUps,
+				packs = res.rewards and res.rewards.packs,
+				bonus = buildBonus(res.rewards and res.rewards.bonus),
+				buttons = withOpenNow({
+					{ text = "CONTINUE", color = Color3.fromRGB(70, 170, 90), cb = continueCb },
+				}, res.rewards, continueCb),
 			})
 		else
 			towerRun = nil
+			local closeCb = function()
+				BattleUI:Hide()
+				RunTeamPanel:Hide()
+				ModeSelectUI:Show(DungeonController:_modeInfo())
+			end
 			BattleUI:ShowResult({
 				victory = false,
 				title = "DEFEATED",
+				summary = buildSummary(res.battle),
 				lines = {
 					"You fell on floor " .. res.floor,
 					"Floors cleared: " .. (res.floorsCleared or 0),
 					"Best: Floor " .. (res.bestFloor or 0),
 				},
-				buttons = {
-					{ text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = function()
-						BattleUI:Hide()
-						RunTeamPanel:Hide()
-						ModeSelectUI:Show(DungeonController:_modeInfo())
-					end },
-				},
+				buttons = { { text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = closeCb } },
 			})
 		end
 		busy = false
@@ -192,7 +244,6 @@ end
 local function chooseNode(nodeId)
 	if busy or not dungeonRun then return end
 	busy = true
-	playSound("node_select")
 
 	task.spawn(function()
 		local res = invoke(deps.remotes.dungeonChooseNode, nodeId)
@@ -224,53 +275,73 @@ local function chooseNode(nodeId)
 			or (res.nodeType == "Elite" and "DUNGEON — ELITE" or "DUNGEON")
 		BattleController:Play(res.battle, label)
 
-		local lines = describeRewards(res.rewards)
 		if res.victory then
 			dungeonRun = res.run
-			table.insert(lines, 1, res.nodeType .. " defeated!")
+			local xpTotal, levelUps = summarizeXp(res.rewards and res.rewards.xp)
+			local recordLabel = res.newDeepest and res.run and ("NEW DEEPEST ROW: " .. res.run.deepestRow) or nil
+
+			if res.run then
+				refreshDungeonPanel()
+				RunTeamPanel:PlayXpGains(res.rewards and res.rewards.xp)
+			end
+
 			if res.complete then
+				local closeCb = function()
+					BattleUI:Hide()
+					RunTeamPanel:Hide()
+					dungeonRun = nil
+					ModeSelectUI:Show(DungeonController:_modeInfo())
+				end
 				BattleUI:ShowResult({
 					victory = true,
 					title = "DUNGEON CLEARED",
-					lines = lines,
-					buttons = {
-						{ text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = function()
-							BattleUI:Hide()
-							RunTeamPanel:Hide()
-							dungeonRun = nil
-							ModeSelectUI:Show(DungeonController:_modeInfo())
-						end },
-					},
+					summary = buildSummary(res.battle),
+					gold = res.rewards and res.rewards.gold,
+					xpTotal = xpTotal,
+					levelUps = levelUps,
+					packs = res.rewards and res.rewards.packs,
+					recordLabel = (res.newDeepest and res.records) and ("NEW DEEPEST ROW: " .. res.records.deepestRow) or nil,
+					buttons = withOpenNow({
+						{ text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = closeCb },
+					}, res.rewards, closeCb),
 				})
 			else
+				local continueCb = function()
+					BattleUI:Hide()
+					refreshDungeonPanel()
+					DungeonMapUI:Show()
+					handleDungeonBuffChoices()
+				end
 				BattleUI:ShowResult({
 					victory = true,
-					title = "VICTORY",
-					lines = lines,
-					buttons = {
-						{ text = "CONTINUE", color = Color3.fromRGB(70, 170, 90), cb = function()
-							BattleUI:Hide()
-							refreshDungeonPanel()
-							DungeonMapUI:Show()
-							handleDungeonBuffChoices()
-						end },
-					},
+					title = res.nodeType == "Elite" and "ELITE DEFEATED" or "VICTORY",
+					summary = buildSummary(res.battle),
+					gold = res.rewards and res.rewards.gold,
+					xpTotal = xpTotal,
+					levelUps = levelUps,
+					packs = res.rewards and res.rewards.packs,
+					bonus = buildBonus(res.rewards and res.rewards.bonus),
+					recordLabel = recordLabel,
+					buttons = withOpenNow({
+						{ text = "CONTINUE", color = Color3.fromRGB(70, 170, 90), cb = continueCb },
+					}, res.rewards, continueCb),
 				})
 			end
 		else
 			local deepest = res.deepestRow or (dungeonRun and dungeonRun.deepestRow) or 0
 			dungeonRun = nil
+			local closeCb = function()
+				BattleUI:Hide()
+				RunTeamPanel:Hide()
+				ModeSelectUI:Show(DungeonController:_modeInfo())
+			end
 			BattleUI:ShowResult({
 				victory = false,
 				title = "DEFEATED",
+				summary = buildSummary(res.battle),
 				lines = { "You fell at row " .. deepest },
-				buttons = {
-					{ text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = function()
-						BattleUI:Hide()
-						RunTeamPanel:Hide()
-						ModeSelectUI:Show(DungeonController:_modeInfo())
-					end },
-				},
+				recordLabel = res.newDeepest and ("NEW DEEPEST ROW: " .. deepest) or nil,
+				buttons = { { text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = closeCb } },
 			})
 		end
 		busy = false
@@ -365,9 +436,9 @@ end
 
 function DungeonController:_modeInfo()
 	local full = invoke(deps.remotes.getInventory)
-	local best = full and full.tower and full.tower.bestFloor or 0
 	return {
-		towerBest = best,
+		towerBest = full and full.tower and full.tower.bestFloor or 0,
+		dungeonBest = full and full.dungeon and full.dungeon.deepestRow or 0,
 		towerActive = invoke(deps.remotes.towerGetState) ~= nil,
 		dungeonActive = invoke(deps.remotes.dungeonGetState) ~= nil,
 		dungeonReady = true,
@@ -385,9 +456,9 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	DungeonMapUI = uiModules.DungeonMapUI
 	ShopUI = uiModules.ShopUI
 
-	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig, deps.SoundManager)
+	BattleUI:Init(screenGui, deps.CardDatabase, deps.RarityConfig, deps.SoundManager, deps.VFXConfig, deps.RoleConfig, deps.CombatConfig)
 	BattleController:Init(BattleUI, deps.CombatConfig)
-	RunTeamPanel:Init(screenGui, deps.CardDatabase)
+	RunTeamPanel:Init(screenGui, deps.CardDatabase, deps.RarityConfig, deps.RoleConfig, deps.DungeonConfig, deps.SoundManager)
 	EliteBuffUI:Init(screenGui, deps.DungeonConfig, deps.CardDatabase)
 	TowerUI:Init(screenGui, deps.TowerConfig, {
 		onFight = fightFloor,
@@ -396,7 +467,7 @@ function DungeonController:Init(screenGui, dependencies, uiModules)
 	DungeonMapUI:Init(screenGui, {
 		onNodeClick = chooseNode,
 		onAbandon = abandonDungeon,
-	})
+	}, deps.SoundManager)
 	ShopUI:Init(screenGui, deps.DungeonConfig, deps.CardDatabase, {
 		onBuyItem = shopBuyItem,
 		onBuyService = shopBuyService,

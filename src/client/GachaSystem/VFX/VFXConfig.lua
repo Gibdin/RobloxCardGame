@@ -141,6 +141,16 @@ VFXConfig.Ring = {
 	dotSize  = 8,
 }
 
+-- Results-screen animation timing (victory/defeat overlays).
+VFXConfig.Results = {
+	bannerTime   = 0.35,   -- banner scale-in duration
+	staggerDelay = 0.28,   -- gap between reward rows appearing
+	countUpTime  = 0.8,    -- gold/XP number roll duration
+	tickEvery    = 0.05,   -- seconds between count-up tick sounds
+	bonusHold    = 0.45,   -- beat of silence before BONUS LOOT! slams in
+	bonusShake   = 10,     -- panel shake on the bonus banner
+}
+
 -- Sound slots — replace "rbxassetid://0" with real IDs.
 -- pitchVariance: random +/- applied per play so rapid repeats don't fatigue.
 -- pooled: true = round-robin clones so overlapping plays don't cut each other off.

@@ -101,6 +101,10 @@ GlobalTeamBar:SetOnSynergyClick(function(synName)
 	InventoryUI:NavigateToSynergy(synName)
 end)
 
+-- Forward ref: openPack is defined below, but the OPEN NOW bridge needs a
+-- stable closure to hand DungeonController now.
+local openPackRef
+
 DungeonController:Init(screenGui, {
 	remotes = {
 		towerStart = rfTowerStart,
@@ -121,13 +125,18 @@ DungeonController:Init(screenGui, {
 	},
 	CardDatabase = CardDatabase,
 	RarityConfig = RarityConfig,
+	RoleConfig = RoleConfig,
 	CombatConfig = CombatConfig,
 	TowerConfig = TowerConfig,
 	DungeonConfig = DungeonConfig,
+	VFXConfig = VFXConfig,
 	SoundManager = SoundManager,
 	onRewardsGranted = function()
 		local ok, packs = pcall(function() return rfGetPacks:InvokeServer() end)
 		if ok and packs then PackOpeningUI:UpdatePackList(packs) end
+	end,
+	onOpenPackNow = function(packType)
+		if openPackRef then openPackRef(packType) end
 	end,
 }, {
 	ModeSelectUI = ModeSelectUI,
@@ -237,6 +246,8 @@ local function openPack(packType)
 	PackOpeningUI:HideAutoRollButton()
 	refreshPacks()
 end
+
+openPackRef = openPack
 
 PackOpeningUI:SetOpenCallback(function(packType) openPack(packType) end)
 

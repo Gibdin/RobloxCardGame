@@ -7,6 +7,7 @@ local RoleConfig = {}
 
 RoleConfig.Roles = {
 	Tank = {
+		icon        = "🛡",
 		color       = Color3.fromRGB(60, 130, 220),
 		passive     = "Drain",
 		passiveDesc = "Heals for a percentage of all damage dealt to this card.",
@@ -14,6 +15,7 @@ RoleConfig.Roles = {
 		bonuses     = { "+6% Max HP", "+12% Max HP", "+20% Max HP" },
 	},
 	DPS = {
+		icon     = "⚔",
 		color    = Color3.fromRGB(220, 60, 60),
 		passives = {
 			Rage        = "Gains cumulative ATK bonus after each successful attack this battle.",
@@ -23,6 +25,7 @@ RoleConfig.Roles = {
 		bonuses    = { "+6% ATK", "+12% ATK", "+20% ATK" },
 	},
 	Support = {
+		icon     = "✚",
 		color    = Color3.fromRGB(60, 200, 120),
 		passives = {
 			Medic   = "Heals the lowest HP ally after each round.",
@@ -92,7 +95,7 @@ RoleConfig.Synergies = {
 		maxCount   = 4,
 		thresholds = {
 			{ count = 2, bonus = "Support abilities trigger an additional time per cast" },
-			{ count = 4, bonus = "Celestial Shield: first death each battle is negated — that unit revives at 25% HP" },
+			{ count = 4, bonus = "Celestial Shield: each member's first death is negated — they revive at 25% HP" },
 		},
 	},
 	["Void Walkers"] = {

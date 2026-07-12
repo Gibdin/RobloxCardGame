@@ -26,6 +26,7 @@ local function blank()
 		pity      = { totalRolls = 0 },
 		team      = {},
 		tower     = { bestFloor = 0 },
+		dungeon   = { deepestRow = 0, runsCompleted = 0, bossKills = 0 },
 	}
 end
 
@@ -50,6 +51,7 @@ function InventoryService:Load(userId)
 	d.pity      = d.pity      or { totalRolls = 0 }
 	d.team      = d.team      or {}
 	d.tower     = d.tower     or { bestFloor = 0 }
+	d.dungeon   = d.dungeon   or { deepestRow = 0, runsCompleted = 0, bossKills = 0 }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -151,6 +153,27 @@ function InventoryService:SetBestFloor(userId, floor)
 	end
 end
 
+-- ── Dungeon career stats ─────────────────────────────────────────────────────
+
+function InventoryService:GetDungeonStats(userId)
+	local d = get(userId)
+	return d and d.dungeon or { deepestRow = 0, runsCompleted = 0, bossKills = 0 }
+end
+
+-- Records a finished (or abandoned) run. deepestRow is max-only; every run
+-- end counts toward runsCompleted; completed=true also counts a boss kill.
+function InventoryService:RecordDungeonResult(userId, info)
+	local d = get(userId)
+	if not d then return end
+	if type(info.deepestRow) == "number" and info.deepestRow > d.dungeon.deepestRow then
+		d.dungeon.deepestRow = info.deepestRow
+	end
+	d.dungeon.runsCompleted = d.dungeon.runsCompleted + 1
+	if info.completed then
+		d.dungeon.bossKills = d.dungeon.bossKills + 1
+	end
+end
+
 -- Full data snapshot sent to the client.
 function InventoryService:GetFullData(userId)
 	return {
@@ -159,6 +182,7 @@ function InventoryService:GetFullData(userId)
 		packs     = get(userId).packs,
 		team      = self:GetTeam(userId),
 		tower     = get(userId).tower,
+		dungeon   = get(userId).dungeon,
 	}
 end
 

@@ -4,16 +4,19 @@
 
 local TweenService = game:GetService("TweenService")
 
+local FxUtil = require(script.Parent.FxUtil)
+
 local BattleUI = {}
 
 local panel, headerRound, headerFloor, speedBtn, skipBtn
-local enemyRow, playerRow, toastLabel, resultOverlay
+local enemyRow, playerRow, toastLabel, resultOverlay, flashFrame
 local logFrame, logLayout
 local logCount = 0
-local frames = {}        -- ["P3"] = { frame, hpBar, hpText, mpBar, shieldBar, scale, name, baseScale }
+local frames = {}        -- ["P3"] = unit frame entry (see buildUnitFrame)
+local frontSlots = {}    -- [side] = current frontline slot (for low-HP pulses)
 local lastActor          -- last unit to attack/cast; attributes the next damage line
 local screenGui
-local CardDatabase, RarityConfig
+local CardDatabase, RarityConfig, RoleConfig, CombatConfig, VFXConfig
 local Sound = { Play = function() end, Stop = function() end }  -- no-op until Init provides one
 local speedIndex = 1
 local speeds = { 1, 2 }
@@ -26,6 +29,7 @@ local MP_COL  = Color3.fromRGB(80, 140, 240)
 local SH_COL  = Color3.fromRGB(200, 220, 255)
 local FRAME_BG = Color3.fromRGB(22, 22, 38)
 local HIT_BG   = Color3.fromRGB(120, 35, 45)
+local GOLD_COL = Color3.fromRGB(255, 210, 90)
 
 local MAX_LOG_LINES = 60
 
@@ -53,10 +57,8 @@ local function logLine(text, color)
 	lbl.ZIndex = 32
 	lbl.Parent = logFrame
 
-	-- Trim old lines and keep the view pinned to the newest entry.
-	local children = logFrame:GetChildren()
 	local labels = {}
-	for _, c in ipairs(children) do
+	for _, c in ipairs(logFrame:GetChildren()) do
 		if c:IsA("TextLabel") then table.insert(labels, c) end
 	end
 	if #labels > MAX_LOG_LINES then
@@ -78,14 +80,17 @@ end
 
 -- ── Unit frames ───────────────────────────────────────────────────────────────
 
-local function buildUnitFrame(parent, unit, order)
+local function buildUnitFrame(parent, unit, order, sideKey)
 	local card = CardDatabase:GetById(unit.cardId)
-	local rarityColor = card and RarityConfig.Rarities[card.rarity] and RarityConfig.Rarities[card.rarity].color
-		or Color3.fromRGB(150, 150, 150)
+	local rarity = card and card.rarity or "Common"
+	local rarityDef = RarityConfig.Rarities[rarity] or {}
+	local rarityColor = rarityDef.color or Color3.fromRGB(150, 150, 150)
+	local rarityOrder = RarityConfig:GetOrder(rarity)
+	local roleDef = RoleConfig and RoleConfig.Roles[unit.role]
 
 	local f = Instance.new("Frame")
 	f.Size = UDim2.new(0.18, 0, 0.9, 0)
-	f.BackgroundColor3 = Color3.fromRGB(22, 22, 38)
+	f.BackgroundColor3 = FRAME_BG
 	f.BackgroundTransparency = 0.1
 	f.BorderSizePixel = 0
 	f.LayoutOrder = order
@@ -93,18 +98,46 @@ local function buildUnitFrame(parent, unit, order)
 	f.Parent = parent
 	corner(f, 10)
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = rarityColor; stroke.Thickness = 2; stroke.Parent = f
+	stroke.Color = rarityOrder >= 5 and (rarityDef.glowColor or rarityColor) or rarityColor
+	stroke.Thickness = rarityOrder >= 4 and 3 or 2
+	stroke.Parent = f
 
 	local scale = Instance.new("UIScale"); scale.Parent = f
 
+	-- Rarity-gradient header behind the name.
+	local header = Instance.new("Frame")
+	header.Size = UDim2.new(1, 0, 0.3, 0)
+	header.BackgroundColor3 = rarityColor
+	header.BackgroundTransparency = 0.35
+	header.BorderSizePixel = 0
+	header.ZIndex = 31
+	header.Parent = f
+	corner(header, 10)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new(rarityColor, rarityColor:Lerp(Color3.new(0, 0, 0), 0.55))
+	grad.Rotation = 90
+	grad.Parent = header
+
 	local name = Instance.new("TextLabel")
-	name.Size = UDim2.new(1, -8, 0.3, 0); name.Position = UDim2.new(0, 4, 0, 2)
+	name.Size = UDim2.new(1, -26, 0.3, -4); name.Position = UDim2.new(0, 22, 0, 2)
 	name.BackgroundTransparency = 1
 	name.Text = unit.name
-	name.TextColor3 = Color3.fromRGB(225, 225, 245)
+	name.TextColor3 = Color3.fromRGB(245, 245, 255)
 	name.TextScaled = true; name.TextWrapped = true
 	name.Font = Enum.Font.GothamBold
-	name.ZIndex = 32; name.Parent = f
+	name.ZIndex = 33; name.Parent = f
+
+	-- Role glyph chip at the header's left edge.
+	local chip = Instance.new("TextLabel")
+	chip.Size = UDim2.new(0, 18, 0, 18); chip.Position = UDim2.new(0, 3, 0, 3)
+	chip.BackgroundColor3 = roleDef and roleDef.color or Color3.fromRGB(90, 90, 110)
+	chip.Text = roleDef and roleDef.icon or "?"
+	chip.TextColor3 = Color3.new(1, 1, 1)
+	chip.TextSize = 12
+	chip.Font = Enum.Font.GothamBold
+	chip.BorderSizePixel = 0
+	chip.ZIndex = 34; chip.Parent = f
+	corner(chip, 9)
 
 	local function bar(yScale, height, color, bgTrans)
 		local holder = Instance.new("Frame")
@@ -144,16 +177,65 @@ local function buildUnitFrame(parent, unit, order)
 	role.TextScaled = true; role.Font = Enum.Font.Gotham
 	role.ZIndex = 32; role.Parent = f
 
+	-- Low-HP warning overlay (pulsed while the frontliner is in danger).
+	local lowOverlay = Instance.new("Frame")
+	lowOverlay.Size = UDim2.new(1, 0, 1, 0)
+	lowOverlay.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+	lowOverlay.BackgroundTransparency = 1
+	lowOverlay.BorderSizePixel = 0
+	lowOverlay.ZIndex = 35
+	lowOverlay.Parent = f
+	corner(lowOverlay, 10)
+
 	return {
 		frame = f, hpBar = hpBar, hpText = hpText, mpBar = mpBar,
 		shieldBar = shieldBar, scale = scale,
 		maxHp = unit.maxHp, maxMp = unit.maxMp,
 		name = unit.name, baseScale = 1,
+		side = sideKey, slot = unit.slot,
+		lowOverlay = lowOverlay, lowPulse = nil, lowWarned = false,
+		hpRatio = unit.hp / unit.maxHp, alive = true,
 	}
+end
+
+-- ── Low-HP tension ────────────────────────────────────────────────────────────
+
+local function stopLowHpPulse(entry)
+	if entry.lowPulse then
+		entry.lowPulse:Cancel()
+		entry.lowPulse = nil
+	end
+	entry.lowOverlay.BackgroundTransparency = 1
+end
+
+local function updateLowHpState(entry)
+	local threshold = CombatConfig and CombatConfig.Drama and CombatConfig.Drama.LowHpThreshold or 0.3
+	local isFront = frontSlots[entry.side] == entry.slot
+	local inDanger = entry.alive and isFront and entry.hpRatio > 0 and entry.hpRatio < threshold
+	if inDanger and not entry.lowPulse then
+		entry.lowOverlay.BackgroundTransparency = 0.85
+		entry.lowPulse = TweenService:Create(entry.lowOverlay,
+			TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ BackgroundTransparency = 0.55 })
+		entry.lowPulse:Play()
+		if not entry.lowWarned and entry.side == "P" then
+			entry.lowWarned = true
+			Sound:Play("low_hp_warn")
+		end
+	elseif not inDanger and entry.lowPulse then
+		stopLowHpPulse(entry)
+	end
+end
+
+local function refreshLowHpAll()
+	for _, entry in pairs(frames) do
+		updateLowHpState(entry)
+	end
 end
 
 local function setHpVisual(entry, newHp, newShield)
 	local ratio = math.clamp(newHp / entry.maxHp, 0, 1)
+	entry.hpRatio = ratio
 	TweenService:Create(entry.hpBar, TweenInfo.new(0.2), {
 		Size = UDim2.new(ratio, 0, 1, 0),
 		BackgroundColor3 = HP_LO:Lerp(HP_HI, ratio),
@@ -163,32 +245,18 @@ local function setHpVisual(entry, newHp, newShield)
 		local sRatio = math.clamp(newShield / entry.maxHp, 0, 1)
 		TweenService:Create(entry.shieldBar, TweenInfo.new(0.2), { Size = UDim2.new(sRatio, 0, 1, 0) }):Play()
 	end
-end
-
-local function floatText(entry, text, color)
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, 0, 0, 22)
-	lbl.Position = UDim2.new(0, math.random(-14, 14), 0.3, 0)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = text
-	lbl.TextColor3 = color
-	lbl.TextScaled = true
-	lbl.Font = Enum.Font.GothamBlack
-	lbl.ZIndex = 40
-	lbl.Parent = entry.frame
-	TweenService:Create(lbl, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = lbl.Position - UDim2.new(0, 0, 0.35, 0),
-		TextTransparency = 1,
-	}):Play()
-	task.delay(0.8, function() lbl:Destroy() end)
+	updateLowHpState(entry)
 end
 
 -- ── Init / panel construction ─────────────────────────────────────────────────
 
-function BattleUI:Init(gui, cardDb, rarityConf, soundManager)
+function BattleUI:Init(gui, cardDb, rarityConf, soundManager, vfxConfig, roleConf, combatConf)
 	screenGui = gui
 	CardDatabase = cardDb
 	RarityConfig = rarityConf
+	RoleConfig = roleConf
+	CombatConfig = combatConf
+	VFXConfig = vfxConfig
 	if soundManager then Sound = soundManager end
 
 	panel = Instance.new("Frame")
@@ -292,22 +360,37 @@ function BattleUI:Init(gui, cardDb, rarityConf, soundManager)
 	toastLabel.TextTransparency = 1
 	toastLabel.TextScaled = true; toastLabel.Font = Enum.Font.GothamBold
 	toastLabel.ZIndex = 36; toastLabel.Parent = panel
+
+	-- White flash used by the final blow.
+	flashFrame = Instance.new("Frame")
+	flashFrame.Size = UDim2.new(1, 0, 1, 0)
+	flashFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+	flashFrame.BackgroundTransparency = 1
+	flashFrame.BorderSizePixel = 0
+	flashFrame.ZIndex = 44
+	flashFrame.Parent = panel
+	corner(flashFrame, 14)
 end
 
 -- ── Battle lifecycle ──────────────────────────────────────────────────────────
 
 function BattleUI:BeginBattle(playerStart, enemyStart, floorLabel)
-	for _, entry in pairs(frames) do entry.frame:Destroy() end
+	for _, entry in pairs(frames) do
+		stopLowHpPulse(entry)
+		entry.frame:Destroy()
+	end
 	frames = {}
+	frontSlots = {}
 	lastActor = nil
 	clearLog()
 	if resultOverlay then resultOverlay:Destroy(); resultOverlay = nil end
+	if flashFrame then flashFrame.BackgroundTransparency = 1 end
 
 	for i, unit in ipairs(enemyStart) do
-		frames["E" .. unit.slot] = buildUnitFrame(enemyRow, unit, i)
+		frames["E" .. unit.slot] = buildUnitFrame(enemyRow, unit, i, "E")
 	end
 	for i, unit in ipairs(playerStart) do
-		frames["P" .. unit.slot] = buildUnitFrame(playerRow, unit, i)
+		frames["P" .. unit.slot] = buildUnitFrame(playerRow, unit, i, "P")
 	end
 	-- Frontline emphasis: lowest slot on each side.
 	self:PlayAdvance({ side = "P", newFrontSlot = playerStart[1] and playerStart[1].slot })
@@ -347,18 +430,7 @@ function BattleUI:PlayAttack(ev)
 	end)
 end
 
-function BattleUI:ApplyDamage(ev)
-	local entry = frames[key(ev.dst)]
-	if not entry then return end
-	setHpVisual(entry, ev.newHp, ev.newShield)
-	local color = ev.crit and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(255, 90, 80)
-	floatText(entry, (ev.crit and "-" .. ev.amount .. "!" or "-" .. ev.amount), color)
-	Sound:Play(ev.crit and "attack_crit" or "attack_hit")
-
-	-- Hit flash so the defender reads at a glance.
-	entry.frame.BackgroundColor3 = HIT_BG
-	TweenService:Create(entry.frame, TweenInfo.new(0.3), { BackgroundColor3 = FRAME_BG }):Play()
-
+local function logDamage(entry, ev)
 	local suffix = ev.crit and "  CRIT!" or ""
 	if ev.source == "reflect" then
 		logLine(entry.name .. " takes " .. ev.amount .. " reflected damage", Color3.fromRGB(200, 160, 120))
@@ -370,11 +442,43 @@ function BattleUI:ApplyDamage(ev)
 	end
 end
 
+function BattleUI:ApplyDamage(ev)
+	local entry = frames[key(ev.dst)]
+	if not entry then return end
+	setHpVisual(entry, ev.newHp, ev.newShield)
+	local color = ev.crit and Color3.fromRGB(255, 200, 60) or Color3.fromRGB(255, 90, 80)
+	FxUtil.floatText(entry.frame, (ev.crit and "-" .. ev.amount .. "!" or "-" .. ev.amount), color,
+		{ scale = ev.crit and 1.4 or 1 })
+	Sound:Play(ev.crit and "attack_crit" or "attack_hit")
+
+	if ev.crit and CombatConfig and CombatConfig.Drama then
+		FxUtil.shake(panel, CombatConfig.Drama.CritShake.intensity, CombatConfig.Drama.CritShake.duration)
+	end
+
+	-- Hit flash so the defender reads at a glance.
+	entry.frame.BackgroundColor3 = HIT_BG
+	TweenService:Create(entry.frame, TweenInfo.new(0.3), { BackgroundColor3 = FRAME_BG }):Play()
+
+	logDamage(entry, ev)
+end
+
+-- The battle-deciding hit: white flash + heavy shake on top of normal damage.
+function BattleUI:PlayFinalBlow(ev)
+	self:ApplyDamage(ev)
+	if CombatConfig and CombatConfig.Drama then
+		FxUtil.shake(panel, CombatConfig.Drama.FinalBlowShake.intensity, CombatConfig.Drama.FinalBlowShake.duration)
+	end
+	if flashFrame then
+		flashFrame.BackgroundTransparency = 0.35
+		TweenService:Create(flashFrame, TweenInfo.new(0.45), { BackgroundTransparency = 1 }):Play()
+	end
+end
+
 function BattleUI:ApplyHeal(ev)
 	local entry = frames[key(ev.dst)]
 	if not entry then return end
 	setHpVisual(entry, ev.newHp)
-	floatText(entry, "+" .. ev.amount, Color3.fromRGB(120, 235, 140))
+	FxUtil.floatText(entry.frame, "+" .. ev.amount, Color3.fromRGB(120, 235, 140))
 	Sound:Play("heal")
 	logLine(entry.name .. " heals " .. ev.amount .. (ev.source and (" (" .. ev.source .. ")") or ""), Color3.fromRGB(120, 210, 140))
 end
@@ -391,7 +495,7 @@ function BattleUI:PlayCast(ev)
 	if not entry then return end
 	lastActor = entry
 	entry.mpBar.Size = UDim2.new(0, 0, 1, 0)
-	floatText(entry, "CAST!", Color3.fromRGB(140, 180, 255))
+	FxUtil.floatText(entry.frame, "CAST!", Color3.fromRGB(140, 180, 255))
 	Sound:Play("cast")
 	logLine(entry.name .. " casts their active!", Color3.fromRGB(140, 180, 255))
 end
@@ -401,14 +505,21 @@ function BattleUI:ApplyShield(ev)
 	if not entry then return end
 	local sRatio = math.clamp(ev.newShield / entry.maxHp, 0, 1)
 	TweenService:Create(entry.shieldBar, TweenInfo.new(0.2), { Size = UDim2.new(sRatio, 0, 1, 0) }):Play()
-	floatText(entry, "+" .. ev.amount .. " shield", SH_COL)
+	FxUtil.floatText(entry.frame, "+" .. ev.amount .. " shield", SH_COL)
 	Sound:Play("shield_gain")
 end
 
 function BattleUI:PlayDeath(ev)
 	local entry = frames[key(ev.dst)]
 	if not entry then return end
+	entry.alive = false
+	stopLowHpPulse(entry)
 	setHpVisual(entry, 0, 0)
+	-- Collapse: red flash + scale crush, then the fade.
+	entry.frame.BackgroundColor3 = HIT_BG
+	TweenService:Create(entry.scale, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Scale = entry.baseScale * 0.82,
+	}):Play()
 	TweenService:Create(entry.frame, TweenInfo.new(0.4), { BackgroundTransparency = 0.7 }):Play()
 	for _, child in ipairs(entry.frame:GetChildren()) do
 		if child:IsA("TextLabel") then
@@ -417,10 +528,14 @@ function BattleUI:PlayDeath(ev)
 	end
 	logLine(entry.name .. " is defeated!", Color3.fromRGB(235, 90, 80))
 	Sound:Play(ev.dst.side == "E" and "enemy_death" or "unit_death")
+	if CombatConfig and CombatConfig.Drama then
+		FxUtil.shake(panel, CombatConfig.Drama.KillShake.intensity, CombatConfig.Drama.KillShake.duration)
+	end
 end
 
 function BattleUI:PlayAdvance(ev)
 	if not ev.newFrontSlot then return end
+	frontSlots[ev.side] = ev.newFrontSlot
 	for k, entry in pairs(frames) do
 		if k:sub(1, 1) == ev.side then
 			local isFront = k == ev.side .. ev.newFrontSlot
@@ -430,6 +545,7 @@ function BattleUI:PlayAdvance(ev)
 			}):Play()
 		end
 	end
+	refreshLowHpAll()
 end
 
 function BattleUI:ShowSynergy(ev)
@@ -444,43 +560,146 @@ end
 
 -- ── Result overlay ────────────────────────────────────────────────────────────
 
--- payload: { victory, title, lines = {string...}, buttons = { {text, color, cb}... } }
+-- payload:
+--   victory, title, buttons = { {text, color, cb}... }
+--   summary  = { rounds, totalDamage, kills, mvpName, mvpColor, mvpDamage } (optional)
+--   gold     = n (optional; count-up row)
+--   xpTotal  = n (optional; count-up row)
+--   levelUps = { "Name reached Lv 3!", ... } (optional)
+--   packs    = { [packType] = n } (optional)
+--   bonus    = { kind, gold, itemName, cardName, packLabel } (optional; own beat)
+--   recordLabel = "NEW DEEPEST ROW: 9" (optional)
+--   lines    = { ... } (legacy fallback rows)
 function BattleUI:ShowResult(payload)
 	Sound:Play(payload.victory and "victory_sting" or "defeat_sting")
 	if resultOverlay then resultOverlay:Destroy() end
 	resultOverlay = Instance.new("Frame")
 	resultOverlay.Size = UDim2.new(1, 0, 1, 0)
 	resultOverlay.BackgroundColor3 = BG
-	resultOverlay.BackgroundTransparency = 0.25
+	resultOverlay.BackgroundTransparency = 0.15
 	resultOverlay.BorderSizePixel = 0
 	resultOverlay.ZIndex = 45
 	resultOverlay.Parent = panel
 	corner(resultOverlay, 14)
 
+	local resultsConf = (VFXConfig and VFXConfig.Results) or {
+		bannerTime = 0.35, staggerDelay = 0.28, countUpTime = 0.8,
+		tickEvery = 0.05, bonusHold = 0.45, bonusShake = 10,
+	}
+
+	-- Banner slams in.
 	local banner = Instance.new("TextLabel")
-	banner.Size = UDim2.new(0.8, 0, 0.16, 0); banner.Position = UDim2.new(0.1, 0, 0.12, 0)
+	banner.Size = UDim2.new(0.8, 0, 0.14, 0); banner.Position = UDim2.new(0.1, 0, 0.08, 0)
 	banner.BackgroundTransparency = 1
 	banner.Text = payload.title
 	banner.TextColor3 = payload.victory and Color3.fromRGB(120, 230, 140) or Color3.fromRGB(235, 90, 80)
 	banner.TextScaled = true; banner.Font = Enum.Font.GothamBlack
 	banner.ZIndex = 46; banner.Parent = resultOverlay
+	local bannerScale = Instance.new("UIScale"); bannerScale.Scale = 1.6; bannerScale.Parent = banner
+	TweenService:Create(bannerScale, TweenInfo.new(resultsConf.bannerTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 
-	for i, line in ipairs(payload.lines or {}) do
+	-- Rows holder.
+	local rowsHolder = Instance.new("Frame")
+	rowsHolder.Size = UDim2.new(0.8, 0, 0.5, 0); rowsHolder.Position = UDim2.new(0.1, 0, 0.25, 0)
+	rowsHolder.BackgroundTransparency = 1
+	rowsHolder.ZIndex = 46
+	rowsHolder.Parent = resultOverlay
+	local rowsLayout = Instance.new("UIListLayout")
+	rowsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	rowsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	rowsLayout.Padding = UDim.new(0, 4)
+	rowsLayout.Parent = rowsHolder
+
+	local rows = {}          -- { { frame, onShow } }
+	local rowOrder = 0
+	local function addRow(text, color, height, onShow, font)
+		rowOrder = rowOrder + 1
 		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(0.7, 0, 0, 24)
-		lbl.Position = UDim2.new(0.15, 0, 0.32 + (i - 1) * 0.07, 0)
+		lbl.Size = UDim2.new(1, 0, 0, height or 24)
 		lbl.BackgroundTransparency = 1
-		lbl.Text = line
-		lbl.TextColor3 = Color3.fromRGB(210, 210, 235)
-		lbl.TextScaled = true; lbl.Font = Enum.Font.Gotham
-		lbl.ZIndex = 46; lbl.Parent = resultOverlay
+		lbl.Text = text
+		lbl.TextColor3 = color or Color3.fromRGB(210, 210, 235)
+		lbl.TextScaled = true
+		lbl.Font = font or Enum.Font.Gotham
+		lbl.LayoutOrder = rowOrder
+		lbl.ZIndex = 46
+		lbl.Visible = false
+		lbl.Parent = rowsHolder
+		table.insert(rows, { frame = lbl, onShow = onShow })
+		return lbl
 	end
 
+	-- Build rows from the structured payload.
+	if payload.summary then
+		local s = payload.summary
+		addRow(("Rounds %d   ·   Team damage %d   ·   Kills %d"):format(s.rounds or 0, s.totalDamage or 0, s.kills or 0),
+			Color3.fromRGB(180, 180, 210), 22)
+		if s.mvpName then
+			addRow("★ MVP: " .. s.mvpName .. " — " .. (s.mvpDamage or 0) .. " dmg",
+				s.mvpColor or GOLD_COL, 26, function() Sound:Play("mvp_reveal") end, Enum.Font.GothamBold)
+		end
+	end
+	if payload.gold and payload.gold > 0 then
+		local lbl = addRow("+0g", GOLD_COL, 30, nil, Enum.Font.GothamBold)
+		rows[#rows].onShow = function()
+			FxUtil.countUp(lbl, 0, payload.gold, resultsConf.countUpTime,
+				{ prefix = "+", suffix = "g", tickEvery = resultsConf.tickEvery, sound = { mgr = Sound, name = "gold_tick" } })
+		end
+	end
+	if payload.xpTotal and payload.xpTotal > 0 then
+		local lbl = addRow("+0 XP", Color3.fromRGB(170, 140, 255), 26, nil, Enum.Font.GothamBold)
+		rows[#rows].onShow = function()
+			FxUtil.countUp(lbl, 0, payload.xpTotal, resultsConf.countUpTime,
+				{ prefix = "+", suffix = " XP", tickEvery = resultsConf.tickEvery, sound = { mgr = Sound, name = "xp_tick" } })
+		end
+	end
+	for _, line in ipairs(payload.levelUps or {}) do
+		addRow("▲ " .. line, Color3.fromRGB(255, 225, 130), 24, function() Sound:Play("level_up") end, Enum.Font.GothamBold)
+	end
+	if payload.packs then
+		local parts = {}
+		for packType, n in pairs(payload.packs) do
+			table.insert(parts, n .. "x " .. packType:gsub("Pack", " Pack"))
+		end
+		if #parts > 0 then
+			addRow("🎁 " .. table.concat(parts, ", "), Color3.fromRGB(140, 200, 255), 26, nil, Enum.Font.GothamBold)
+		end
+	end
+	for _, line in ipairs(payload.lines or {}) do
+		addRow(line, Color3.fromRGB(210, 210, 235), 24)
+	end
+
+	-- Bonus loot gets its own beat: a held pause, then a slam + shake.
+	local bonusRows = {}
+	if payload.bonus then
+		local b = payload.bonus
+		local bannerRow = addRow("★ BONUS LOOT! ★", GOLD_COL, 32, nil, Enum.Font.GothamBlack)
+		local detailText = ""
+		if b.kind == "goldJackpot" then
+			detailText = "Gold jackpot: +" .. (b.gold or 0) .. "g"
+		elseif b.kind == "freeItem" then
+			detailText = (b.itemName or "Item") .. " → " .. (b.cardName or "?")
+		elseif b.kind == "bonusPack" then
+			detailText = "Free " .. (b.packLabel or "pack") .. "!"
+		end
+		local detailRow = addRow(detailText, GOLD_COL, 24, nil, Enum.Font.GothamBold)
+		bonusRows = { banner = bannerRow, detail = detailRow, data = b }
+		-- Remove them from the normal stagger; the bonus beat plays them.
+		rows[#rows] = nil
+		rows[#rows] = nil
+	end
+
+	if payload.recordLabel then
+		addRow("★ " .. payload.recordLabel .. " ★", Color3.fromRGB(130, 255, 200), 26,
+			function() Sound:Play("new_record") end, Enum.Font.GothamBlack)
+	end
+
+	-- Buttons render immediately so the ceremony never blocks the player.
 	local n = #payload.buttons
 	for i, def in ipairs(payload.buttons) do
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0.24, 0, 0, 44)
-		b.Position = UDim2.new(0.5 - 0.13 * n + 0.26 * (i - 1) + 0.01, 0, 0.8, 0)
+		b.Position = UDim2.new(0.5 - 0.13 * n + 0.26 * (i - 1) + 0.01, 0, 0.82, 0)
 		b.BackgroundColor3 = def.color
 		b.BorderSizePixel = 0
 		b.Text = def.text
@@ -493,6 +712,35 @@ function BattleUI:ShowResult(payload)
 			def.cb()
 		end)
 	end
+
+	-- Staggered reveal (cosmetic only; all values are final payload data).
+	local overlayRef = resultOverlay
+	task.spawn(function()
+		task.wait(resultsConf.bannerTime)
+		for _, r in ipairs(rows) do
+			if overlayRef.Parent == nil then return end
+			r.frame.Visible = true
+			if r.onShow then r.onShow() end
+			task.wait(resultsConf.staggerDelay)
+		end
+		if bonusRows.banner and overlayRef.Parent ~= nil then
+			task.wait(resultsConf.bonusHold)
+			if overlayRef.Parent == nil then return end
+			bonusRows.banner.Visible = true
+			local slam = Instance.new("UIScale"); slam.Scale = 2; slam.Parent = bonusRows.banner
+			TweenService:Create(slam, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			Sound:Play("bonus_loot")
+			FxUtil.shake(panel, resultsConf.bonusShake, 0.4)
+			task.wait(resultsConf.staggerDelay)
+			if overlayRef.Parent == nil then return end
+			bonusRows.detail.Visible = true
+			if bonusRows.data.kind == "goldJackpot" then
+				FxUtil.countUp(bonusRows.detail, 0, bonusRows.data.gold or 0, resultsConf.countUpTime * 0.6,
+					{ prefix = "Gold jackpot: +", suffix = "g", tickEvery = resultsConf.tickEvery * 0.6,
+					  sound = { mgr = Sound, name = "gold_tick" } })
+			end
+		end
+	end)
 end
 
 -- ── Misc ──────────────────────────────────────────────────────────────────────

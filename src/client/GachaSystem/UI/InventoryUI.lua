@@ -1,4 +1,4 @@
-﻿local TweenService = game:GetService("TweenService")
+local TweenService = game:GetService("TweenService")
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
 local InventoryUI  = {}

@@ -74,7 +74,7 @@ CombatConfig.Synergies = {
 	},
 	["Divine Pantheon"] = {
 		[2] = { doubleSupportCast = true },
-		[4] = { doubleSupportCast = true, reviveStub = true },  -- revive-at-25% is stubbed in v1
+		[4] = { doubleSupportCast = true, revivePct = 0.25 },  -- members revive once per battle at 25% HP
 	},
 	["Void Walkers"] = {
 		-- "-1 MP cost" reinterpreted for the cast-at-full-MP model as a lower threshold.
@@ -85,6 +85,17 @@ CombatConfig.Synergies = {
 		[2] = { hpPct = 0.15 },
 		[4] = { hpPct = 0.15, noOneShotAboveHpPct = 0.30, drBelowHalf = 0.20 },
 	},
+}
+
+-- ── Combat drama beats (client playback emphasis; all client-side) ────────────
+CombatConfig.Drama = {
+	CritShake        = { intensity = 6,  duration = 0.25 },
+	KillShake        = { intensity = 10, duration = 0.35 },
+	FinalBlowShake   = { intensity = 16, duration = 0.6 },
+	KillPause        = 0.45,   -- extra hold after any death event
+	FinalBlowPause   = 0.9,    -- hold after the battle-deciding damage event
+	FinalBlowPreHold = 0.35,   -- beat of silence BEFORE the final hit lands
+	LowHpThreshold   = 0.3,    -- frontliner pulse below this HP ratio
 }
 
 -- ── Client playback timing (seconds at 1x speed) ──────────────────────────────

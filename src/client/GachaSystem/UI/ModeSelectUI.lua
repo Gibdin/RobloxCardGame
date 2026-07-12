@@ -101,7 +101,7 @@ function ModeSelectUI:Show(info)
 		dungeonSub.Text = "Coming Soon"
 	else
 		dungeonSub.Text = info.dungeonActive and "Run in progress — tap to resume"
-			or "Branching map • shops • elites • boss"
+			or ("Best: Row " .. (info.dungeonBest or 0) .. " • shops • elites • boss")
 	end
 	panel.Visible = true
 end
