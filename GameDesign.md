@@ -133,14 +133,22 @@ Verified end-to-end via real client-invoked remotes: quest rolling, targeted pro
 
 **Definition of done:** a returning player always has a visible reason to log in today (✅ — daily/weekly quests + streak); a working leaderboard UI is surfaced from the side menu (✅ — code-complete and gracefully degrading; real data requires publishing).
 
-### Phase 5 — Async PvP & Leaderboards
+### Phase 5 — Async PvP & Leaderboards ✅ Core shipped 2026-07-13
 **Goal:** ship PvP at the lowest possible engineering risk by reusing the existing deterministic combat engine unchanged.
 
-- New `src/server/GachaSystem/Services/PvPService.lua`: snapshots a player's current team into a "defense squad" record (rating-keyed store). Attackers fetch an opponent snapshot and the server calls the existing `BattleEngine.Resolve(attackerUnits, defenderSnapshotUnits, seed)` exactly as Dungeon/Tower already do — no new combat code required.
-- Rating system (Elo or trophy-count) feeding `LeaderboardService`. Win rewards diminish per-day to prevent farming.
-- New `src/client/GachaSystem/UI/ArenaUI.lua`: opponent search/list, and battle replay reusing the existing `BattleController`/`BattleUI` playback path unchanged.
+> **Opponent pool simplification:** the opponent list is the global `PvPRating` leaderboard's top-N (excluding self), not same-tier matchmaking — the simplest correct thing that satisfies "opponent list" without new indexing infrastructure. Real same-tier matchmaking is a reasonable Phase 9/10 polish target once there's a real player base to matchmake within.
+>
+> **Same leaderboard-publish blocker as Phase 4:** opponent discovery reads through `LeaderboardService`, so it's empty until the place is published — the `Attack` logic itself is fully code-complete and was verified independent of that (see below).
 
-**Definition of done:** players can attack snapshots of real players' teams, see rating/leaderboard position, and earn PvP rewards, entirely on existing combat code.
+- `PvPService.lua`: no new combat code — `Attack(attackerUserId, opponentUserId)` builds both teams with the exact same `BattleEngine.BuildTeamContext`/`BuildUnit` calls Dungeon/Tower already use (a PvP defense squad is the opponent's saved team at base stats, no run levels/items — there's no persistent per-card leveling to snapshot), then calls the unchanged `BattleEngine.Resolve`. Opponent lookup uses a new `InventoryService:PeekTeam(userId)` — a one-off DataStore read that works for offline players too, deliberately *not* touching the live player cache (avoids unbounded cache growth from looking up many different opponents over a session).
+- **Trophies, not symmetric Elo** (`PvPConfig.lua`): only the attacker's rating moves (+20 win / -10 loss, floor 0) — a defender snapshot has no agency, so standard async-PvP convention is to never move their rating while they're offline. Feeds the Phase 4 `PvPRating` leaderboard board.
+- Diminishing Gem rewards per win today (`InventoryService:RecordPvPWin`, same day-count pattern as quests) — prevents farming an easy opponent on repeat.
+- Two new quests (`d_win_2_duels`, `w_win_10_duels`) and a `pvp_win` Battle Pass XP entry — cheap to add now that real PvP exists, rather than waiting for Phase 6.
+- `ArenaUI.lua`: opponent list + rating display. Battle playback reuses `BattleController`/`BattleUI` directly (no `DungeonController` involvement needed — PvP isn't a "run").
+
+Verified: rating math and diminishing reward tiers exactly correct (1000→1020 win→1010 loss, floor clamps to 0, rewards `[15,15,15,15,15,8,8]` matching the tier config); self-attack and no-team-set validation both correctly rejected via the real client-invoked remote; UI panel structure confirmed correct. A full win/loss against a *real* second opponent's team couldn't be exercised in a single-client Studio session (no legitimate way to seed second-player save data — `DataStoreService` is blocked entirely from injected test-tool code, published or not), but the battle-resolution path is a direct reuse of the `BuildTeamContext`/`BuildUnit`/`Resolve` calls already proven extensively in Phase 3.
+
+**Definition of done:** players can attack snapshots of real players' teams (✅ — code-complete, needs a second real account or publishing to fully exercise), see rating/leaderboard position (✅), and earn PvP rewards (✅), entirely on existing combat code (✅ — zero new BattleEngine code).
 
 ### Phase 6 — Live Real-Time PvP Duels
 **Goal:** add live matchmaking/presence on top of the validated async system, without needing real-time combat netcode (the engine is already non-interactive/deterministic).

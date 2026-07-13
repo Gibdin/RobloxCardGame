@@ -17,6 +17,7 @@ local HubService       = require(Services.HubService)
 local CosmeticService  = require(Services.CosmeticService)
 local QuestService     = require(Services.QuestService)
 local LeaderboardService = require(Services.LeaderboardService)
+local PvPService       = require(Services.PvPService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -111,6 +112,8 @@ local rfGetQuestState        = RF("GetQuestState")
 local rfClaimQuest           = RF("ClaimQuest")
 local rfClaimLoginStreak     = RF("ClaimLoginStreak")
 local rfGetLeaderboard       = RF("GetLeaderboard")
+local rfGetPvPOpponents      = RF("GetPvPOpponents")
+local rfPvPAttack            = RF("PvPAttack")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
@@ -337,6 +340,26 @@ rfGetLeaderboard.OnServerInvoke = function(player, board)
 		top  = LeaderboardService:GetTopN(board, 20),
 		mine = LeaderboardService:GetPlayerScore(board, player.UserId),
 	}
+end
+
+-- ── PvP (async) ───────────────────────────────────────────────────────────────
+
+rfGetPvPOpponents.OnServerInvoke = function(player)
+	return {
+		opponents = PvPService:GetOpponents(player.UserId),
+		myRating  = InventoryService:GetPvPRating(player.UserId),
+	}
+end
+
+rfPvPAttack.OnServerInvoke = function(player, opponentUserId)
+	if type(opponentUserId) ~= "number" then
+		return { success = false, error = "Invalid request." }
+	end
+	local result, err = PvPService:Attack(player.UserId, opponentUserId)
+	if err then
+		return { success = false, error = err }
+	end
+	return { success = true, result = result, gems = InventoryService:GetGems(player.UserId) }
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────

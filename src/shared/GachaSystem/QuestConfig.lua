@@ -16,6 +16,7 @@ QuestConfig.DailyPool = {
 	{ id = "d_win_4_battles",  desc = "Win 4 battles",         type = "battle_win",  target = 4,  reward = { gems = 90 } },
 	{ id = "d_clear_3_nodes",  desc = "Clear 3 dungeon nodes", type = "dungeon_node",target = 3,  reward = { gems = 45 } },
 	{ id = "d_clear_3_floors", desc = "Clear 3 tower floors",  type = "tower_floor", target = 3,  reward = { gems = 45 } },
+	{ id = "d_win_2_duels",    desc = "Win 2 Arena duels",     type = "pvp_win",     target = 2,  reward = { gems = 45 } },
 }
 
 QuestConfig.WeeklyCount = 3
@@ -24,6 +25,7 @@ QuestConfig.WeeklyPool = {
 	{ id = "w_win_15_battles", desc = "Win 15 battles",         type = "battle_win",  target = 15, reward = { gems = 200, packs = { StandardPack = 1 } } },
 	{ id = "w_clear_boss",     desc = "Defeat a Dungeon boss",  type = "dungeon_boss",target = 1,  reward = { gems = 120, packs = { RarePack = 1 } } },
 	{ id = "w_tower_20",       desc = "Clear 20 tower floors",  type = "tower_floor", target = 20, reward = { gems = 180, packs = { RarePack = 1 } } },
+	{ id = "w_win_10_duels",   desc = "Win 10 Arena duels",     type = "pvp_win",     target = 10, reward = { gems = 150, packs = { StandardPack = 1 } } },
 }
 
 -- 7-day repeating cycle; day index = ((streak - 1) % 7) + 1.
@@ -45,6 +47,7 @@ QuestConfig.BattlePassXp = {
 	dungeon_node = 8,
 	dungeon_boss = 50,
 	tower_floor  = 8,
+	pvp_win      = 12,
 }
 
 return QuestConfig

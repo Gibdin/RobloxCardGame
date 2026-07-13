@@ -56,6 +56,8 @@ local rfGetQuestState       = remotes:WaitForChild("GetQuestState")
 local rfClaimQuest          = remotes:WaitForChild("ClaimQuest")
 local rfClaimLoginStreak    = remotes:WaitForChild("ClaimLoginStreak")
 local rfGetLeaderboard      = remotes:WaitForChild("GetLeaderboard")
+local rfGetPvPOpponents     = remotes:WaitForChild("GetPvPOpponents")
+local rfPvPAttack           = remotes:WaitForChild("PvPAttack")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -86,10 +88,12 @@ local SettingsUI    = require(uiFolder.SettingsUI)
 local ShopStoreUI   = require(uiFolder.ShopStoreUI)
 local QuestUI       = require(uiFolder.QuestUI)
 local LeaderboardUI = require(uiFolder.LeaderboardUI)
+local ArenaUI       = require(uiFolder.ArenaUI)
 
 -- Battle modules
 local DungeonController = require(script.Parent.DungeonController)
 local BattleController  = require(script.Parent.BattleController)
+local BattleStats       = require(script.Parent.BattleStats)
 local BattleUI          = require(uiFolder.BattleUI)
 local ModeSelectUI      = require(uiFolder.ModeSelectUI)
 local TowerUI           = require(uiFolder.TowerUI)
@@ -471,12 +475,67 @@ LeaderboardUI:Init(screenGui, {
 
 local leaderboardPanel = LeaderboardUI:GetPanel()
 
+-- Arena: async PvP. Attacking hides the opponent list, plays the fight
+-- through the same BattleController/BattleUI already used for Dungeon/Tower
+-- (no DungeonController involvement needed — PvP isn't a "run"), then shows a
+-- result screen before returning to a refreshed opponent list.
+local function refreshArena()
+	task.spawn(function()
+		local ok, data = pcall(function() return rfGetPvPOpponents:InvokeServer() end)
+		if ok and data then ArenaUI:Refresh(data) end
+	end)
+end
+
+local function attackOpponent(opponentUserId)
+	if BattleController:IsPlaying() then return end
+	ArenaUI:Hide()
+
+	local ok, res = pcall(function() return rfPvPAttack:InvokeServer(opponentUserId) end)
+	if not (ok and res and res.success) then
+		warn("[GachaSystem] PvPAttack failed:", ok and res and res.error or "request failed")
+		ArenaUI:Show()
+		refreshArena()
+		return
+	end
+
+	local result = res.result
+	BattleController:Play(result.battle, "ARENA DUEL")
+
+	local closeCb = function()
+		BattleUI:Hide()
+		PackOpeningUI:UpdateGems(res.gems)
+		ArenaUI:Show()
+		refreshArena()
+	end
+
+	local deltaText = (result.ratingDelta >= 0 and "+" or "") .. result.ratingDelta .. " Rating"
+	BattleUI:ShowResult({
+		victory = result.victory,
+		title = result.victory and "VICTORY" or "DEFEAT",
+		summary = BattleStats.Fold(result.battle),
+		lines = {
+			deltaText .. " (now " .. result.ratingAfter .. ")",
+			result.gemsAwarded > 0 and ("+" .. result.gemsAwarded .. " Gems") or nil,
+		},
+		buttons = { { text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = closeCb } },
+	})
+end
+
+ArenaUI:Init(screenGui, {
+	onAttack = function(opponentUserId)
+		task.spawn(function() attackOpponent(opponentUserId) end)
+	end,
+})
+
+local arenaPanel = ArenaUI:GetPanel()
+
 -- Side menu
 local function closeAllExcept(except)
 	if except~="packs"     then PackOpeningUI:ClosePacksDrawer() end
 	if except~="inventory" then InventoryUI:Hide() end
 	if except~="team"      then TeamBuilderUI:Hide() end
 	if except~="battle"    then DungeonController:Hide() end
+	if except~="arena"     then arenaPanel.Visible=false end
 	if except~="quests"    then questPanel.Visible=false end
 	if except~="rankings"  then leaderboardPanel.Visible=false end
 	if except~="store"     then storePanel.Visible=false end
@@ -493,6 +552,10 @@ SideMenuUI:Init(screenGui,{
 		else closeAllExcept("team"); TeamBuilderUI:Show() end
 	end,
 	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
+	arena=function()
+		if arenaPanel.Visible then arenaPanel.Visible=false
+		else closeAllExcept("arena"); refreshArena(); ArenaUI:Show() end
+	end,
 	quests=function()
 		if questPanel.Visible then questPanel.Visible=false
 		else closeAllExcept("quests"); refreshQuests(); QuestUI:Show() end

@@ -8,6 +8,7 @@ local PityService      = require(script.Parent.PityService)
 local BannerService    = require(script.Parent.BannerService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
+local PvPConfig          = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("PvPConfig"))
 
 local InventoryService = {}
 
@@ -56,6 +57,8 @@ local function blank()
 		processedReceipts = {},   -- [receiptId] = true; makes ProcessReceipt idempotent
 		cosmetics = { owned = { none = true }, equipped = "none" },
 		quests    = blankQuests(),
+		pvpRating = PvPConfig.StartingRating,
+		pvpDaily  = { day = 0, winsToday = 0 },
 	}
 end
 
@@ -102,6 +105,8 @@ function InventoryService:Load(userId)
 	d.quests.daily = d.quests.daily or { day = 0, active = {}, progress = {}, claimed = {} }
 	d.quests.weekly = d.quests.weekly or { week = 0, active = {}, progress = {}, claimed = {} }
 	d.quests.loginStreak = d.quests.loginStreak or { lastLoginDay = 0, streak = 0, claimedToday = false }
+	d.pvpRating = d.pvpRating or PvPConfig.StartingRating
+	d.pvpDaily  = d.pvpDaily or { day = 0, winsToday = 0 }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -444,6 +449,66 @@ function InventoryService:SetTeam(userId, teamTable)
 		end
 	end
 	d.team = validated
+end
+
+-- One-off read of ANOTHER player's team (PvP opponent lookup) — deliberately
+-- does not touch `cache`, so looking up many different opponents over a
+-- session can't grow the live cache unboundedly for players who never
+-- actually connect to this server. Checks the live cache first so an
+-- opponent who happens to be online doesn't pay a redundant DataStore read.
+function InventoryService:PeekTeam(userId)
+	if cache[userId] then
+		return self:GetTeam(userId)
+	end
+	if not store then return { false, false, false, false, false } end
+	local ok, saved = pcall(function() return store:GetAsync("u_" .. userId) end)
+	local t = (ok and saved and saved.team) or {}
+	local result = {}
+	for i = 1, 5 do
+		local v = t[i]
+		result[i] = (type(v) == "number" and v > 0) and v or false
+	end
+	return result
+end
+
+-- ── PvP rating (async — see PvPService) ──────────────────────────────────────
+
+function InventoryService:GetPvPRating(userId)
+	local d = get(userId)
+	return d and d.pvpRating or PvPConfig.StartingRating
+end
+
+-- delta can be negative; clamps at PvPConfig.MinRating and pushes the new
+-- value to the PvPRating leaderboard immediately (unlike Tower/Dungeon,
+-- rating isn't a max-only ratchet, so every change is pushed).
+function InventoryService:AdjustPvPRating(userId, delta)
+	local d = get(userId)
+	if not d or type(delta) ~= "number" then return end
+	d.pvpRating = math.max(PvPConfig.MinRating, d.pvpRating + delta)
+	LeaderboardService:UpdateScore(userId, "PvPRating", d.pvpRating)
+end
+
+-- Returns the Gem reward for the next PvP win today (diminishing per
+-- PvPConfig.DailyRewardTiers) and increments the daily win counter. Rolls
+-- over the counter on a new day, matching QuestService's day-count pattern.
+function InventoryService:RecordPvPWin(userId)
+	local d = get(userId)
+	if not d then return 0 end
+	local today = os.time() // 86400
+	if d.pvpDaily.day ~= today then
+		d.pvpDaily.day = today
+		d.pvpDaily.winsToday = 0
+	end
+
+	local reward = 0
+	for _, tier in ipairs(PvPConfig.DailyRewardTiers) do
+		if d.pvpDaily.winsToday < tier.upTo then
+			reward = tier.gems
+			break
+		end
+	end
+	d.pvpDaily.winsToday = d.pvpDaily.winsToday + 1
+	return reward
 end
 
 return InventoryService

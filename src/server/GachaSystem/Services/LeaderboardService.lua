@@ -12,6 +12,7 @@ local LeaderboardService = {}
 local BOARDS = {
 	TowerBestFloor    = true,
 	DungeonDeepestRow = true,
+	PvPRating         = true,
 }
 
 local stores = {}
