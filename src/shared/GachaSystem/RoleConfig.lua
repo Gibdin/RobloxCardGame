@@ -66,8 +66,8 @@ RoleConfig.Synergies = {
 		color      = Color3.fromRGB(100, 170, 255),
 		maxCount   = 5,
 		thresholds = {
-			{ count = 2, bonus = "+10% attack speed; first attack each round cannot miss" },
-			{ count = 4, bonus = "30% chance each attack chains to a second target for 60% damage" },
+			{ count = 2, bonus = "+10% ATK" },
+			{ count = 4, bonus = "+10% ATK; 30% chance each attack chains to a second target for 60% damage" },
 			{ count = 5, bonus = "Storm Surge: chain damage = 100%; all Storm Riders gain +25% ATK" },
 		},
 	},
@@ -103,8 +103,8 @@ RoleConfig.Synergies = {
 		color      = Color3.fromRGB(140, 60, 220),
 		maxCount   = 4,
 		thresholds = {
-			{ count = 2, bonus = "All abilities cost −1 MP to activate" },
-			{ count = 4, bonus = "Reality Fracture: abilities ignore 35% of enemy defenses" },
+			{ count = 2, bonus = "Actives trigger at 90% MP instead of 100%" },
+			{ count = 4, bonus = "Actives trigger at 90% MP; abilities also ignore 35% of enemy defenses" },
 		},
 	},
 	["Ancient Ones"] = {

@@ -36,6 +36,8 @@ local rfGetPacks     = RF("GetPacks")
 local rfGetPityInfo  = RF("GetPityInfo")
 local rfGetTeam      = RF("GetTeam")
 local rfSetTeam      = RF("SetTeam")
+local rfGetSettings  = RF("GetSettings")
+local rfSetSettings  = RF("SetSettings")
 RE("AutoRollToggled")   -- client fires this; no server handler needed (state is client-only)
 
 local rfTowerStart     = RF("Tower_Start")
@@ -89,6 +91,16 @@ end
 rfSetTeam.OnServerInvoke = function(player, teamTable)
 	if type(teamTable) ~= "table" then return { success = false } end
 	InventoryService:SetTeam(player.UserId, teamTable)
+	return { success = true }
+end
+
+rfGetSettings.OnServerInvoke = function(player)
+	return InventoryService:GetSettings(player.UserId)
+end
+
+rfSetSettings.OnServerInvoke = function(player, settingsTable)
+	if type(settingsTable) ~= "table" then return { success = false } end
+	InventoryService:SetSettings(player.UserId, settingsTable)
 	return { success = true }
 end
 
@@ -165,3 +177,25 @@ end)
 for _, player in ipairs(Players:GetPlayers()) do
 	InventoryService:Load(player.UserId)
 end
+
+-- ── Autosave ──────────────────────────────────────────────────────────────────
+-- Leave-triggered saves alone aren't enough to survive a non-graceful shutdown;
+-- this periodic pass plus BindToClose below bound worst-case data loss to one
+-- autosave interval instead of "however long the player has been connected."
+
+local AUTOSAVE_INTERVAL = 120 -- seconds
+
+task.spawn(function()
+	while true do
+		task.wait(AUTOSAVE_INTERVAL)
+		for _, player in ipairs(Players:GetPlayers()) do
+			InventoryService:Save(player.UserId)
+		end
+	end
+end)
+
+game:BindToClose(function()
+	for _, player in ipairs(Players:GetPlayers()) do
+		InventoryService:Save(player.UserId)
+	end
+end)

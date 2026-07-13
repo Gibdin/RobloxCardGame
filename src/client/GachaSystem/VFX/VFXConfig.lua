@@ -154,11 +154,22 @@ VFXConfig.Results = {
 -- Sound slots — replace "rbxassetid://0" with real IDs.
 -- pitchVariance: random +/- applied per play so rapid repeats don't fatigue.
 -- pooled: true = round-robin clones so overlapping plays don't cut each other off.
+--
+-- NOTE (Phase 0 audit): rip_click_1/2/3 and low_hp_warn below were filled with
+-- real, confidently-matched Creator Store assets (ProSoundEffects paper-tear /
+-- alarm SFX — clearly labeled, professional library). pack_select, pack_burst,
+-- roll_tick, and all reveal_* are DELIBERATELY still "rbxassetid://0": keyword
+-- search against the Creator Store for chime/sparkle/fanfare terms returned
+-- almost entirely mislabeled community uploads (random game rip names like
+-- "s_dodge1", "hovergt") with no reliable way to verify the actual sound without
+-- an audio-capable audition pass in Studio. Assigning those blind would risk a
+-- jarring/wrong sound on a premium reveal moment, which is worse than silence.
+-- These 8 slots still need a manual in-Studio audition pass before shipping.
 VFXConfig.Sounds = {
 	pack_select      = { id = "rbxassetid://0", volume = 0.8,  pitch = 1.00 },
-	rip_click_1      = { id = "rbxassetid://0", volume = 0.70, pitch = 1.05 },
-	rip_click_2      = { id = "rbxassetid://0", volume = 0.80, pitch = 0.95 },
-	rip_click_3      = { id = "rbxassetid://0", volume = 1.00, pitch = 0.85 },
+	rip_click_1      = { id = "rbxassetid://9125724621", volume = 0.70, pitch = 1.05 }, -- Paper Tear Fast Harsh Rip 1 (ProSoundEffects)
+	rip_click_2      = { id = "rbxassetid://9117624959", volume = 0.80, pitch = 0.95 }, -- Plastic Sheet Impacts Rips Paper Tears 6 (ProSoundEffects)
+	rip_click_3      = { id = "rbxassetid://9125724895", volume = 1.00, pitch = 0.85 }, -- Paper Tear Fast Harsh Rip 2 (ProSoundEffects)
 	pack_burst       = { id = "rbxassetid://0", volume = 1.00, pitch = 1.00 },
 	roll_tick        = { id = "rbxassetid://0", volume = 0.25, pitch = 1.20 },
 	reveal_common    = { id = "rbxassetid://0", volume = 0.50, pitch = 1.20 },
@@ -178,7 +189,7 @@ VFXConfig.Sounds = {
 	unit_death       = { id = "rbxassetid://7130144078", volume = 0.80, pitch = 0.85 },  -- player-side, heavier
 	enemy_death      = { id = "rbxassetid://83416379007273", volume = 0.65, pitch = 1.00, pitchVariance = 0.06, pooled = true },
 	synergy_proc     = { id = "rbxassetid://84811684053512", volume = 0.60, pitch = 1.00 },
-	low_hp_warn      = { id = "rbxassetid://0", volume = 0.60, pitch = 1.00 },
+	low_hp_warn      = { id = "rbxassetid://9113089577", volume = 0.60, pitch = 1.00 }, -- Alarm Tone 2-Tone Fast High-Low Switching (ProSoundEffects)
 
 	-- results
 	victory_sting    = { id = "rbxassetid://1836860398", volume = 0.90, pitch = 1.00 },

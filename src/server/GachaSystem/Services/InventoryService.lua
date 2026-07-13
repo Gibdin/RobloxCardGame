@@ -18,6 +18,15 @@ local MAX_AWAKENING = 10
 -- { [userId] = { cards={[id]=true}, awakening={[id]=N}, packs={[type]=N}, pity={...} } }
 local cache = {}
 
+local function blankSettings()
+	return {
+		masterVolume = 1,
+		screenShake  = true,
+		lowHpWarning = true,
+		uiScale      = 1,
+	}
+end
+
 local function blank()
 	return {
 		cards     = {},
@@ -27,6 +36,7 @@ local function blank()
 		team      = {},
 		tower     = { bestFloor = 0 },
 		dungeon   = { deepestRow = 0, runsCompleted = 0, bossKills = 0 },
+		settings  = blankSettings(),
 	}
 end
 
@@ -52,17 +62,27 @@ function InventoryService:Load(userId)
 	d.team      = d.team      or {}
 	d.tower     = d.tower     or { bestFloor = 0 }
 	d.dungeon   = d.dungeon   or { deepestRow = 0, runsCompleted = 0, bossKills = 0 }
+	d.settings  = d.settings  or blankSettings()
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
 end
+
+local SAVE_RETRIES     = 3
+local SAVE_RETRY_DELAY = 1  -- seconds between retries
 
 function InventoryService:Save(userId)
 	if not store then return end
 	local d = get(userId)
 	if not d then return end
 	d.pity = PityService:Snapshot(userId)
-	pcall(function() store:SetAsync("u_" .. userId, d) end)
+
+	for attempt = 1, SAVE_RETRIES do
+		local ok = pcall(function() store:SetAsync("u_" .. userId, d) end)
+		if ok then return end
+		if attempt < SAVE_RETRIES then task.wait(SAVE_RETRY_DELAY) end
+	end
+	warn(("[InventoryService] Failed to save data for user %d after %d attempts"):format(userId, SAVE_RETRIES))
 end
 
 function InventoryService:Cleanup(userId)
@@ -174,6 +194,34 @@ function InventoryService:RecordDungeonResult(userId, info)
 	end
 end
 
+-- ── Settings (client-side prefs, persisted so they survive relog) ────────────
+
+function InventoryService:GetSettings(userId)
+	local d = get(userId)
+	return d and d.settings or blankSettings()
+end
+
+-- Merges only known keys with basic type/range validation; ignores the rest.
+function InventoryService:SetSettings(userId, settingsTable)
+	if type(settingsTable) ~= "table" then return end
+	local d = get(userId)
+	if not d then return end
+	local s = d.settings
+
+	if type(settingsTable.masterVolume) == "number" then
+		s.masterVolume = math.clamp(settingsTable.masterVolume, 0, 1)
+	end
+	if type(settingsTable.screenShake) == "boolean" then
+		s.screenShake = settingsTable.screenShake
+	end
+	if type(settingsTable.lowHpWarning) == "boolean" then
+		s.lowHpWarning = settingsTable.lowHpWarning
+	end
+	if type(settingsTable.uiScale) == "number" then
+		s.uiScale = math.clamp(settingsTable.uiScale, 0.75, 1.25)
+	end
+end
+
 -- Full data snapshot sent to the client.
 function InventoryService:GetFullData(userId)
 	return {
@@ -183,6 +231,7 @@ function InventoryService:GetFullData(userId)
 		team      = self:GetTeam(userId),
 		tower     = get(userId).tower,
 		dungeon   = get(userId).dungeon,
+		settings  = get(userId).settings,
 	}
 end
 

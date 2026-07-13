@@ -92,17 +92,13 @@ function ModeSelectUI:Init(gui, cbs)
 	end)
 end
 
--- info: { towerBest = n, towerActive = bool, dungeonActive = bool, dungeonReady = bool }
+-- info: { towerBest = n, towerActive = bool, dungeonActive = bool }
 function ModeSelectUI:Show(info)
 	info = info or {}
 	towerSub.Text = info.towerActive and "Run in progress — tap to resume"
 		or ("Best: Floor " .. (info.towerBest or 0))
-	if info.dungeonReady == false then
-		dungeonSub.Text = "Coming Soon"
-	else
-		dungeonSub.Text = info.dungeonActive and "Run in progress — tap to resume"
-			or ("Best: Row " .. (info.dungeonBest or 0) .. " • shops • elites • boss")
-	end
+	dungeonSub.Text = info.dungeonActive and "Run in progress — tap to resume"
+		or ("Best: Row " .. (info.dungeonBest or 0) .. " • shops • elites • boss")
 	panel.Visible = true
 end
 

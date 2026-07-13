@@ -441,7 +441,6 @@ function DungeonController:_modeInfo()
 		dungeonBest = full and full.dungeon and full.dungeon.deepestRow or 0,
 		towerActive = invoke(deps.remotes.towerGetState) ~= nil,
 		dungeonActive = invoke(deps.remotes.dungeonGetState) ~= nil,
-		dungeonReady = true,
 	}
 end
 

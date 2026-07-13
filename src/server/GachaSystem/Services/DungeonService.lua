@@ -9,9 +9,9 @@
 -- validated against the server's own edge graph, and battles resolve entirely
 -- server-side.
 --
--- Elite and Shop nodes are disabled via DungeonConfig.Map.EnabledTypes until
--- their systems ship (Phase 4/5); the resolution paths below are written now
--- so flipping the switch needs no rework here.
+-- Elite and Shop node generation can be toggled off via DungeonConfig.Map.
+-- EnabledTypes (falls back to Mob generation) without touching the resolution
+-- paths below.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gachaShared   = ReplicatedStorage:WaitForChild("GachaSystem")

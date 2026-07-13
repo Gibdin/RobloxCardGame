@@ -488,6 +488,11 @@ CardDatabase.Cards = {
 	-- SECRET (1)
 	-- ═══════════════════════════════════════════════════════════════════════════
 
+	-- Decision (Phase 0 audit): the "???" text and absurd 9999/9999/9999 stats
+	-- are an intentional mystery/novelty card, not an unfinished one — keep the
+	-- flavor. It still needs a real unique active before Phase 3 ships per-card
+	-- actives, since right now it silently falls back to the generic DPS active
+	-- and Rage passive, which undercuts the "unknown power" premise.
 	{
 		id = 50, name = "The Nameless One", rarity = "Secret",
 		attack = 9999, hp = 9999, mp = 9999,

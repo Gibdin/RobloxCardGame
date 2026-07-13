@@ -21,6 +21,7 @@ local Sound = { Play = function() end, Stop = function() end }  -- no-op until I
 local speedIndex = 1
 local speeds = { 1, 2 }
 local onSkip
+local lowHpWarningEnabled = true
 
 local BG      = Color3.fromRGB(14, 14, 24)
 local HP_HI   = Color3.fromRGB(70, 200, 110)
@@ -220,7 +221,7 @@ local function updateLowHpState(entry)
 		entry.lowPulse:Play()
 		if not entry.lowWarned and entry.side == "P" then
 			entry.lowWarned = true
-			Sound:Play("low_hp_warn")
+			if lowHpWarningEnabled then Sound:Play("low_hp_warn") end
 		end
 	elseif not inDanger and entry.lowPulse then
 		stopLowHpPulse(entry)
@@ -763,6 +764,10 @@ end
 
 function BattleUI:GetPanel()
 	return panel
+end
+
+function BattleUI:SetLowHpWarningEnabled(enabled)
+	lowHpWarningEnabled = enabled
 end
 
 return BattleUI

@@ -14,6 +14,7 @@ local SoundManager = {}
 local POOL_SIZE = 3
 
 local slots = {}   -- { [name] = { sounds = {Sound...}, nextIdx = 1, cfg = cfg } }
+local masterVolume = 1
 
 function SoundManager:Init(vfxConfig)
 	local folder = Instance.new("Folder")
@@ -26,7 +27,11 @@ function SoundManager:Init(vfxConfig)
 		for i = 1, count do
 			local s = Instance.new("Sound")
 			s.Name          = count > 1 and (name .. "_" .. i) or name
-			s.SoundId       = cfg.id or "rbxassetid://0"
+			-- Leave SoundId blank for unfilled placeholder slots so Roblox doesn't
+			-- log a spurious "asset not found" warning for every one at Init.
+			if cfg.id and cfg.id ~= "rbxassetid://0" then
+				s.SoundId = cfg.id
+			end
 			s.Volume        = cfg.volume or 0.5
 			s.PlaybackSpeed = cfg.pitch  or 1.0
 			s.RollOffMaxDistance = 10000
@@ -53,6 +58,7 @@ function SoundManager:Play(name, opts)
 	if opts and opts.pitchScale then
 		pitch = pitch * opts.pitchScale
 	end
+	s.Volume = (slot.cfg.volume or 0.5) * masterVolume
 	s.PlaybackSpeed = pitch
 	s:Play()
 end
@@ -63,6 +69,20 @@ function SoundManager:Stop(name)
 	for _, s in ipairs(slot.sounds) do
 		s:Stop()
 	end
+end
+
+-- v: 0-1 multiplier applied to every sound's configured base volume.
+function SoundManager:SetMasterVolume(v)
+	masterVolume = math.clamp(v, 0, 1)
+	for _, slot in pairs(slots) do
+		for _, s in ipairs(slot.sounds) do
+			s.Volume = (slot.cfg.volume or 0.5) * masterVolume
+		end
+	end
+end
+
+function SoundManager:GetMasterVolume()
+	return masterVolume
 end
 
 return SoundManager

@@ -25,6 +25,8 @@ local rfGetPityInfo  = remotes:WaitForChild("GetPityInfo")
 local rfGetInventory = remotes:WaitForChild("GetInventory")
 local rfGetTeam      = remotes:WaitForChild("GetTeam")
 local rfSetTeam      = remotes:WaitForChild("SetTeam")
+local rfGetSettings  = remotes:WaitForChild("GetSettings")
+local rfSetSettings  = remotes:WaitForChild("SetSettings")
 local rfTowerStart     = remotes:WaitForChild("Tower_Start")
 local rfTowerNextFloor = remotes:WaitForChild("Tower_NextFloor")
 local rfTowerPickBuff  = remotes:WaitForChild("Tower_PickBuff")
@@ -63,6 +65,7 @@ local SideMenuUI    = require(uiFolder.SideMenuUI)
 local InventoryUI   = require(uiFolder.InventoryUI)
 local GlobalTeamBar = require(uiFolder.GlobalTeamBar)
 local TeamBuilderUI = require(uiFolder.TeamBuilderUI)
+local SettingsUI    = require(uiFolder.SettingsUI)
 
 -- Battle modules
 local DungeonController = require(script.Parent.DungeonController)
@@ -74,6 +77,7 @@ local EliteBuffUI       = require(uiFolder.EliteBuffUI)
 local RunTeamPanel      = require(uiFolder.RunTeamPanel)
 local DungeonMapUI      = require(uiFolder.DungeonMapUI)
 local ShopUI            = require(uiFolder.ShopUI)
+local FxUtil            = require(uiFolder.FxUtil)
 
 -- Root ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -255,34 +259,38 @@ PackOpeningUI:SetAutoRollCallback(function(enabled)
 	autoRollEnabled = enabled
 end)
 
--- Stub panels (placeholders until Inventory/Team/Settings are built)
-local function makeStubPanel(title)
-	local bg=Instance.new("Frame"); bg.Name=title.."Panel"
-	bg.Size=UDim2.new(0,480,0,360); bg.Position=UDim2.new(0.5,-240,0.5,-180)
-	bg.BackgroundColor3=Color3.fromRGB(14,14,24); bg.BackgroundTransparency=0.05
-	bg.BorderSizePixel=0; bg.ZIndex=20; bg.Visible=false; bg.Parent=screenGui
-	local bc=Instance.new("UICorner"); bc.CornerRadius=UDim.new(0,12); bc.Parent=bg
-	local bs=Instance.new("UIStroke"); bs.Thickness=1; bs.Color=Color3.fromRGB(40,40,60); bs.Parent=bg
-	local titleLbl=Instance.new("TextLabel")
-	titleLbl.Size=UDim2.new(1,-60,0,44); titleLbl.Position=UDim2.new(0,16,0,10)
-	titleLbl.BackgroundTransparency=1; titleLbl.Text=title; titleLbl.TextColor3=Color3.fromRGB(210,210,240)
-	titleLbl.TextXAlignment=Enum.TextXAlignment.Left; titleLbl.TextScaled=true
-	titleLbl.Font=Enum.Font.GothamBold; titleLbl.ZIndex=21; titleLbl.Parent=bg
-	local closeBtn=Instance.new("TextButton")
-	closeBtn.Size=UDim2.new(0,36,0,36); closeBtn.Position=UDim2.new(1,-46,0,12)
-	closeBtn.BackgroundColor3=Color3.fromRGB(80,30,30); closeBtn.BorderSizePixel=0
-	closeBtn.Text="X"; closeBtn.TextColor3=Color3.new(1,1,1); closeBtn.TextScaled=true
-	closeBtn.Font=Enum.Font.GothamBold; closeBtn.ZIndex=21; closeBtn.Parent=bg
-	local cc=Instance.new("UICorner"); cc.CornerRadius=UDim.new(0,6); cc.Parent=closeBtn
-	local stub=Instance.new("TextLabel")
-	stub.Size=UDim2.new(0.8,0,0,36); stub.Position=UDim2.new(0.1,0,0.5,-18)
-	stub.BackgroundTransparency=1; stub.Text=title.." — Coming Soon"
-	stub.TextColor3=Color3.fromRGB(70,70,90); stub.TextScaled=true
-	stub.Font=Enum.Font.Gotham; stub.ZIndex=21; stub.Parent=bg
-	closeBtn.MouseButton1Click:Connect(function() bg.Visible=false end)
-	return bg
+-- Settings: master volume / screen shake / low-HP warning / UI scale, all
+-- persisted server-side via GetSettings/SetSettings so they survive relog.
+local rootUIScale = Instance.new("UIScale")
+rootUIScale.Parent = screenGui
+
+local settingsSaveDebounce = nil
+local function applySettings(s)
+	SoundManager:SetMasterVolume(s.masterVolume)
+	FxUtil.SetShakeEnabled(s.screenShake)
+	BattleUI:SetLowHpWarningEnabled(s.lowHpWarning)
+	rootUIScale.Scale = s.uiScale
 end
-local settingsPanel = makeStubPanel("SETTINGS")
+
+SettingsUI:Init(screenGui, {
+	onChange = function(s)
+		applySettings(s)
+		if settingsSaveDebounce then task.cancel(settingsSaveDebounce) end
+		settingsSaveDebounce = task.delay(1, function()
+			pcall(function() rfSetSettings:InvokeServer(s) end)
+		end)
+	end,
+})
+
+task.spawn(function()
+	local ok, loaded = pcall(function() return rfGetSettings:InvokeServer() end)
+	if ok and loaded then
+		SettingsUI:SetSettings(loaded)
+		applySettings(SettingsUI:GetSettings())
+	end
+end)
+
+local settingsPanel = SettingsUI:GetPanel()
 
 -- Side menu
 local function closeAllExcept(except)

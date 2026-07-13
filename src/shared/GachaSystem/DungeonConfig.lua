@@ -13,8 +13,7 @@ DungeonConfig.Map = {
 	EliteMinRow = 4,               -- no elites before this row
 	-- Post-pass guarantees (convert random Mob nodes if short).
 	MinShops = 2, MinElites = 2, MinRests = 1,
-	-- Phase switch: Elite/Shop nodes are generated as Mob until their systems
-	-- ship (Phase 4/5). Flip to true to enable — no generator changes needed.
+	-- Master on/off switch per node type (set false to fall back to Mob generation).
 	EnabledTypes = { Mob = true, Elite = true, Shop = true, Rest = true },
 }
 

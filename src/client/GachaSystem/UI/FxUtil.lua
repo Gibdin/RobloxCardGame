@@ -31,8 +31,14 @@ end
 -- intensity and later end time win, so a crit shake mid-kill-shake never
 -- leaves the frame displaced.
 local activeShakes = {}  -- [frame] = { intensity, endTime, origin }
+local shakeEnabled = true
+
+function FxUtil.SetShakeEnabled(enabled)
+	shakeEnabled = enabled
+end
 
 function FxUtil.shake(frame, intensity, duration)
+	if not shakeEnabled then return end
 	local now = os.clock()
 	local existing = activeShakes[frame]
 	if existing then
