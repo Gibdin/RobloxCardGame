@@ -419,40 +419,72 @@ CardDatabase.Cards = {
 	-- LEGENDARY (4)
 	-- ═══════════════════════════════════════════════════════════════════════════
 
+	-- Card identities 44-50 are anime-character parodies (original names/kits
+	-- clearly evocative of a popular character's signature technique, never the
+	-- real trademarked name/likeness itself — see GameDesign.md's Theme note).
+	-- `active.effects` is the real per-card unique kit BattleEngine executes;
+	-- `active.name`/`active.desc` remain the display strings shown in UI panels.
 	{
-		id = 44, name = "Drakon the Eternal", rarity = "Legendary",
+		id = 44, name = "The Ever-Rising Fist", rarity = "Legendary",
 		attack = 920, hp = 2020, mp = 610,
 		role = "DPS", passive = "Rage",
-		passive_name = "Dragon's Wrath",
-		passive_desc = "Each attack permanently grants +4% ATK for the rest of the battle. This bonus resets only on death.",
-		active = { name = "Eternal Flames", desc = "Erupts in an inferno dealing 450% ATK to all enemies. Survivors burn for 15% ATK/round for 3 rounds." },
+		passive_name = "Never Backs Down",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Limit Breaker",
+			desc = "Unleashes a world-shaking barrage on every foe for 400% ATK, growing permanently stronger (+5% ATK) with each cast.",
+			effects = {
+				{ op = "aoe_damage", mult = 4.0 },
+				{ op = "stack_atk_buff", pct = 0.05 },
+			},
+		},
 		series = { "Ancient Ones", "Storm Riders" },
 	},
 	{
-		id = 45, name = "Seraphim of Dawn", rarity = "Legendary",
+		id = 45, name = "The Hundred-Heal Sage", rarity = "Legendary",
 		attack = 790, hp = 2560, mp = 820,
 		role = "Support", passive = "Medic",
-		passive_name = "Holy Judgement",
-		passive_desc = "When any ally dies, Seraphim resurrects them at 20% HP. Each ally can only be resurrected once per battle.",
-		active = { name = "Dawn's Grace", desc = "Fully heals the lowest HP ally and grants all allies a shield equal to 20% of their Max HP for 3 turns." },
+		passive_name = "Steady Hands",
+		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
+		active = {
+			name = "Century Seal Release",
+			desc = "Releases a lifetime of stored vitality — fully restores the lowest HP ally and shields the whole team for 20% Max HP.",
+			effects = {
+				{ op = "heal_lowest", pct = 1.0 },
+				{ op = "shield_all", pct = 0.20 },
+			},
+		},
 		series = { "Divine Pantheon", "Nature's Call" },
 	},
 	{
-		id = 46, name = "Nyx, Shadowweaver", rarity = "Legendary",
+		id = 46, name = "The Honored Guy", rarity = "Legendary",
 		attack = 1010, hp = 1820, mp = 715,
 		role = "DPS", passive = "Executioner",
-		passive_name = "Dark Convergence",
-		passive_desc = "Each ability cast permanently reduces all enemies' defenses by 5%, stacking up to a 25% reduction.",
-		active = { name = "Void Rift", desc = "Tears a void rift on one enemy for 600% ATK. Instantly kills targets below 20% HP." },
+		passive_name = "Nothing Gets Close",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "Nothing Gets Through",
+			desc = "An unblockable, unavoidable strike for 500% true damage — instantly ends any foe already below 25% HP.",
+			effects = {
+				{ op = "single_true_execute", mult = 5.0, executeThreshold = 0.25 },
+			},
+		},
 		series = { "Void Walkers", "Shadow Covenant" },
 	},
 	{
-		id = 47, name = "Titan of the Deep", rarity = "Legendary",
+		id = 47, name = "Iron Gill, the Tide Warden", rarity = "Legendary",
 		attack = 740, hp = 3580, mp = 400,
 		role = "Tank", passive = "Drain",
-		passive_name = "Tidal Wave",
-		passive_desc = "Each round, reduces all enemies' ATK by 8% (stacks up to 3 rounds). Resets if Titan is defeated.",
-		active = { name = "Deep Surge", desc = "Surges with ancient energy, healing all allies for 15% Max HP and dealing 300% ATK to all enemies." },
+		passive_name = "Living Current",
+		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
+		active = {
+			name = "Tidal Guard",
+			desc = "A wall of living current — shields the whole team for 15% Max HP and permanently saps 4% ATK from every enemy (stacking to -20%).",
+			effects = {
+				{ op = "shield_all", pct = 0.15 },
+				{ op = "enemy_atk_shred", pct = 0.04, cap = 0.20 },
+			},
+		},
 		series = { "Abyssal Order", "Ancient Ones" },
 	},
 
@@ -461,12 +493,19 @@ CardDatabase.Cards = {
 	-- ═══════════════════════════════════════════════════════════════════════════
 
 	{
-		id = 48, name = "Chaos Archon", rarity = "Mythic",
+		id = 48, name = "The Illusion Sovereign", rarity = "Mythic",
 		attack = 1520, hp = 4100, mp = 1250,
 		role = "DPS", passive = "Rage",
-		passive_name = "Reality Fracture",
-		passive_desc = "Abilities always critically strike. Each critical hit permanently reduces the target's defenses by 8%.",
-		active = { name = "Chaos Nova", desc = "Detonates reality around all enemies for 700% ATK. Each enemy hit has their Max HP reduced by 15% for the rest of battle." },
+		passive_name = "Every Move Foreseen",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Absolute Hypnosis",
+			desc = "By the time you realize you've been struck, it already happened a hundred times over — 350% ATK to all enemies, always a critical hit, permanently shredding 6% defense from every foe hit (stacking to -30%).",
+			effects = {
+				{ op = "aoe_damage", mult = 3.5, guaranteedCrit = true },
+				{ op = "enemy_dr_shred", pct = 0.06, cap = 0.30 },
+			},
+		},
 		series = { "Void Walkers" },
 	},
 
@@ -475,12 +514,19 @@ CardDatabase.Cards = {
 	-- ═══════════════════════════════════════════════════════════════════════════
 
 	{
-		id = 49, name = "Aeon, World-Ender", rarity = "God",
+		id = 49, name = "World Cutter", rarity = "God",
 		attack = 2600, hp = 8200, mp = 2100,
 		role = "DPS", passive = "Executioner",
-		passive_name = "Entropy",
-		passive_desc = "All attacks deal true damage, ignoring every form of defense and shield. Each attack permanently reduces the target's Max HP by 5%.",
-		active = { name = "World's End", desc = "Summons the collapse of all things — deals 1000% true damage to all enemies. Survivors have their Max HP permanently halved." },
+		passive_name = "No Mercy for the Weak",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "Domainless Cleave",
+			desc = "No domain, no barrier, no defense has ever been enough — 800% true damage to every enemy, permanently cleaving 10% off their Max HP.",
+			effects = {
+				{ op = "true_damage_all", mult = 8.0 },
+				{ op = "maxhp_shred_all", pct = 0.10 },
+			},
+		},
 		series = {},
 	},
 
@@ -490,16 +536,26 @@ CardDatabase.Cards = {
 
 	-- Decision (Phase 0 audit): the "???" text and absurd 9999/9999/9999 stats
 	-- are an intentional mystery/novelty card, not an unfinished one — keep the
-	-- flavor. It still needs a real unique active before Phase 3 ships per-card
-	-- actives, since right now it silently falls back to the generic DPS active
-	-- and Rage passive, which undercuts the "unknown power" premise.
+	-- flavor. Phase 3 gives it a real kit: mechanically it quietly out-powers
+	-- even the flashy God-tier card (#49), playing into the "unknown, possibly
+	-- absurd power" joke the stats already set up — Secret outranks God in
+	-- RarityConfig's own order, so this is consistent with the rarity, not
+	-- just a gag.
 	{
 		id = 50, name = "The Nameless One", rarity = "Secret",
 		attack = 9999, hp = 9999, mp = 9999,
 		role = "DPS", passive = "Rage",
 		passive_name = "???",
 		passive_desc = "Its true nature is unknown.",
-		active = { name = "???", desc = "Unknown." },
+		active = {
+			name = "???",
+			desc = "Unknown.",
+			effects = {
+				{ op = "true_damage_all", mult = 10.0 },
+				{ op = "maxhp_shred_all", pct = 0.15 },
+				{ op = "stack_atk_buff", pct = 0.10 },
+			},
+		},
 		series = {},
 	},
 }

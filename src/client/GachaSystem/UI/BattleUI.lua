@@ -498,7 +498,12 @@ function BattleUI:PlayCast(ev)
 	entry.mpBar.Size = UDim2.new(0, 0, 1, 0)
 	FxUtil.floatText(entry.frame, "CAST!", Color3.fromRGB(140, 180, 255))
 	Sound:Play("cast")
-	logLine(entry.name .. " casts their active!", Color3.fromRGB(140, 180, 255))
+	local label = ev.activeName and (ev.activeName ~= (ev.role .. " Active") and ev.activeName or nil)
+	if label then
+		logLine(entry.name .. " casts " .. label .. "!", Color3.fromRGB(140, 180, 255))
+	else
+		logLine(entry.name .. " casts their active!", Color3.fromRGB(140, 180, 255))
+	end
 end
 
 function BattleUI:ApplyShield(ev)
@@ -557,6 +562,17 @@ function BattleUI:ShowSynergy(ev)
 	}):Play()
 	logLine((ev.side == "P" and "Your " or "Enemy ") .. ev.name .. " synergy (tier " .. ev.tier .. ") is active", Color3.fromRGB(255, 220, 120))
 	if ev.side == "P" then Sound:Play("synergy_proc") end
+end
+
+-- Permanent Max HP reduction from a unique-active step (e.g. World Cutter's
+-- Domainless Cleave). No bar re-scale needed here — the next ApplyDamage/
+-- ApplyHeal call already recomputes ratios off the unit's current maxHp.
+function BattleUI:PlayMaxHpShred(ev)
+	local entry = frames[key(ev.dst)]
+	if not entry then return end
+	entry.maxHp = ev.newMaxHp
+	FxUtil.floatText(entry.frame, "-" .. math.floor(ev.pct * 100) .. "% Max HP", Color3.fromRGB(200, 100, 220))
+	logLine(entry.name .. "'s Max HP is permanently cut by " .. math.floor(ev.pct * 100) .. "%", Color3.fromRGB(200, 100, 220))
 end
 
 -- ── Result overlay ────────────────────────────────────────────────────────────

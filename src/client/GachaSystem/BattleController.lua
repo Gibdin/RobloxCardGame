@@ -64,6 +64,7 @@ function BattleController:Play(battle, floorLabel)
 		death   = function(ev) BattleUI:PlayDeath(ev) end,
 		advance = function(ev) BattleUI:PlayAdvance(ev) end,
 		synergy = function(ev) BattleUI:ShowSynergy(ev) end,
+		maxhp_shred = function(ev) BattleUI:PlayMaxHpShred(ev) end,
 		["end"] = function() end,
 	}
 

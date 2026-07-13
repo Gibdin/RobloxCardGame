@@ -22,7 +22,11 @@ CombatConfig.MP = {
 	CastThreshold = 1.0,   -- actives auto-cast at round start when mp >= threshold * maxMp
 }
 
--- ── Generic role actives (v1 — per-card unique actives come later) ───────────
+-- ── Generic role actives (fallback) ───────────────────────────────────────────
+-- Used by any card without its own `active.effects` in CardDatabase.lua.
+-- Legendary+ cards have real per-card unique kits (BattleEngine.lua's
+-- runActiveStep); Common-Epic still share these until Phase 9's roster
+-- expansion backfills them too.
 CombatConfig.Actives = {
 	DPS     = { atkMult   = 2.00 },  -- 200% ATK hit on frontline enemy
 	Support = { healPct   = 0.12 },  -- heal ALL living allies 12% of their MaxHP
@@ -110,6 +114,7 @@ CombatConfig.Playback = {
 	death   = 0.80,
 	advance = 0.60,
 	synergy = 0.60,
+	maxhp_shred = 0.40,
 	["end"] = 0.50,
 	Speeds  = { 1, 2 },
 }

@@ -110,6 +110,12 @@ function BattleEngine.BuildUnit(card, slot, teamContext, mods)
 	atk = math.floor(atk * statMult * (mods.atkMult or 1))
 	hp  = math.floor(hp * statMult * (mods.hpMult or 1))
 
+	-- Per-card unique active (Legendary+ so far — see CardDatabase.lua). Cards
+	-- without one fall back to the generic role-based active in castActive,
+	-- unchanged from before this system existed.
+	local activeSpec = card.active and card.active.effects
+	local activeName = card.active and card.active.name
+
 	return {
 		cardId  = card.id,
 		slot    = slot,
@@ -126,6 +132,10 @@ function BattleEngine.BuildUnit(card, slot, teamContext, mods)
 		mp     = 0,
 		shield = 0,
 		alive  = true,
+
+		activeSpec = activeSpec,
+		activeName = activeName,
+		stackAtkBonus = 0,  -- permanent self ATK% from stack_atk_buff active steps
 
 		rageStacks = 0,
 		mods = {
@@ -171,6 +181,10 @@ local function newSide(key, units)
 		castThreshold = syn.castThreshold or MPConf.CastThreshold,
 		tidalActive = false,
 		markUsed = false,
+		-- Stacking debuffs applied TO this side by an enemy's unique active
+		-- (enemy_atk_shred / enemy_dr_shred) — distinct from synergy math above.
+		customAtkDebuff = 0,
+		customDrShred   = 0,
 	}
 end
 
@@ -195,11 +209,17 @@ local function currentAtk(side, unit)
 	if unit.rageStacks > 0 then
 		atk = atk * (1 + Passives.Rage.atkPerStack * unit.rageStacks)
 	end
+	if unit.stackAtkBonus > 0 then
+		atk = atk * (1 + unit.stackAtkBonus)
+	end
 	if side.tidalActive and isMember(unit, "Abyssal Order") then
 		atk = atk * (1 + side.syn.tidalAtkPct)
 	end
 	if unit.mods.lowHpAtkBonus > 0 and unit.hp < 0.5 * unit.maxHp then
 		atk = atk * (1 + unit.mods.lowHpAtkBonus)
+	end
+	if (side.customAtkDebuff or 0) > 0 then
+		atk = atk * (1 - side.customAtkDebuff)
 	end
 	return atk
 end
@@ -274,10 +294,11 @@ end
 
 -- Applies an already-final damage amount (shield absorb, lethal clamps, death).
 -- allowReflect distinguishes basic attacks from reflect/chain so reflects can't loop.
-function Resolver:applyDamage(srcSide, src, dstSide, dst, final, source, crit, allowReflect)
+-- ignoreShield: "true damage" unique-active steps bypass shield absorption entirely.
+function Resolver:applyDamage(srcSide, src, dstSide, dst, final, source, crit, allowReflect, ignoreShield)
 	if not dst.alive then return end
 
-	local absorbed = math.min(dst.shield, final)
+	local absorbed = ignoreShield and 0 or math.min(dst.shield, final)
 	dst.shield = dst.shield - absorbed
 	local hpBefore = dst.hp
 	local newHp = dst.hp - (final - absorbed)
@@ -341,11 +362,15 @@ function Resolver:applyDamage(srcSide, src, dstSide, dst, final, source, crit, a
 end
 
 -- Full damage pipeline: roll variance/crit, amplifiers, damage reduction, then apply.
-function Resolver:dealDamage(srcSide, src, dstSide, dst, mult, source)
+-- opts (optional): { forceCrit = bool, trueDamage = bool }. trueDamage skips
+-- both the DR calculation below AND shield absorption in applyDamage — used by
+-- unique-active steps like true_damage_all/single_true_execute.
+function Resolver:dealDamage(srcSide, src, dstSide, dst, mult, source, opts)
 	if not src.alive or not dst.alive then return end
 	local rng = self.rng
+	opts = opts or {}
 
-	local crit = rng:NextNumber() < (Battle.CritChance + src.mods.critChanceBonus)
+	local crit = opts.forceCrit or (rng:NextNumber() < (Battle.CritChance + src.mods.critChanceBonus))
 	local raw = currentAtk(srcSide, src) * mult
 		* rng:NextNumber(Battle.VarianceLo, Battle.VarianceHi)
 		* (crit and Battle.CritMult or 1)
@@ -364,26 +389,130 @@ function Resolver:dealDamage(srcSide, src, dstSide, dst, mult, source)
 		amp = amp + srcSide.syn.bonusDamagePct
 	end
 
-	local dr = (dstSide.syn.damageReduction or 0) + dst.mods.extraDR
-	if (dstSide.syn.drBelowHalf or 0) > 0 and dst.hp / dst.maxHp < 0.5 then
-		dr = dr + dstSide.syn.drBelowHalf
+	local dr = 0
+	if not opts.trueDamage then
+		dr = (dstSide.syn.damageReduction or 0) + dst.mods.extraDR + (dstSide.customDrShred or 0)
+		if (dstSide.syn.drBelowHalf or 0) > 0 and dst.hp / dst.maxHp < 0.5 then
+			dr = dr + dstSide.syn.drBelowHalf
+		end
+		dr = math.clamp(dr, 0, 0.8)
 	end
-	dr = math.clamp(dr, 0, 0.8)
-	local ignore = (source == "active") and (srcSide.syn.ignoreDRPct or 0) or 0
+	local ignore = (source == "active" and not opts.trueDamage) and (srcSide.syn.ignoreDRPct or 0) or 0
 
 	local final = math.max(1, math.floor(raw * amp * (1 - dr * (1 - ignore))))
-	self:applyDamage(srcSide, src, dstSide, dst, final, source, crit, source == "attack")
+	self:applyDamage(srcSide, src, dstSide, dst, final, source, crit, source == "attack", opts.trueDamage)
+end
+
+-- Applies a shield amount to `target` and emits the matching event. Shared by
+-- shield_self/shield_all unique-active steps and, below, the generic Tank active.
+function Resolver:applyShield(side, target, amount)
+	if amount < 1 then return end
+	target.shield = target.shield + amount
+	self:emit({ t = "shield", dst = ref(side, target), amount = amount, newShield = target.shield })
+end
+
+-- One step of a per-card unique active (CardDatabase.lua card.active.effects).
+-- Each op is a small reusable primitive so card kits stay declarative data
+-- instead of one bespoke Lua function per card.
+function Resolver:runActiveStep(side, unit, enemySide, step)
+	local pw = unit.mods.activePowerMult
+
+	if step.op == "aoe_damage" then
+		for _, e in ipairs(enemySide.units) do
+			if e.alive then
+				self:dealDamage(side, unit, enemySide, e, step.mult * pw, "active", { forceCrit = step.guaranteedCrit })
+			end
+		end
+
+	elseif step.op == "true_damage_all" then
+		for _, e in ipairs(enemySide.units) do
+			if e.alive then
+				self:dealDamage(side, unit, enemySide, e, step.mult * pw, "active", { trueDamage = true })
+			end
+		end
+
+	elseif step.op == "single_true_execute" then
+		local target = front(enemySide)
+		if target then
+			if (target.hp / target.maxHp) <= step.executeThreshold then
+				-- Guaranteed lethal: exceed remaining HP+shield, bypass everything.
+				self:applyDamage(side, unit, enemySide, target, target.hp + target.shield + 1, "active", true, false, true)
+			else
+				self:dealDamage(side, unit, enemySide, target, step.mult * pw, "active", { trueDamage = true })
+			end
+		end
+
+	elseif step.op == "heal_all" then
+		for _, ally in ipairs(side.units) do
+			if ally.alive then
+				self:heal(side, ally, ally.maxHp * step.pct * (1 + side.effectiveness) * pw, "active")
+			end
+		end
+
+	elseif step.op == "heal_lowest" then
+		local target
+		for _, ally in ipairs(side.units) do
+			if ally.alive and ally.hp < ally.maxHp
+				and (not target or ally.hp / ally.maxHp < target.hp / target.maxHp) then
+				target = ally
+			end
+		end
+		if target then
+			self:heal(side, target, target.maxHp * step.pct * (1 + side.effectiveness) * pw, "active")
+		end
+
+	elseif step.op == "shield_all" then
+		for _, ally in ipairs(side.units) do
+			if ally.alive then
+				self:applyShield(side, ally, math.floor(ally.maxHp * step.pct * pw))
+			end
+		end
+
+	elseif step.op == "shield_self" then
+		self:applyShield(side, unit, math.floor(unit.maxHp * step.pct * pw))
+
+	elseif step.op == "stack_atk_buff" then
+		unit.stackAtkBonus = unit.stackAtkBonus + step.pct
+
+	elseif step.op == "enemy_atk_shred" then
+		enemySide.customAtkDebuff = math.min((enemySide.customAtkDebuff or 0) + step.pct, step.cap)
+
+	elseif step.op == "enemy_dr_shred" then
+		enemySide.customDrShred = math.min((enemySide.customDrShred or 0) + step.pct, step.cap)
+
+	elseif step.op == "maxhp_shred_all" then
+		for _, e in ipairs(enemySide.units) do
+			if e.alive then
+				e.maxHp = math.max(1, math.floor(e.maxHp * (1 - step.pct)))
+				e.hp = math.min(e.hp, e.maxHp)
+				self:emit({ t = "maxhp_shred", dst = ref(enemySide, e), pct = step.pct, newMaxHp = e.maxHp, newHp = e.hp })
+			end
+		end
+	end
 end
 
 function Resolver:castActive(side, unit)
 	unit.mp = 0
 	local enemySide = side.enemy
+	local casts = (unit.role == "Support" and side.syn.doubleSupportCast) and 2 or 1
+
+	if unit.activeSpec then
+		self:emit({ t = "cast", src = ref(side, unit), activeName = unit.activeName or (unit.role .. " Active"), role = unit.role })
+		for _ = 1, casts do
+			for _, step in ipairs(unit.activeSpec) do
+				self:runActiveStep(side, unit, enemySide, step)
+			end
+		end
+		return
+	end
+
+	-- Fallback: generic role-based active, unchanged — every card without a
+	-- unique kit (Common through Epic, for now) still works exactly as before.
 	local activeDef = Actives[unit.role]
 	if not activeDef then return end
 
 	self:emit({ t = "cast", src = ref(side, unit), activeName = unit.role .. " Active", role = unit.role })
 
-	local casts = (unit.role == "Support" and side.syn.doubleSupportCast) and 2 or 1
 	for _ = 1, casts do
 		if unit.role == "DPS" then
 			local target = front(enemySide)
@@ -397,9 +526,7 @@ function Resolver:castActive(side, unit)
 				end
 			end
 		else -- Tank
-			local amount = math.floor(unit.maxHp * activeDef.shieldPct * unit.mods.activePowerMult)
-			unit.shield = unit.shield + amount
-			self:emit({ t = "shield", dst = ref(side, unit), amount = amount, newShield = unit.shield })
+			self:applyShield(side, unit, math.floor(unit.maxHp * activeDef.shieldPct * unit.mods.activePowerMult))
 		end
 	end
 end

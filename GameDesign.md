@@ -102,16 +102,18 @@ Phases are ordered so each unblocks the next — monetization needs stable persi
 
 **Definition of done:** joining the game drops the player into a populated, walkable space, not a menu; pack-opening/shop/run-start are all triggerable from world interaction as well as the side menu; multiple in-server players can see each other.
 
-### Phase 3 — Card Identity & Combat Depth
+### Phase 3 — Card Identity & Combat Depth ✅ Core shipped 2026-07-13
 **Goal:** make all 50+ cards feel individually worth pulling — directly resolves the `CombatConfig.lua:25` "generic v1 actives" gap.
 
-- Extend `CardDatabase.lua`'s schema so `active` can be a per-card unique effect definition (not shared per role), consumed by `BattleEngine.lua`'s unit-build/round-resolution code. Roll out rarity-first: Legendary → Mythic → God → Secret get unique actives first (biggest chase-value impact, smallest card count), backfilling Epic/Rare/Uncommon/Common later alongside Phase 9's roster expansion.
-- Give card #50 "The Nameless One" a real kit now that the per-card system exists.
-- Add 1-2 new passive categories per role (Tank currently has only 1) to widen the combination space now that unique actives make individual card identity meaningful.
-- Consider genuinely new (not just stat-multiplier) synergy mechanics that interact with the new per-card actives — e.g. a Shadow Covenant active that consumes/applies marks directly.
-- `TeamBuilderUI.lua`/`GlobalTeamBar.lua`/`InventoryUI.lua`: surface unique-active text in the existing card detail panel pattern.
+> **Theme note:** per the anime-card-game direction (see the Theme section above), all 7 Legendary+ cards were re-identified as original parody characters clearly evocative of popular anime characters' signature techniques/epithets (e.g. a Gojo-style "unblockable, unavoidable strike" character named "The Honored Guy", a Sukuna-style "cuts through any defense" character named "World Cutter") — never the real trademarked name/likeness. This same parody-naming convention should carry forward into Phase 9's roster expansion and any dungeon theming work.
 
-**Definition of done:** every Legendary+ card has a distinct active ability; both flavor-text mismatches are gone; the synergy panel accurately describes engine behavior.
+- `CardDatabase.lua`'s `active` field now supports a per-card `effects` array — an ordered list of small reusable op primitives (`aoe_damage`, `true_damage_all`, `single_true_execute`, `heal_all`/`heal_lowest`, `shield_all`/`shield_self`, `stack_atk_buff`, `enemy_atk_shred`/`enemy_dr_shred`, `maxhp_shred_all`) that `BattleEngine.lua`'s new `Resolver:runActiveStep` executes. All 7 Legendary/Mythic/God/Secret cards (including #50, now with a real triple-effect kit that quietly out-powers the God-tier card — consistent with Secret outranking God in `RarityConfig`'s own order, not just a joke) have distinct, mechanically real kits. Cards without `effects` (all Common-Epic, for now) fall back to the original generic role-based active — verified via direct `BattleEngine.Resolve` tests that this fallback path is byte-for-byte unchanged.
+- `single_true_execute`, `true_damage_all` bypass both damage reduction and shield absorption (new `ignoreShield` param on `applyDamage`, new `opts.trueDamage`/`opts.forceCrit` on `dealDamage`) — verified a shielded target takes true damage straight to HP.
+- `PlayCast` in `BattleUI.lua` now actually shows the real ability name in the battle log (it previously ignored `activeName` entirely); a new `maxhp_shred` event/`PlayMaxHpShred` handler gives player-visible feedback for the new permanent-Max-HP-reduction mechanic.
+- **Deferred, not blocking:** "add 1-2 new passive categories per role" and "new synergy mechanics that consume/apply marks directly" — these widen the combination space but aren't required for the phase's core goal; natural to bundle with Phase 9's Common-Epic uniqueness backfill instead of doing them twice.
+- No UI changes were needed for `TeamBuilderUI`/`InventoryUI` — both already read only `active.name`/`active.desc` for display, so the new `effects` field is transparent to them (confirmed via code read, not assumed).
+
+**Definition of done:** every Legendary+ card has a distinct active ability (✅, verified via direct engine tests exercising every op); both flavor-text mismatches are gone (done in Phase 0); the synergy panel accurately describes engine behavior (done in Phase 0).
 
 ### Phase 4 — Retention Loops & Live-Ops Infrastructure
 **Goal:** turn a solid core loop into a reason to come back daily.
