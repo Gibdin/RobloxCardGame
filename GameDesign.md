@@ -150,15 +150,21 @@ Verified: rating math and diminishing reward tiers exactly correct (1000→1020 
 
 **Definition of done:** players can attack snapshots of real players' teams (✅ — code-complete, needs a second real account or publishing to fully exercise), see rating/leaderboard position (✅), and earn PvP rewards (✅), entirely on existing combat code (✅ — zero new BattleEngine code).
 
-### Phase 6 — Live Real-Time PvP Duels
+### Phase 6 — Live Real-Time PvP Duels ✅ Core shipped 2026-07-13
 **Goal:** add live matchmaking/presence on top of the validated async system, without needing real-time combat netcode (the engine is already non-interactive/deterministic).
 
-- New `src/server/GachaSystem/Services/DuelMatchmakingService.lua`: rating-band queue pairing (reuses Phase 5's rating). Both players queue → server resolves once with a synced seed → **both clients simultaneously play back the identical event log** via the existing `BattleController` — matchmaking/presence is the only new real-time surface, not combat itself.
-- Physical duel arenas in the Phase 2 hub's reserved zone, plus remote queueing from anywhere.
-- Spectator mode: a third player can watch a live duel's event-log playback via a read-only `BattleController` instance.
-- Duel rewards/cosmetic flex (victory emotes, arena banners) tie into Phase 1/2's cosmetic monetization.
+> **Correctness note worth remembering:** turn order within a round depends on which side is "P" vs "E" (P always acts first each phase), so re-resolving the same matchup with sides swapped is **not** guaranteed to produce the same fight — it could even flip the winner. The fight is resolved exactly once (first-queued player = "P"); the second player receives a pure label-swapped copy of that same event log (`swapBattlePerspective` — clones each event and flips `P`↔`E` on `side`/`winner`/`src`/`dst`, plus swaps which start array is "mine"), never a second `BattleEngine.Resolve` call. This is the one place in the whole PvP stack that isn't "just reuse the engine unchanged," and it's worth flagging for anyone extending this later (e.g. Phase 7's Guild Wars).
 
-**Definition of done:** two online players can queue, get matched, and watch the same fight resolve together in the hub arena.
+- `DuelMatchmakingService.lua`: an in-memory FIFO queue (no persistence needed — a restart just clears it) paired within a widening rating band (`PvPConfig.Matchmaking`: starts at ±100, widens 15/sec, caps at 2000 — effectively "match anyone" after ~2 minutes waiting). A background sweep runs every second, plus an immediate sweep on every `JoinQueue` call for instant matches when already compatible. Rating moves **symmetrically** here (both players are actually present) — unlike Phase 5's attacker-only async trophies — reusing the same `PvPConfig.WinTrophies`/`LoseTrophies` and the same `PvPRating` leaderboard board.
+- Matched players are notified via a new `DuelMatched` RemoteEvent (a genuine push, not a poll) — the fight pops up even if the Arena panel is closed. One accepted limitation: if a player is mid-Dungeon/Tower-battle at the exact moment they're matched, the shared `BattleController:IsPlaying()` guard blocks that playback; the duel still resolved correctly server-side (rating/rewards applied), it's just not shown to them.
+- Physical **Duel Arena** in the hub (`HubConfig.DuelArena`) — the Phase 2 reserved zone is now a real raised platform with a `ProximityPrompt`, built additively rather than as a retrofit of the still-generic `buildReservedZone` (Guild Hall stays a marker for Phase 7).
+- Spectator mode: every resolved duel is kept in a small ring buffer (last 5); any player can list and re-watch one via `GetRecentDuels`/`WatchDuel`, replayed through the same `BattleController`/`BattleUI`.
+- `ArenaUI.lua` gained ASYNC / LIVE DUEL / SPECTATE tabs (all three PvP surfaces in one panel).
+- **Simplified for this pass:** victory emotes/arena-banner cosmetics aren't built — reusing Phase 1/2's cosmetic system for duel-specific flair is a reasonable small addition later, not required for the core loop.
+
+Verified thoroughly despite the single-client Studio constraint: two players joining the queue matched and resolved **immediately** (via the join-triggered sweep), rating moved symmetrically and exactly as configured (1000→1020 win / 1000→990 loss), the duel was correctly recorded with the right winner attribution, `WatchDuel` retrieved the stored 449-event log correctly, a solo queued player correctly never self-matched across multiple sweep ticks, and watching a nonexistent duel ID was correctly rejected. Both players were fake/offline userIds (no real second client), so the `DuelMatched` RemoteEvent push and the `swapBattlePerspective` transformation specifically couldn't be watched end-to-end on a live second screen — but both were verified by direct code review given the `Players:GetPlayerByUserId` nil-guards already proved safe (no crash on an offline "opponent").
+
+**Definition of done:** two online players can queue, get matched (✅), and watch the same fight resolve together in the hub arena (✅ — architecture verified; needs a second real client or publishing to observe the live push on two screens simultaneously).
 
 ### Phase 7 — Social Suite: Guilds, Trading, Friends
 **Goal:** the deepest social layer — deliberately last among social features since trading touches the mature gacha economy and guild halls reuse the hub.

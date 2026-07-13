@@ -21,8 +21,10 @@ local PvPService = {}
 
 -- Builds BattleEngine units for a team of card ids at base stats (no run
 -- levels/items/buffs — a PvP defense squad is always the player's showcase
--- team at full strength, not mid-run state).
-local function buildUnitsForTeam(teamIds)
+-- team at full strength, not mid-run state). Exposed publicly so
+-- DuelMatchmakingService (Phase 6) can build both sides of a live duel the
+-- same way, instead of duplicating this logic.
+function PvPService:BuildUnitsForTeam(teamIds)
 	local defs = {}
 	for _, id in ipairs(teamIds) do
 		if id then
@@ -45,7 +47,7 @@ local function buildUnitsForTeam(teamIds)
 	return units
 end
 
-local function unitSnapshot(units)
+function PvPService:UnitSnapshot(units)
 	local snap = {}
 	for _, u in ipairs(units) do
 		table.insert(snap, {
@@ -92,10 +94,10 @@ function PvPService:Attack(attackerUserId, opponentUserId)
 		return nil, "This player has no defense team set."
 	end
 
-	local attackerUnits = buildUnitsForTeam(attackerTeam)
-	local opponentUnits = buildUnitsForTeam(opponentTeam)
-	local attackerStart = unitSnapshot(attackerUnits)
-	local opponentStart = unitSnapshot(opponentUnits)
+	local attackerUnits = self:BuildUnitsForTeam(attackerTeam)
+	local opponentUnits = self:BuildUnitsForTeam(opponentTeam)
+	local attackerStart = self:UnitSnapshot(attackerUnits)
+	local opponentStart = self:UnitSnapshot(opponentUnits)
 
 	local seed = os.time() + attackerUserId + opponentUserId
 	local result = BattleEngine.Resolve(attackerUnits, opponentUnits, seed)

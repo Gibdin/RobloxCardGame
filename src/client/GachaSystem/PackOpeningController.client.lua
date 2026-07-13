@@ -58,6 +58,12 @@ local rfClaimLoginStreak    = remotes:WaitForChild("ClaimLoginStreak")
 local rfGetLeaderboard      = remotes:WaitForChild("GetLeaderboard")
 local rfGetPvPOpponents     = remotes:WaitForChild("GetPvPOpponents")
 local rfPvPAttack           = remotes:WaitForChild("PvPAttack")
+local rfJoinDuelQueue       = remotes:WaitForChild("JoinDuelQueue")
+local rfLeaveDuelQueue      = remotes:WaitForChild("LeaveDuelQueue")
+local rfGetDuelQueueStatus  = remotes:WaitForChild("GetDuelQueueStatus")
+local rfGetRecentDuels      = remotes:WaitForChild("GetRecentDuels")
+local rfWatchDuel           = remotes:WaitForChild("WatchDuel")
+local reDuelMatched         = remotes:WaitForChild("DuelMatched")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -521,13 +527,110 @@ local function attackOpponent(opponentUserId)
 	})
 end
 
+-- Live Duel queue + spectating (Phase 6). Matchmaking/resolution both happen
+-- server-side; DuelMatched is a push notification so a match found while the
+-- Arena panel is closed still pops the fight up (genuinely "live"). One known
+-- limitation: if the player is mid-Dungeon/Tower-battle at the exact moment
+-- they're matched, BattleController:IsPlaying() blocks that playback — the
+-- duel still resolved correctly server-side (rating/rewards applied), it's
+-- just not shown; acceptable rare edge case for a shared single BattleUI.
+local duelQueued = false
+
+local function refreshDuelQueueStatus()
+	task.spawn(function()
+		local ok, status = pcall(function() return rfGetDuelQueueStatus:InvokeServer() end)
+		if ok and status then
+			duelQueued = status.queued
+			ArenaUI:RefreshQueueStatus(status)
+		end
+	end)
+end
+
+local function toggleDuelQueue()
+	task.spawn(function()
+		if duelQueued then
+			pcall(function() rfLeaveDuelQueue:InvokeServer() end)
+		else
+			local ok, res = pcall(function() return rfJoinDuelQueue:InvokeServer() end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] JoinDuelQueue failed:", ok and res and res.error or "request failed")
+			end
+		end
+		refreshDuelQueueStatus()
+	end)
+end
+
+local function refreshSpectate()
+	task.spawn(function()
+		local ok, duels = pcall(function() return rfGetRecentDuels:InvokeServer() end)
+		if ok and duels then ArenaUI:RefreshSpectate(duels) end
+	end)
+end
+
+local function watchDuel(duelId)
+	if BattleController:IsPlaying() then return end
+	task.spawn(function()
+		local ok, res = pcall(function() return rfWatchDuel:InvokeServer(duelId) end)
+		if not (ok and res and res.success) then
+			warn("[GachaSystem] WatchDuel failed:", ok and res and res.error or "request failed")
+			return
+		end
+		ArenaUI:Hide()
+		BattleController:Play(res.battle, "SPECTATING: " .. res.nameA .. " vs " .. res.nameB)
+		BattleUI:ShowResult({
+			victory = true,
+			title = "DUEL REPLAY COMPLETE",
+			summary = BattleStats.Fold(res.battle),
+			lines = { "You were spectating a past duel." },
+			buttons = { { text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = function()
+				BattleUI:Hide()
+				ArenaUI:Show()
+			end } },
+		})
+	end)
+end
+
 ArenaUI:Init(screenGui, {
 	onAttack = function(opponentUserId)
 		task.spawn(function() attackOpponent(opponentUserId) end)
 	end,
+	onToggleQueue = toggleDuelQueue,
+	onWatch = watchDuel,
 })
 
 local arenaPanel = ArenaUI:GetPanel()
+
+reDuelMatched.OnClientEvent:Connect(function(payload)
+	if BattleController:IsPlaying() then return end
+	ArenaUI:Hide()
+	BattleController:Play(payload.battle, "LIVE DUEL vs " .. payload.opponentName)
+
+	local deltaText = (payload.ratingDelta >= 0 and "+" or "") .. payload.ratingDelta .. " Rating"
+	BattleUI:ShowResult({
+		victory = payload.victory,
+		title = payload.victory and "VICTORY" or "DEFEAT",
+		summary = BattleStats.Fold(payload.battle),
+		lines = { deltaText .. " (now " .. payload.ratingAfter .. ")" },
+		buttons = { { text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = function()
+			BattleUI:Hide()
+			duelQueued = false
+			ArenaUI:Show()
+			refreshDuelQueueStatus()
+		end } },
+	})
+end)
+
+-- Keep the wait-time display live while the Arena panel is open — cheap,
+-- and the only thing that needs to be "live" here (matching itself is
+-- pushed via DuelMatched above, not polled).
+task.spawn(function()
+	while true do
+		task.wait(2)
+		if arenaPanel.Visible then
+			refreshDuelQueueStatus()
+		end
+	end
+end)
 
 -- Side menu
 local function closeAllExcept(except)
@@ -554,7 +657,11 @@ SideMenuUI:Init(screenGui,{
 	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
 	arena=function()
 		if arenaPanel.Visible then arenaPanel.Visible=false
-		else closeAllExcept("arena"); refreshArena(); ArenaUI:Show() end
+		else
+			closeAllExcept("arena")
+			refreshArena(); refreshDuelQueueStatus(); refreshSpectate()
+			ArenaUI:Show()
+		end
 	end,
 	quests=function()
 		if questPanel.Visible then questPanel.Visible=false
@@ -580,6 +687,11 @@ local hubActions = {
 	OpenStore = function() closeAllExcept("store"); refreshStore(); ShopStoreUI:Show() end,
 	OpenInventory = function() closeAllExcept("inventory"); InventoryUI:Show() end,
 	OpenBattle = function() closeAllExcept("battle"); DungeonController:Toggle() end,
+	OpenArena = function()
+		closeAllExcept("arena")
+		refreshArena(); refreshDuelQueueStatus(); refreshSpectate()
+		ArenaUI:Show()
+	end,
 }
 reHubInteract.OnClientEvent:Connect(function(action)
 	local fn = hubActions[action]

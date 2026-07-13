@@ -24,4 +24,15 @@ PvPConfig.DailyRewardTiers = {
 	{ upTo = 999, gems = 3 },
 }
 
+-- Live duel matchmaking (Phase 6). Both players are actually present, so
+-- rating moves symmetrically here (unlike async attacks on an offline
+-- snapshot) — same WinTrophies/LoseTrophies values, applied to both sides.
+PvPConfig.Matchmaking = {
+	TickInterval        = 1,     -- seconds between matchmaking sweeps
+	InitialBand         = 100,   -- rating range searched immediately on joining
+	BandGrowthPerSecond = 15,    -- how much the search band widens per second waited
+	MaxBand             = 2000,  -- effectively "match anyone" once waited long enough
+	MaxRecentDuels       = 5,     -- ring buffer size for spectating
+}
+
 return PvPConfig

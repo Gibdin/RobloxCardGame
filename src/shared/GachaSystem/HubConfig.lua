@@ -29,10 +29,19 @@ HubConfig.Vendors = {
 	{ id = "battle",name = "Battle Herald",  angleDeg = 240, color = Color3.fromRGB(200, 70, 70),   action = "OpenBattle",    promptText = "Speak to Battle Herald" },
 }
 
--- Reserved zones for later phases (Phase 6 PvP arena, Phase 7 guild hall) —
--- built now as marked, empty plots so those phases are additive, not retrofits.
+-- Live duel arena (Phase 6) — the zone reserved in Phase 2 is now a real
+-- interactive point, built additively (same position/color) rather than as
+-- a retrofit of buildReservedZone.
+HubConfig.DuelArena = {
+	id = "arena", name = "DUEL ARENA",
+	position = Vector3.new(90, 0, 0), radius = 20,
+	color = Color3.fromRGB(140, 40, 40),
+	promptText = "Enter the Duel Arena", action = "OpenArena",
+}
+
+-- Reserved zones for later phases (Phase 7 guild hall) — built now as a
+-- marked, empty plot so that phase is additive, not a retrofit.
 HubConfig.ReservedZones = {
-	{ id = "arena", name = "PVP ARENA",  position = Vector3.new(90, 0, 0),  radius = 20, color = Color3.fromRGB(140, 40, 40),  label = "PVP ARENA \226\128\148 COMING SOON" },
 	{ id = "guild", name = "GUILD HALL", position = Vector3.new(-90, 0, 0), radius = 20, color = Color3.fromRGB(40, 80, 140), label = "GUILD HALL \226\128\148 COMING SOON" },
 }
 

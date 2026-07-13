@@ -18,6 +18,7 @@ local CosmeticService  = require(Services.CosmeticService)
 local QuestService     = require(Services.QuestService)
 local LeaderboardService = require(Services.LeaderboardService)
 local PvPService       = require(Services.PvPService)
+local DuelMatchmakingService = require(Services.DuelMatchmakingService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -41,6 +42,7 @@ Players.PlayerRemoving:Connect(function(player)
 	InventoryService:Cleanup(player.UserId)
 	PityService:Cleanup(player.UserId)
 	BannerService:Cleanup(player.UserId)
+	DuelMatchmakingService:LeaveQueue(player.UserId)
 end)
 
 -- Handle players already in-game when this script starts (Studio play-test).
@@ -114,9 +116,19 @@ local rfClaimLoginStreak     = RF("ClaimLoginStreak")
 local rfGetLeaderboard       = RF("GetLeaderboard")
 local rfGetPvPOpponents      = RF("GetPvPOpponents")
 local rfPvPAttack            = RF("PvPAttack")
+local rfJoinDuelQueue        = RF("JoinDuelQueue")
+local rfLeaveDuelQueue       = RF("LeaveDuelQueue")
+local rfGetDuelQueueStatus   = RF("GetDuelQueueStatus")
+local rfGetRecentDuels       = RF("GetRecentDuels")
+local rfWatchDuel            = RF("WatchDuel")
+local reDuelMatched          = RE("DuelMatched")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
+end)
+
+DuelMatchmakingService:SetOnMatched(function(player, payload)
+	reDuelMatched:FireClient(player, payload)
 end)
 
 -- ── World ─────────────────────────────────────────────────────────────────────
@@ -360,6 +372,33 @@ rfPvPAttack.OnServerInvoke = function(player, opponentUserId)
 		return { success = false, error = err }
 	end
 	return { success = true, result = result, gems = InventoryService:GetGems(player.UserId) }
+end
+
+-- ── Live Duels (Phase 6) ──────────────────────────────────────────────────────
+
+rfJoinDuelQueue.OnServerInvoke = function(player)
+	local ok, err = DuelMatchmakingService:JoinQueue(player.UserId)
+	return { success = ok, error = err }
+end
+
+rfLeaveDuelQueue.OnServerInvoke = function(player)
+	DuelMatchmakingService:LeaveQueue(player.UserId)
+	return { success = true }
+end
+
+rfGetDuelQueueStatus.OnServerInvoke = function(player)
+	return DuelMatchmakingService:GetQueueStatus(player.UserId)
+end
+
+rfGetRecentDuels.OnServerInvoke = function(player)
+	return DuelMatchmakingService:GetRecentDuels()
+end
+
+rfWatchDuel.OnServerInvoke = function(player, duelId)
+	if type(duelId) ~= "number" then return { success = false } end
+	local battle, nameA, nameB = DuelMatchmakingService:WatchDuel(duelId)
+	if not battle then return { success = false, error = "That duel is no longer available." } end
+	return { success = true, battle = battle, nameA = nameA, nameB = nameB }
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────
