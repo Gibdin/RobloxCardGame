@@ -43,10 +43,19 @@ local function blank()
 		battlePass = { premium = false },
 		bannerPulls = {},
 		processedReceipts = {},   -- [receiptId] = true; makes ProcessReceipt idempotent
+		cosmetics = { owned = { none = true }, equipped = "none" },
 	}
 end
 
+-- Self-healing fallback: normally every player is loaded via PlayerAdded (or
+-- the already-in-game loop) before anything touches their data, but if that
+-- was ever somehow missed — e.g. a race between a player joining and this
+-- script finishing its startup work — lazy-loading here means a request just
+-- pays a one-time DataStore round trip instead of hard-erroring.
 local function get(userId)
+	if not cache[userId] then
+		InventoryService:Load(userId)
+	end
 	return cache[userId]
 end
 
@@ -74,6 +83,7 @@ function InventoryService:Load(userId)
 	d.battlePass = d.battlePass or { premium = false }
 	d.bannerPulls = d.bannerPulls or {}
 	d.processedReceipts = d.processedReceipts or {}
+	d.cosmetics = d.cosmetics or { owned = { none = true }, equipped = "none" }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -294,6 +304,32 @@ function InventoryService:SetBattlePassPremium(userId, owned)
 	d.battlePass.premium = owned
 end
 
+-- ── Cosmetics (Gem-purchased, never touches gacha odds) ──────────────────────
+
+function InventoryService:GetCosmetics(userId)
+	local d = get(userId)
+	return d and d.cosmetics or { owned = { none = true }, equipped = "none" }
+end
+
+function InventoryService:OwnsCosmetic(userId, cosmeticId)
+	local d = get(userId)
+	return d and d.cosmetics.owned[cosmeticId] == true
+end
+
+function InventoryService:AddCosmetic(userId, cosmeticId)
+	local d = get(userId)
+	if not d then return end
+	d.cosmetics.owned[cosmeticId] = true
+end
+
+-- Returns false if the player doesn't own it; true and equips otherwise.
+function InventoryService:EquipCosmetic(userId, cosmeticId)
+	local d = get(userId)
+	if not d or not d.cosmetics.owned[cosmeticId] then return false end
+	d.cosmetics.equipped = cosmeticId
+	return true
+end
+
 -- ── Idempotent purchase granting ─────────────────────────────────────────────
 -- Safe to call whether the player is currently in-server (uses the live cache
 -- + an immediate save) or has already left (falls back to a DataStore
@@ -338,6 +374,7 @@ function InventoryService:GetFullData(userId)
 		gems      = get(userId).gems,
 		vip       = get(userId).vip,
 		battlePass = get(userId).battlePass,
+		cosmetics = get(userId).cosmetics,
 	}
 end
 

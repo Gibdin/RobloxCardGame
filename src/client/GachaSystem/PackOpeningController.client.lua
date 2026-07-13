@@ -48,6 +48,10 @@ local rfPromptBattlePass    = remotes:WaitForChild("PromptBattlePassPurchase")
 local rfBuyPackWithGems     = remotes:WaitForChild("BuyPackWithGems")
 local rfClaimVIPDaily       = remotes:WaitForChild("ClaimVIPDaily")
 local reVIPGranted          = remotes:WaitForChild("VIPGranted")
+local reHubInteract         = remotes:WaitForChild("HubInteract")
+local rfGetCosmetics        = remotes:WaitForChild("GetCosmetics")
+local rfBuyCosmetic         = remotes:WaitForChild("BuyCosmetic")
+local rfEquipCosmetic       = remotes:WaitForChild("EquipCosmetic")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -58,6 +62,7 @@ local CombatConfig  = require(gachaShared:WaitForChild("CombatConfig"))
 local TowerConfig   = require(gachaShared:WaitForChild("TowerConfig"))
 local DungeonConfig = require(gachaShared:WaitForChild("DungeonConfig"))
 local MonetizationConfig = require(gachaShared:WaitForChild("MonetizationConfig"))
+local CosmeticConfig     = require(gachaShared:WaitForChild("CosmeticConfig"))
 
 -- VFX modules
 local vfxFolder    = script.Parent.VFX
@@ -316,6 +321,10 @@ local function refreshStore()
 			PackOpeningUI:UpdateGems(storeInfo.gems)
 		end
 	end)
+	task.spawn(function()
+		local ok, cosmeticsInfo = pcall(function() return rfGetCosmetics:InvokeServer() end)
+		if ok and cosmeticsInfo then ShopStoreUI:RefreshCosmetics(cosmeticsInfo) end
+	end)
 end
 
 -- Gems are consumable Developer Products with no server->client ownership
@@ -364,7 +373,7 @@ local function pullBanner()
 	refreshStore()
 end
 
-ShopStoreUI:Init(screenGui, CardDatabase, RarityConfig, MonetizationConfig, {
+ShopStoreUI:Init(screenGui, CardDatabase, RarityConfig, MonetizationConfig, CosmeticConfig, {
 	onBuyGems = function(configId)
 		pcall(function() rfPromptGemPurchase:InvokeServer(configId) end)
 	end,
@@ -384,6 +393,21 @@ ShopStoreUI:Init(screenGui, CardDatabase, RarityConfig, MonetizationConfig, {
 	end,
 	onPullBanner = function()
 		task.spawn(pullBanner)
+	end,
+	onBuyCosmetic = function(cosmeticId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfBuyCosmetic:InvokeServer(cosmeticId) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] BuyCosmetic failed:", ok and res and res.error or "request failed")
+			end
+			refreshStore()
+		end)
+	end,
+	onEquipCosmetic = function(cosmeticId)
+		task.spawn(function()
+			pcall(function() rfEquipCosmetic:InvokeServer(cosmeticId) end)
+			refreshStore()
+		end)
 	end,
 })
 
@@ -417,5 +441,19 @@ SideMenuUI:Init(screenGui,{
 	settings=function() closeAllExcept("settings"); settingsPanel.Visible=not settingsPanel.Visible end,
 	debug=function() closeAllExcept("battle"); DungeonController:DebugQuickStart() end,
 })
+
+-- Hub world interactions (ProximityPrompts on the altar/vendor stalls) route
+-- through the same panels as the side menu — the hub is just an alternate
+-- entry point into UI that already exists, not a separate system.
+local hubActions = {
+	OpenAltar = function() closeAllExcept("packs"); PackOpeningUI:TogglePacksDrawer() end,
+	OpenStore = function() closeAllExcept("store"); refreshStore(); ShopStoreUI:Show() end,
+	OpenInventory = function() closeAllExcept("inventory"); InventoryUI:Show() end,
+	OpenBattle = function() closeAllExcept("battle"); DungeonController:Toggle() end,
+}
+reHubInteract.OnClientEvent:Connect(function(action)
+	local fn = hubActions[action]
+	if fn then fn() end
+end)
 
 refreshPacks()

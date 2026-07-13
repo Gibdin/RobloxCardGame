@@ -50,12 +50,13 @@ function DebugService:QuickSetup(userId)
 	InventoryService:SetTeam(userId, ids)
 	InventoryService:AddPack(userId, "StandardPack", 5)
 	InventoryService:AddPack(userId, "RarePack", 2)
+	InventoryService:AddGems(userId, 1000)  -- lets testers exercise Gem spends without real products configured
 
 	local names = {}
 	for _, id in ipairs(ids) do
 		table.insert(names, CardDatabase:GetById(id).name)
 	end
-	return { success = true, team = ids, names = names }
+	return { success = true, team = ids, names = names, gems = InventoryService:GetGems(userId) }
 end
 
 return DebugService

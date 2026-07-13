@@ -13,8 +13,38 @@ local TowerService     = require(Services.TowerService)
 local DungeonService   = require(Services.DungeonService)
 local DebugService     = require(Services.DebugService)
 local MonetizationService = require(Services.MonetizationService)
+local HubService       = require(Services.HubService)
+local CosmeticService  = require(Services.CosmeticService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
+local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
+
+-- ── Player lifecycle ──────────────────────────────────────────────────────────
+-- Connected as early as possible, before any heavier synchronous startup work
+-- below (building the hub world, etc.) — InventoryService:get() also
+-- self-heals via a lazy-load fallback if a player is ever somehow missed here,
+-- but minimizing that race window in the first place is the real fix.
+
+Players.PlayerAdded:Connect(function(player)
+	InventoryService:Load(player.UserId)
+	MonetizationService:SyncVIPOwnership(player)
+	CosmeticService:WatchPlayer(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	TowerService:Cleanup(player.UserId)
+	DungeonService:Cleanup(player.UserId)
+	InventoryService:Cleanup(player.UserId)
+	PityService:Cleanup(player.UserId)
+	BannerService:Cleanup(player.UserId)
+end)
+
+-- Handle players already in-game when this script starts (Studio play-test).
+for _, player in ipairs(Players:GetPlayers()) do
+	InventoryService:Load(player.UserId)
+	MonetizationService:SyncVIPOwnership(player)
+	CosmeticService:WatchPlayer(player)
+end
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
 
@@ -68,10 +98,20 @@ local rfPromptBattlePass     = RF("PromptBattlePassPurchase")
 local rfBuyPackWithGems      = RF("BuyPackWithGems")
 local rfClaimVIPDaily        = RF("ClaimVIPDaily")
 local reVIPGranted           = RE("VIPGranted")
+local reHubInteract          = RE("HubInteract")
+local rfGetCosmetics         = RF("GetCosmetics")
+local rfBuyCosmetic          = RF("BuyCosmetic")
+local rfEquipCosmetic        = RF("EquipCosmetic")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
 end)
+
+-- ── World ─────────────────────────────────────────────────────────────────────
+-- Workspace is not version-controlled (the .rbxl is gitignored), so the hub is
+-- built procedurally here on every server start rather than hand-authored in
+-- Studio — the only way it's reproducible from a fresh clone.
+HubService:Build()
 
 -- ── Remote handlers ──────────────────────────────────────────────────────────
 
@@ -243,25 +283,24 @@ rfClaimVIPDaily.OnServerInvoke = function(player)
 	return { success = ok, packs = InventoryService:GetPacks(player.UserId) }
 end
 
--- ── Player lifecycle ──────────────────────────────────────────────────────────
+rfGetCosmetics.OnServerInvoke = function(player)
+	return {
+		trails   = CosmeticConfig.Trails,
+		owned    = InventoryService:GetCosmetics(player.UserId).owned,
+		equipped = InventoryService:GetCosmetics(player.UserId).equipped,
+	}
+end
 
-Players.PlayerAdded:Connect(function(player)
-	InventoryService:Load(player.UserId)
-	MonetizationService:SyncVIPOwnership(player)
-end)
+rfBuyCosmetic.OnServerInvoke = function(player, cosmeticId)
+	if type(cosmeticId) ~= "string" then return { success = false } end
+	local ok, err = CosmeticService:BuyCosmetic(player.UserId, cosmeticId)
+	return { success = ok, error = err, gems = InventoryService:GetGems(player.UserId) }
+end
 
-Players.PlayerRemoving:Connect(function(player)
-	TowerService:Cleanup(player.UserId)
-	DungeonService:Cleanup(player.UserId)
-	InventoryService:Cleanup(player.UserId)
-	PityService:Cleanup(player.UserId)
-	BannerService:Cleanup(player.UserId)
-end)
-
--- Handle players already in-game when this script starts (Studio play-test).
-for _, player in ipairs(Players:GetPlayers()) do
-	InventoryService:Load(player.UserId)
-	MonetizationService:SyncVIPOwnership(player)
+rfEquipCosmetic.OnServerInvoke = function(player, cosmeticId)
+	if type(cosmeticId) ~= "string" then return { success = false } end
+	local ok = CosmeticService:EquipCosmetic(player.UserId, cosmeticId, player)
+	return { success = ok }
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────

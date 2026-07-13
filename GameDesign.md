@@ -85,13 +85,18 @@ Phases are ordered so each unblocks the next — monetization needs stable persi
 
 **Definition of done:** a player can buy Gems with Robux, spend Gems on packs/banners, own VIP, and see disclosed odds before any purchase; all balances persist and survive Phase 0's autosave/BindToClose path.
 
-### Phase 2 — World Hub & Physical Presence
+### Phase 2 — World Hub & Physical Presence ✅ Shipped 2026-07-13
 **Goal:** give the game an actual world. Cosmetic monetization and later social phases (PvP arenas, guild halls) need a physical space to live in.
 
-- New `src/server/GachaSystem/Services/HubService.lua` + built world content: a walkable lobby with a **physical summoning altar** (players walk up to open packs — keep the existing `FlashSequence`/`CardReveal` UI as the payoff, just trigger it from a world interaction instead of only a menu), NPC vendor stalls opening `ShopStoreUI`/`InventoryUI` on interaction, and visible other players in-server.
-- Cosmetic-only equip layer (mounts/pets/trails) purchasable via `MonetizationService`, rendered on the player's hub avatar — the first pure-cosmetic monetization surface that never touches gacha odds.
-- Reserve dedicated hub zones now (even empty) for Phase 6's live PvP arenas and Phase 7's guild halls so those ship additively later, not as retrofits.
-- Keep the established compact-UI convention: the hub makes menus optional, not mandatory — all `SideMenuUI` panels remain reachable from anywhere in the hub.
+> **Built procedurally, not hand-authored in Studio:** `Hub.rbxl` (and all of Workspace) is gitignored, so any geometry built by hand in Studio would be invisible to git and unreproducible from a fresh clone. `HubService.lua` builds the entire hub — plaza, altar, vendor stalls, reserved zones, spawn points, lighting/atmosphere — from primitives on every server start, reading layout from `HubConfig.lua`. This is the only way Phase 2 stays consistent with how every other system in this project works.
+
+- New `src/shared/GachaSystem/HubConfig.lua` + `src/server/GachaSystem/Services/HubService.lua`: a circular plaza, a central **summoning altar** (glowing pillar + `ProximityPrompt`, triggers the existing pack-opening UI — `FlashSequence`/`CardReveal` unchanged, just triggered from the world instead of only a menu), 3 vendor stalls (Gem Merchant → `ShopStoreUI`, Card Keeper → `InventoryUI`, Battle Herald → `ModeSelectUI`/battle), reserved marked zones for Phase 6's PvP arena and Phase 7's guild hall, and 4 spawn points around the plaza edge (replacing the default baseplate/spawn). Interactions route through a new `HubInteract` RemoteEvent to the same client UI the side menu already opens — the hub is an alternate entry point, not a parallel system.
+- New `src/shared/GachaSystem/CosmeticConfig.lua` + `src/server/GachaSystem/Services/CosmeticService.lua`: Gem-purchased cosmetic Trails (native Roblox `Trail` + `Attachment` instances using only Color/Transparency sequences — no texture/mesh asset needed, sidestepping the placeholder-asset problem entirely). Purchased/equipped state persists in `InventoryService`; the equipped trail re-attaches on every respawn. A COSMETICS tab was added to `ShopStoreUI`.
+- Reserved hub zones for Phase 6 (arena) and Phase 7 (guild hall) are built now, empty and marked, so those phases are additive.
+- The existing compact-UI convention is preserved: all `SideMenuUI` panels (now including a new STORE button) remain reachable from anywhere, independent of the hub.
+- **Fixed along the way:** a real startup race in `Main.server.lua` where a player could join before `InventoryService:Load` ran (exposed once hub-building added enough synchronous startup work to widen the window) — the player-lifecycle connections now register before any heavier startup work, and `InventoryService`'s internal `get()` additionally self-heals via a lazy-load fallback so this class of bug can't hard-error again.
+
+**Definition of done:** joining the game drops the player into a populated, walkable space, not a menu; opening a pack, visiting the shop, and starting a run are all triggerable from world interaction as well as the side menu; multiple in-server players can see each other. Verified in Studio end-to-end (world geometry, all 4 hub interactions, and a full Gem→cosmetic purchase→equip round trip through the real client-invoked remotes).
 
 **Definition of done:** joining the game drops the player into a populated, walkable space, not a menu; pack-opening/shop/run-start are all triggerable from world interaction as well as the side menu; multiple in-server players can see each other.
 

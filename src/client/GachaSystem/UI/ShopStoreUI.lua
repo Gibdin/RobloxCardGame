@@ -16,9 +16,11 @@ local tabFrames = {}
 local activeTab = "gems"
 local oddsPanel
 
-local CardDatabase, RarityConfig, MonetizationConfig
+local CardDatabase, RarityConfig, MonetizationConfig, CosmeticConfig
 local callbacks = {}
 local info = { gems = 0, vip = false, battlePass = { premium = false }, banner = nil }
+local cosmeticRows = {}  -- [cosmeticId] = { btn = TextButton }
+local cosmeticsState = { owned = { none = true }, equipped = "none" }
 
 local function corner(inst, r)
 	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = inst
@@ -108,9 +110,11 @@ end
 
 -- ── Tabs ──────────────────────────────────────────────────────────────────────
 
+local HEADER_HEIGHT = 84
+
 local function buildTopBar(gui)
 	local tb = Instance.new("Frame")
-	tb.Size = UDim2.new(1, 0, 0, 50)
+	tb.Size = UDim2.new(1, 0, 0, HEADER_HEIGHT)
 	tb.BackgroundColor3 = Color3.fromRGB(18, 12, 6)
 	tb.BorderSizePixel = 0
 	tb.ZIndex = 21; tb.Parent = panel.root
@@ -129,10 +133,14 @@ local function buildTopBar(gui)
 	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 11), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() ShopStoreUI:Hide() end)
 
+	-- Tabs get their own row underneath so 5 tabs fit without crowding the
+	-- title/gems/odds/close row above.
 	local tabNames = { { id = "gems", label = "GEMS" }, { id = "vip", label = "VIP" },
-		{ id = "pass", label = "BATTLE PASS" }, { id = "banner", label = "BANNER" } }
+		{ id = "pass", label = "BATTLE PASS" }, { id = "banner", label = "BANNER" },
+		{ id = "cosmetics", label = "COSMETICS" } }
+	local TAB_W, TAB_GAP = 104, 4
 	for i, t in ipairs(tabNames) do
-		local b = button(tb, t.label, UDim2.new(0, 96, 0, 28), UDim2.new(0, 130 + (i - 1) * 100, 0, 11),
+		local b = button(tb, t.label, UDim2.new(0, TAB_W, 0, 30), UDim2.new(0, 8 + (i - 1) * (TAB_W + TAB_GAP), 0, 46),
 			Color3.fromRGB(30, 24, 14))
 		b.TextSize = 12
 		tabButtons[t.id] = b
@@ -144,7 +152,7 @@ end
 
 local function buildGemsTab(gui)
 	local f = Instance.new("Frame")
-	f.Size = UDim2.new(1, 0, 1, -50); f.Position = UDim2.new(0, 0, 0, 50)
+	f.Size = UDim2.new(1, 0, 1, -HEADER_HEIGHT); f.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
 	f.BackgroundTransparency = 1; f.Visible = false
 	f.ZIndex = 21; f.Parent = panel.root
 	tabFrames.gems = f
@@ -176,7 +184,7 @@ end
 
 local function buildVIPTab(gui)
 	local f = Instance.new("Frame")
-	f.Size = UDim2.new(1, 0, 1, -50); f.Position = UDim2.new(0, 0, 0, 50)
+	f.Size = UDim2.new(1, 0, 1, -HEADER_HEIGHT); f.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
 	f.BackgroundTransparency = 1; f.Visible = false
 	f.ZIndex = 21; f.Parent = panel.root
 	tabFrames.vip = f
@@ -213,7 +221,7 @@ end
 
 local function buildPassTab(gui)
 	local f = Instance.new("Frame")
-	f.Size = UDim2.new(1, 0, 1, -50); f.Position = UDim2.new(0, 0, 0, 50)
+	f.Size = UDim2.new(1, 0, 1, -HEADER_HEIGHT); f.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
 	f.BackgroundTransparency = 1; f.Visible = false
 	f.ZIndex = 21; f.Parent = panel.root
 	tabFrames.pass = f
@@ -243,7 +251,7 @@ end
 
 local function buildBannerTab(gui)
 	local f = Instance.new("Frame")
-	f.Size = UDim2.new(1, 0, 1, -50); f.Position = UDim2.new(0, 0, 0, 50)
+	f.Size = UDim2.new(1, 0, 1, -HEADER_HEIGHT); f.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
 	f.BackgroundTransparency = 1; f.Visible = false
 	f.ZIndex = 21; f.Parent = panel.root
 	tabFrames.banner = f
@@ -274,13 +282,87 @@ local function buildBannerTab(gui)
 	panel.bannerNoneLbl = noBannerLbl
 end
 
+-- ── COSMETICS tab ─────────────────────────────────────────────────────────────
+-- Gem-purchased Trails — never touches gacha odds. Trail preview swatches use
+-- plain Frame colors, not the actual Trail effect (that only renders on a
+-- character in the 3D world).
+
+local function refreshCosmeticRow(cosmeticId)
+	local row = cosmeticRows[cosmeticId]
+	if not row then return end
+
+	local owned = cosmeticsState.owned[cosmeticId] == true
+	local equipped = cosmeticsState.equipped == cosmeticId
+
+	if equipped then
+		row.btn.Text = "EQUIPPED"
+		row.btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+	elseif owned then
+		row.btn.Text = "EQUIP"
+		row.btn.BackgroundColor3 = Color3.fromRGB(60, 110, 170)
+	else
+		row.btn.Text = row.costLabel
+		row.btn.BackgroundColor3 = Color3.fromRGB(50, 130, 60)
+	end
+end
+
+local function buildCosmeticsTab(gui)
+	local f = Instance.new("Frame")
+	f.Size = UDim2.new(1, 0, 1, -HEADER_HEIGHT); f.Position = UDim2.new(0, 0, 0, HEADER_HEIGHT)
+	f.BackgroundTransparency = 1; f.Visible = false
+	f.ZIndex = 21; f.Parent = panel.root
+	tabFrames.cosmetics = f
+
+	for i, cfg in ipairs(CosmeticConfig.Trails) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -32, 0, 50); row.Position = UDim2.new(0, 16, 0, 8 + (i - 1) * 58)
+		row.BackgroundColor3 = Color3.fromRGB(24, 20, 14); row.BorderSizePixel = 0
+		row.ZIndex = 22; row.Parent = f
+		corner(row, 8)
+
+		local swatch = Instance.new("Frame")
+		swatch.Size = UDim2.new(0, 34, 0, 34); swatch.Position = UDim2.new(0, 8, 0.5, -17)
+		swatch.BackgroundColor3 = cfg.color1 or Color3.fromRGB(60, 60, 70)
+		swatch.BorderSizePixel = 0
+		swatch.ZIndex = 23; swatch.Parent = row
+		corner(swatch, 6)
+
+		label(row, cfg.name, UDim2.new(0.5, -50, 1, 0), UDim2.new(0, 52, 0, 0),
+			Color3.fromRGB(220, 220, 240), Enum.Font.GothamBold)
+
+		local costLabel = cfg.gemCost > 0 and (tostring(cfg.gemCost) .. " Gems") or "Default"
+		local btn = button(row, costLabel, UDim2.new(0, 110, 0, 34), UDim2.new(1, -120, 0.5, -17),
+			Color3.fromRGB(50, 130, 60))
+		btn.MouseButton1Click:Connect(function()
+			local owned = cosmeticsState.owned[cfg.id] == true
+			if owned then
+				if callbacks.onEquipCosmetic then callbacks.onEquipCosmetic(cfg.id) end
+			else
+				if callbacks.onBuyCosmetic then callbacks.onBuyCosmetic(cfg.id) end
+			end
+		end)
+
+		cosmeticRows[cfg.id] = { btn = btn, costLabel = costLabel }
+	end
+end
+
+-- Pushes fresh cosmetics data (owned/equipped) and refreshes every row.
+function ShopStoreUI:RefreshCosmetics(cosmeticsInfo)
+	cosmeticsState = cosmeticsInfo or cosmeticsState
+	for cosmeticId in pairs(cosmeticRows) do
+		refreshCosmeticRow(cosmeticId)
+	end
+end
+
 -- ── Public API ────────────────────────────────────────────────────────────────
 
--- cbs: { onBuyGems(configId), onBuyVIP(), onClaimVIPDaily(), onBuyBattlePass(), onPullBanner() }
-function ShopStoreUI:Init(gui, cardDb, rarityConf, monetizationConf, cbs)
+-- cbs: { onBuyGems(configId), onBuyVIP(), onClaimVIPDaily(), onBuyBattlePass(),
+--        onPullBanner(), onBuyCosmetic(id), onEquipCosmetic(id) }
+function ShopStoreUI:Init(gui, cardDb, rarityConf, monetizationConf, cosmeticConf, cbs)
 	CardDatabase = cardDb
 	RarityConfig = rarityConf
 	MonetizationConfig = monetizationConf
+	CosmeticConfig = cosmeticConf
 	callbacks = cbs or {}
 
 	local root = Instance.new("Frame")
@@ -303,6 +385,7 @@ function ShopStoreUI:Init(gui, cardDb, rarityConf, monetizationConf, cbs)
 	buildVIPTab(gui)
 	buildPassTab(gui)
 	buildBannerTab(gui)
+	buildCosmeticsTab(gui)
 	oddsPanel = buildOddsPanel(gui)
 
 	self:ShowTab("gems")
