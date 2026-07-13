@@ -8,9 +8,13 @@ local Services         = script.Parent.Services
 local InventoryService = require(Services.InventoryService)
 local PackService      = require(Services.PackService)
 local PityService      = require(Services.PityService)
+local BannerService    = require(Services.BannerService)
 local TowerService     = require(Services.TowerService)
 local DungeonService   = require(Services.DungeonService)
 local DebugService     = require(Services.DebugService)
+local MonetizationService = require(Services.MonetizationService)
+
+local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
 
@@ -57,15 +61,30 @@ local rfDungeonAbandon     = RF("Dungeon_Abandon")
 
 local rfDebugQuickSetup = RF("Debug_QuickSetup")
 
+local rfGetMonetizationInfo  = RF("GetMonetizationInfo")
+local rfPromptGemPurchase    = RF("PromptGemPurchase")
+local rfPromptVIPPurchase    = RF("PromptVIPPurchase")
+local rfPromptBattlePass     = RF("PromptBattlePassPurchase")
+local rfBuyPackWithGems      = RF("BuyPackWithGems")
+local rfClaimVIPDaily        = RF("ClaimVIPDaily")
+local reVIPGranted           = RE("VIPGranted")
+
+MonetizationService:SetVIPGrantedCallback(function(player)
+	reVIPGranted:FireClient(player)
+end)
+
 -- ── Remote handlers ──────────────────────────────────────────────────────────
 
-rfOpenPack.OnServerInvoke = function(player, packType)
+rfOpenPack.OnServerInvoke = function(player, packType, bannerId)
 	-- Validate packType is a string to prevent injection.
 	if type(packType) ~= "string" then
 		return { success = false, error = "Invalid request." }
 	end
+	if bannerId ~= nil and type(bannerId) ~= "string" then
+		return { success = false, error = "Invalid request." }
+	end
 
-	local result, err = PackService:OpenPack(player.UserId, packType)
+	local result, err = PackService:OpenPack(player.UserId, packType, bannerId)
 	if err then
 		return { success = false, error = err }
 	end
@@ -160,10 +179,75 @@ rfDebugQuickSetup.OnServerInvoke = function(player)
 	return DebugService:QuickSetup(player.UserId)
 end
 
+-- ── Monetization ──────────────────────────────────────────────────────────────
+
+rfGetMonetizationInfo.OnServerInvoke = function(player)
+	local banner = BannerService:GetActiveBanner()
+	local bannerInfo = nil
+	if banner then
+		bannerInfo = {
+			id             = banner.id,
+			name           = banner.name,
+			featuredCardId = banner.featuredCardId,
+			rateMult       = banner.rateMult,
+			guaranteeAfter = banner.guaranteeAfter,
+			pulls          = BannerService:GetPulls(player.UserId, banner.id),
+		}
+	end
+
+	return {
+		gems        = InventoryService:GetGems(player.UserId),
+		vip         = InventoryService:IsVIP(player.UserId),
+		battlePass  = InventoryService:GetBattlePass(player.UserId),
+		gemProducts = MonetizationConfig.GemProducts,
+		vipConfig   = MonetizationConfig.VIP,
+		battlePassConfig = MonetizationConfig.BattlePass,
+		packGemCost = MonetizationConfig.PackGemCost,
+		banner      = bannerInfo,
+	}
+end
+
+rfPromptGemPurchase.OnServerInvoke = function(player, gemProductConfigId)
+	if type(gemProductConfigId) ~= "string" then return { success = false } end
+	return { success = MonetizationService:PromptGemPurchase(player, gemProductConfigId) }
+end
+
+rfPromptVIPPurchase.OnServerInvoke = function(player)
+	return { success = MonetizationService:PromptVIPPurchase(player) }
+end
+
+rfPromptBattlePass.OnServerInvoke = function(player)
+	return { success = MonetizationService:PromptBattlePassPurchase(player) }
+end
+
+rfBuyPackWithGems.OnServerInvoke = function(player, packType, bannerId)
+	if type(packType) ~= "string" then
+		return { success = false, error = "Invalid request." }
+	end
+	if bannerId ~= nil and type(bannerId) ~= "string" then
+		return { success = false, error = "Invalid request." }
+	end
+
+	local result, err = PackService:BuyAndOpenWithGems(player.UserId, packType, bannerId)
+	if err then
+		return { success = false, error = err }
+	end
+	return { success = true, result = result, gems = InventoryService:GetGems(player.UserId) }
+end
+
+rfClaimVIPDaily.OnServerInvoke = function(player)
+	local ok = InventoryService:ClaimVIPDaily(player.UserId)
+	if ok then
+		InventoryService:AddPack(player.UserId, MonetizationConfig.VIP.dailyBonusPack, 1)
+	end
+	return { success = ok, packs = InventoryService:GetPacks(player.UserId) }
+end
+
 -- ── Player lifecycle ──────────────────────────────────────────────────────────
 
 Players.PlayerAdded:Connect(function(player)
 	InventoryService:Load(player.UserId)
+	MonetizationService:SyncVIPOwnership(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -171,11 +255,13 @@ Players.PlayerRemoving:Connect(function(player)
 	DungeonService:Cleanup(player.UserId)
 	InventoryService:Cleanup(player.UserId)
 	PityService:Cleanup(player.UserId)
+	BannerService:Cleanup(player.UserId)
 end)
 
 -- Handle players already in-game when this script starts (Studio play-test).
 for _, player in ipairs(Players:GetPlayers()) do
 	InventoryService:Load(player.UserId)
+	MonetizationService:SyncVIPOwnership(player)
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────

@@ -41,6 +41,13 @@ local rfDungeonBuyService = remotes:WaitForChild("Dungeon_BuyService")
 local rfDungeonReroll     = remotes:WaitForChild("Dungeon_RerollShop")
 local rfDungeonAbandon    = remotes:WaitForChild("Dungeon_Abandon")
 local rfDebugQuickSetup   = remotes:WaitForChild("Debug_QuickSetup")
+local rfGetMonetizationInfo = remotes:WaitForChild("GetMonetizationInfo")
+local rfPromptGemPurchase   = remotes:WaitForChild("PromptGemPurchase")
+local rfPromptVIPPurchase   = remotes:WaitForChild("PromptVIPPurchase")
+local rfPromptBattlePass    = remotes:WaitForChild("PromptBattlePassPurchase")
+local rfBuyPackWithGems     = remotes:WaitForChild("BuyPackWithGems")
+local rfClaimVIPDaily       = remotes:WaitForChild("ClaimVIPDaily")
+local reVIPGranted          = remotes:WaitForChild("VIPGranted")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -50,6 +57,7 @@ local CardDatabase = require(gachaShared:WaitForChild("CardDatabase"))
 local CombatConfig  = require(gachaShared:WaitForChild("CombatConfig"))
 local TowerConfig   = require(gachaShared:WaitForChild("TowerConfig"))
 local DungeonConfig = require(gachaShared:WaitForChild("DungeonConfig"))
+local MonetizationConfig = require(gachaShared:WaitForChild("MonetizationConfig"))
 
 -- VFX modules
 local vfxFolder    = script.Parent.VFX
@@ -66,6 +74,7 @@ local InventoryUI   = require(uiFolder.InventoryUI)
 local GlobalTeamBar = require(uiFolder.GlobalTeamBar)
 local TeamBuilderUI = require(uiFolder.TeamBuilderUI)
 local SettingsUI    = require(uiFolder.SettingsUI)
+local ShopStoreUI   = require(uiFolder.ShopStoreUI)
 
 -- Battle modules
 local DungeonController = require(script.Parent.DungeonController)
@@ -292,12 +301,102 @@ end)
 
 local settingsPanel = SettingsUI:GetPanel()
 
+-- Store: Gems, VIP, Battle Pass (skeleton), and the active rate-up banner.
+-- Purchase prompts are always initiated server-side (product/pass ids come
+-- from server config, never from client input) via PromptGemPurchase/
+-- PromptVIPPurchase/PromptBattlePassPurchase; MarketplaceService still shows
+-- the confirmation UI on this client either way.
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local function refreshStore()
+	task.spawn(function()
+		local ok, storeInfo = pcall(function() return rfGetMonetizationInfo:InvokeServer() end)
+		if ok and storeInfo then
+			ShopStoreUI:Refresh(storeInfo)
+			PackOpeningUI:UpdateGems(storeInfo.gems)
+		end
+	end)
+end
+
+-- Gems are consumable Developer Products with no server->client ownership
+-- signal, so this client-only event (safe per Roblox docs — it's only used
+-- to know the prompt closed, never to grant anything) triggers a refresh
+-- shortly after, by which point ProcessReceipt has usually finished.
+MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId)
+	if userId == player.UserId then task.delay(1, refreshStore) end
+end)
+
+-- VIP ownership is NOT tracked client-side (PromptGamePassPurchaseFinished is
+-- documented as server-only for reliable values) — the server fires this
+-- RemoteEvent once it has durably recorded the grant instead.
+reVIPGranted.OnClientEvent:Connect(refreshStore)
+
+-- Mirrors openPack's reveal presentation (flash + reveal) for a direct
+-- Gems-purchased pull, without touching the owned-pack rip/auto-roll state
+-- machine above — a banner pull isn't an owned pack, just a summon.
+local function pullBanner()
+	if isOpening then return end
+	local ok, storeInfo = pcall(function() return rfGetMonetizationInfo:InvokeServer() end)
+	local banner = ok and storeInfo and storeInfo.banner
+	if not banner then return end
+
+	isOpening = true
+	local response
+	task.spawn(function()
+		local ok2, res = pcall(function() return rfBuyPackWithGems:InvokeServer("EventPack", banner.id) end)
+		response = ok2 and res or { success = false, error = tostring(res) }
+	end)
+	local waited = 0
+	while not response and waited < 10 do task.wait(0.05); waited = waited + 0.05 end
+
+	if not response or not response.success then
+		warn("[GachaSystem] Banner pull failed:", response and response.error or "timeout")
+		isOpening = false
+		return
+	end
+
+	FlashSequence:Play(response.result.card, response.result.rarity)
+	CardReveal:Show(response.result)
+	CardReveal:WaitForDismiss()
+
+	isOpening = false
+	refreshPacks()
+	refreshStore()
+end
+
+ShopStoreUI:Init(screenGui, CardDatabase, RarityConfig, MonetizationConfig, {
+	onBuyGems = function(configId)
+		pcall(function() rfPromptGemPurchase:InvokeServer(configId) end)
+	end,
+	onBuyVIP = function()
+		pcall(function() rfPromptVIPPurchase:InvokeServer() end)
+	end,
+	onBuyBattlePass = function()
+		pcall(function() rfPromptBattlePass:InvokeServer() end)
+	end,
+	onClaimVIPDaily = function()
+		task.spawn(function()
+			local ok, res = pcall(function() return rfClaimVIPDaily:InvokeServer() end)
+			if ok and res and res.success then
+				PackOpeningUI:UpdatePackList(res.packs)
+			end
+		end)
+	end,
+	onPullBanner = function()
+		task.spawn(pullBanner)
+	end,
+})
+
+local storePanel = ShopStoreUI:GetPanel()
+refreshStore()
+
 -- Side menu
 local function closeAllExcept(except)
 	if except~="packs"     then PackOpeningUI:ClosePacksDrawer() end
 	if except~="inventory" then InventoryUI:Hide() end
 	if except~="team"      then TeamBuilderUI:Hide() end
 	if except~="battle"    then DungeonController:Hide() end
+	if except~="store"     then storePanel.Visible=false end
 	if except~="settings"  then settingsPanel.Visible=false end
 end
 SideMenuUI:Init(screenGui,{
@@ -311,6 +410,10 @@ SideMenuUI:Init(screenGui,{
 		else closeAllExcept("team"); TeamBuilderUI:Show() end
 	end,
 	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
+	store=function()
+		if storePanel.Visible then storePanel.Visible=false
+		else closeAllExcept("store"); refreshStore(); ShopStoreUI:Show() end
+	end,
 	settings=function() closeAllExcept("settings"); settingsPanel.Visible=not settingsPanel.Visible end,
 	debug=function() closeAllExcept("battle"); DungeonController:DebugQuickStart() end,
 })

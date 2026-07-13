@@ -4,6 +4,7 @@
 
 local DataStoreService = game:GetService("DataStoreService")
 local PityService      = require(script.Parent.PityService)
+local BannerService    = require(script.Parent.BannerService)
 
 local InventoryService = {}
 
@@ -37,6 +38,11 @@ local function blank()
 		tower     = { bestFloor = 0 },
 		dungeon   = { deepestRow = 0, runsCompleted = 0, bossKills = 0 },
 		settings  = blankSettings(),
+		gems      = 0,
+		vip       = { owned = false, lastDailyClaim = "" },
+		battlePass = { premium = false },
+		bannerPulls = {},
+		processedReceipts = {},   -- [receiptId] = true; makes ProcessReceipt idempotent
 	}
 end
 
@@ -63,9 +69,15 @@ function InventoryService:Load(userId)
 	d.tower     = d.tower     or { bestFloor = 0 }
 	d.dungeon   = d.dungeon   or { deepestRow = 0, runsCompleted = 0, bossKills = 0 }
 	d.settings  = d.settings  or blankSettings()
+	d.gems      = d.gems      or 0
+	d.vip       = d.vip       or { owned = false, lastDailyClaim = "" }
+	d.battlePass = d.battlePass or { premium = false }
+	d.bannerPulls = d.bannerPulls or {}
+	d.processedReceipts = d.processedReceipts or {}
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
+	BannerService:Inject(userId, d.bannerPulls)
 end
 
 local SAVE_RETRIES     = 3
@@ -76,6 +88,7 @@ function InventoryService:Save(userId)
 	local d = get(userId)
 	if not d then return end
 	d.pity = PityService:Snapshot(userId)
+	d.bannerPulls = BannerService:Snapshot(userId)
 
 	for attempt = 1, SAVE_RETRIES do
 		local ok = pcall(function() store:SetAsync("u_" .. userId, d) end)
@@ -222,6 +235,96 @@ function InventoryService:SetSettings(userId, settingsTable)
 	end
 end
 
+-- ── Gems (premium currency) ───────────────────────────────────────────────────
+
+function InventoryService:GetGems(userId)
+	local d = get(userId)
+	return d and d.gems or 0
+end
+
+function InventoryService:AddGems(userId, amount)
+	local d = get(userId)
+	if not d or type(amount) ~= "number" or amount <= 0 then return end
+	d.gems = d.gems + amount
+end
+
+-- Returns false if the player can't afford it; true and deducts otherwise.
+function InventoryService:SpendGems(userId, amount)
+	local d = get(userId)
+	if not d or type(amount) ~= "number" or amount <= 0 then return false end
+	if d.gems < amount then return false end
+	d.gems = d.gems - amount
+	return true
+end
+
+-- ── VIP Game Pass ─────────────────────────────────────────────────────────────
+
+function InventoryService:IsVIP(userId)
+	local d = get(userId)
+	return d and d.vip.owned or false
+end
+
+function InventoryService:SetVIP(userId, owned)
+	local d = get(userId)
+	if not d then return end
+	d.vip.owned = owned
+end
+
+-- Returns true and marks the claim if the player hasn't claimed their VIP
+-- daily bonus pack yet today; false if already claimed (or not VIP).
+function InventoryService:ClaimVIPDaily(userId)
+	local d = get(userId)
+	if not d or not d.vip.owned then return false end
+	local today = os.date("!%Y-%m-%d")
+	if d.vip.lastDailyClaim == today then return false end
+	d.vip.lastDailyClaim = today
+	return true
+end
+
+-- ── Battle Pass (skeleton — reward content/XP feed land in later phases) ─────
+
+function InventoryService:GetBattlePass(userId)
+	local d = get(userId)
+	return d and d.battlePass or { premium = false }
+end
+
+function InventoryService:SetBattlePassPremium(userId, owned)
+	local d = get(userId)
+	if not d then return end
+	d.battlePass.premium = owned
+end
+
+-- ── Idempotent purchase granting ─────────────────────────────────────────────
+-- Safe to call whether the player is currently in-server (uses the live cache
+-- + an immediate save) or has already left (falls back to a DataStore
+-- UpdateAsync so a delayed MarketplaceService receipt never loses a paid
+-- purchase). `applyFn(data)` mutates the save blob in place. Returns true once
+-- the purchase is durably recorded (whether newly granted or already granted
+-- on a prior call with the same receiptId).
+function InventoryService:GrantPurchase(userId, receiptId, applyFn)
+	local d = get(userId)
+	if d then
+		if d.processedReceipts[receiptId] then return true end
+		applyFn(d)
+		d.processedReceipts[receiptId] = true
+		self:Save(userId)
+		return true
+	end
+
+	if not store then return false end
+	local ok, result = pcall(function()
+		return store:UpdateAsync("u_" .. userId, function(old)
+			old = old or blank()
+			old.processedReceipts = old.processedReceipts or {}
+			if old.processedReceipts[receiptId] then return old end
+			applyFn(old)
+			old.processedReceipts[receiptId] = true
+			return old
+		end)
+	end)
+	return ok and result ~= nil
+end
+
 -- Full data snapshot sent to the client.
 function InventoryService:GetFullData(userId)
 	return {
@@ -232,6 +335,9 @@ function InventoryService:GetFullData(userId)
 		tower     = get(userId).tower,
 		dungeon   = get(userId).dungeon,
 		settings  = get(userId).settings,
+		gems      = get(userId).gems,
+		vip       = get(userId).vip,
+		battlePass = get(userId).battlePass,
 	}
 end
 

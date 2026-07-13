@@ -59,7 +59,7 @@ Files: `src/shared/GachaSystem/{DungeonConfig,TowerConfig}.lua`, `src/server/Gac
 
 Phases are ordered so each unblocks the next — monetization needs stable persistence first; live PvP reuses the hub's arenas; guild halls reuse the hub; trading needs a mature economy to balance against. By the end of Phase 10 the game is ~90% feature-complete; the remaining 10% is post-launch live-ops iteration using the Phase 9 content pipeline.
 
-### Phase 0 — Foundation Hardening
+### Phase 0 — Foundation Hardening ✅ Shipped 2026-07-13
 **Goal:** stabilize what exists before building revenue and social systems on top of it.
 
 - `Main.server.lua` / `InventoryService.lua`: add a `game:BindToClose` handler that saves all online players, plus a periodic autosave loop (~every 2 minutes) alongside the existing leave-triggered save. Add retry/backoff on `SetAsync` failure.
@@ -71,8 +71,10 @@ Phases are ordered so each unblocks the next — monetization needs stable persi
 
 **Definition of done:** a server crash loses no more than ~2 minutes of progress; no silent placeholder audio remains; Settings is a real panel; no dead UI branches remain.
 
-### Phase 1 — Monetization Core & Premium Economy
+### Phase 1 — Monetization Core & Premium Economy ✅ Shipped 2026-07-13 (code complete; live purchase testing blocked until the place is published — see note below)
 **Goal:** ship the primary revenue engine. Needs Phase 0's reliable persistence underneath it.
+
+> **Publish blocker:** this place is not yet published to Roblox, so real Developer Products/Game Passes can't be created yet. Every product/pass id in `MonetizationConfig.lua` is a placeholder (`0`) — `MonetizationService` treats that as "not configured" and refuses to prompt. Once published, create the Gem packages, VIP pass, and Battle Pass product in the Creator Dashboard and paste the real ids into `MonetizationConfig.lua`; no other code changes are needed.
 
 - New `src/shared/GachaSystem/MonetizationConfig.lua`: Gem package tiers, gem→pack price table, VIP gamepass benefits, Battle Pass tier costs/rewards, banner rate-up definitions.
 - New `src/server/GachaSystem/Services/MonetizationService.lua`: wraps `MarketplaceService` (`PromptProductPurchase`/`ProcessReceipt` for Gems and pack bundles, `PromptGamePassPurchase`/`UserOwnsGamePassAsync` for VIP). Persists `gems`, `vipOwned`, `battlePass` into the existing `InventoryService` blob using its established backward-compatible-default migration pattern.

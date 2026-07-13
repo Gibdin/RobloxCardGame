@@ -25,6 +25,7 @@ local packDropdownFrame
 local togglePacksDrawer
 local packDrawerOpen = false
 local autoRollBtn, autoRollPanel, autoRollStroke
+local gemsLabel
 local bgBlurLayer, ambientContainer
 local vfxConfig, soundMgr
 local openCallback, autoRollCallback
@@ -247,14 +248,23 @@ local function buildUtilityPanel(gui)
 	autoRollPanel  = container
 end
 
--- BOTTOM LEFT: economy placeholder — compact, low visual priority
+-- BOTTOM LEFT: Gem balance — compact, low visual priority (updated via
+-- PackOpeningUI:UpdateGems, pushed by the controller after GetMonetizationInfo
+-- and after any Gem-spending action).
 local function buildTopBar(gui)
 	local bar = roundFrame(gui,
 		UDim2.new(0,160,0,34), UDim2.new(0,10,1,-44),
 		Color3.fromRGB(12,12,20), 2)
 	bar.Name = "TopBar"
-	label(bar, "Economy", UDim2.new(1,0,1,0), UDim2.new(0,0,0,0),
-		Color3.fromRGB(55,55,75))
+	gemsLabel = label(bar, "\240\159\146\142 0", UDim2.new(1,-16,1,0), UDim2.new(0,16,0,0),
+		Color3.fromRGB(120,220,255))
+	gemsLabel.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+function PackOpeningUI:UpdateGems(amount)
+	if gemsLabel then
+		gemsLabel.Text = "\240\159\146\142 " .. tostring(amount or 0)
+	end
 end
 
 -- ── Blur ──────────────────────────────────────────────────────────────────────
