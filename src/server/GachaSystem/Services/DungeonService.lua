@@ -25,6 +25,7 @@ local MapGenerator     = require(script.Parent.MapGenerator)
 local RunModifiers     = require(script.Parent.RunModifiers)
 local RunLock          = require(script.Parent.RunLock)
 local InventoryService = require(script.Parent.InventoryService)
+local QuestService     = require(script.Parent.QuestService)
 
 local DungeonService = {}
 
@@ -361,6 +362,12 @@ function DungeonService:ChooseNode(userId, nodeId)
 
 		if victory then
 			writeBackHp(run, result.playerUnits)
+
+			QuestService:RecordProgress(userId, "battle_win", 1)
+			QuestService:RecordProgress(userId, "dungeon_node", 1)
+			if node.type == "Boss" then
+				QuestService:RecordProgress(userId, "dungeon_boss", 1)
+			end
 
 			local xpAward = (node.type == "Mob" and DungeonConfig.XpAward.Mob(row))
 				or (node.type == "Elite" and DungeonConfig.XpAward.Elite(row))

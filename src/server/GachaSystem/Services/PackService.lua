@@ -9,6 +9,7 @@ local CardService      = require(script.Parent.CardService)
 local InventoryService = require(script.Parent.InventoryService)
 local PityService      = require(script.Parent.PityService)
 local BannerService    = require(script.Parent.BannerService)
+local QuestService     = require(script.Parent.QuestService)
 
 local PackService = {}
 
@@ -58,6 +59,8 @@ local function rollAndGrant(userId, packType, bannerId)
 	else
 		InventoryService:AddCard(userId, card.id)
 	end
+
+	QuestService:RecordProgress(userId, "pack_open", 1)
 
 	return {
 		card           = card,

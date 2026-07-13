@@ -117,16 +117,21 @@ Phases are ordered so each unblocks the next — monetization needs stable persi
 
 **Definition of done:** every Legendary+ card has a distinct active ability (✅, verified via direct engine tests exercising every op); both flavor-text mismatches are gone (done in Phase 0); the synergy panel accurately describes engine behavior (done in Phase 0).
 
-### Phase 4 — Retention Loops & Live-Ops Infrastructure
+### Phase 4 — Retention Loops & Live-Ops Infrastructure ✅ Core shipped 2026-07-13
 **Goal:** turn a solid core loop into a reason to come back daily.
 
-- New `src/shared/GachaSystem/QuestConfig.lua` + `src/server/GachaSystem/Services/QuestService.lua`: daily/weekly quests (dungeon clears, packs opened, duels won once Phase 6 ships) and a login-streak calendar with escalating pack/gem/gold rewards, persisted in the `InventoryService` blob.
-- Battle Pass gets its real XP feed: quests/dungeon clears/tower floors grant Pass XP; free and premium reward tracks unlock per tier.
-- New `src/server/GachaSystem/Services/LeaderboardService.lua` (`OrderedDataStore`-backed): global/friends leaderboards for Tower best floor, Dungeon deepest row, and PvP rating once Phase 5 ships — this is also a direct dependency for Phase 5/6.
-- New `src/shared/GachaSystem/SeasonConfig.lua`: lightweight time-boxed banner/quest rotation definitions, feeding Phase 1's banners and Phase 9's content cadence.
-- Opt-in Roblox experience notifications for quest reset / Pass-ending / duel-challenge events (the last once Phase 6 exists).
+> **Leaderboard publish blocker (same category as Phase 1's monetization note):** `DataStoreService:GetOrderedDataStore` throws "You must publish this place to the web" in an unpublished Studio session — unlike plain `GetDataStore`, which works fine unpublished (confirmed: gems/packs/etc. have persisted correctly all session). `LeaderboardService.lua` already wraps every call in `pcall` and degrades gracefully (empty top-N, `nil` own-score) rather than erroring — verified in Studio: `GetLeaderboard` returns cleanly with no data, no console errors, even though the underlying write/read both fail. Once published, this works with no code changes.
 
-**Definition of done:** a returning player always has a visible reason to log in today; a working leaderboard UI is surfaced from the hub or side menu.
+- `QuestConfig.lua` + `QuestService.lua`: daily (3 of 6 pool) and weekly (3 of 4 pool) quests tracked via `QuestService:RecordProgress(userId, eventType, amount)`, called from `PackService` (pack opens), `DungeonService` (battle wins, node clears, boss kills), and `TowerService` (battle wins, floor clears). A 7-day login-streak calendar with escalating Gem/pack rewards. All state lives on `InventoryService`'s per-player blob (`GetQuestData`) rather than a separate injected cache like Pity/Banner — avoids a circular require, since `QuestService` needs to grant rewards through `InventoryService`. Day/week bucketing uses integer day-counts (`os.time() // 86400`), not date-string parsing.
+- Battle Pass's real XP feed: `InventoryService:AddBattlePassXp` — every tracked quest event grants XP (`QuestConfig.BattlePassXp`), tier computed from `xp / xpPerTier` capped at `maxTier`. `ShopStoreUI`'s Battle Pass tab and the new `QuestUI` both show live tier/XP.
+- `LeaderboardService.lua` (`OrderedDataStore`-backed): Tower best floor / Dungeon deepest row, updated from `InventoryService:SetBestFloor`/`RecordDungeonResult` at the exact point those are already a new personal best (no extra read-before-write needed) — this is also the direct dependency Phase 5/6 will reuse for a PvP rating board.
+- `SeasonConfig.lua`: a minimal season-identity marker (not a live scheduler) — automated rotation cadence is explicitly Phase 9 work.
+- New `QuestUI.lua` (daily/weekly/streak tabs + Battle Pass tier) and `LeaderboardUI.lua` (per-board top-20 + your score), both reachable from two new side-menu buttons.
+- **Deferred, not blocking:** opt-in Roblox experience notifications — lower priority, and the "duel challenge" trigger depends on Phase 6, which doesn't exist yet.
+
+Verified end-to-end via real client-invoked remotes: quest rolling, targeted progress tracking (only matching quest types increment), reward granting on claim (exact Gem math confirmed), double-claim rejection, login-streak day-1 reward, and Battle Pass XP accrual all work correctly against live game state.
+
+**Definition of done:** a returning player always has a visible reason to log in today (✅ — daily/weekly quests + streak); a working leaderboard UI is surfaced from the side menu (✅ — code-complete and gracefully degrading; real data requires publishing).
 
 ### Phase 5 — Async PvP & Leaderboards
 **Goal:** ship PvP at the lowest possible engineering risk by reusing the existing deterministic combat engine unchanged.

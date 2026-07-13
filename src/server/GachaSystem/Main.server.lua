@@ -15,6 +15,8 @@ local DebugService     = require(Services.DebugService)
 local MonetizationService = require(Services.MonetizationService)
 local HubService       = require(Services.HubService)
 local CosmeticService  = require(Services.CosmeticService)
+local QuestService     = require(Services.QuestService)
+local LeaderboardService = require(Services.LeaderboardService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -29,6 +31,7 @@ Players.PlayerAdded:Connect(function(player)
 	InventoryService:Load(player.UserId)
 	MonetizationService:SyncVIPOwnership(player)
 	CosmeticService:WatchPlayer(player)
+	QuestService:EnsureFresh(player.UserId)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -44,6 +47,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 	InventoryService:Load(player.UserId)
 	MonetizationService:SyncVIPOwnership(player)
 	CosmeticService:WatchPlayer(player)
+	QuestService:EnsureFresh(player.UserId)
 end
 
 -- ── Remote setup ─────────────────────────────────────────────────────────────
@@ -102,6 +106,11 @@ local reHubInteract          = RE("HubInteract")
 local rfGetCosmetics         = RF("GetCosmetics")
 local rfBuyCosmetic          = RF("BuyCosmetic")
 local rfEquipCosmetic        = RF("EquipCosmetic")
+
+local rfGetQuestState        = RF("GetQuestState")
+local rfClaimQuest           = RF("ClaimQuest")
+local rfClaimLoginStreak     = RF("ClaimLoginStreak")
+local rfGetLeaderboard       = RF("GetLeaderboard")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
@@ -301,6 +310,33 @@ rfEquipCosmetic.OnServerInvoke = function(player, cosmeticId)
 	if type(cosmeticId) ~= "string" then return { success = false } end
 	local ok = CosmeticService:EquipCosmetic(player.UserId, cosmeticId, player)
 	return { success = ok }
+end
+
+-- ── Quests & Leaderboards ─────────────────────────────────────────────────────
+
+rfGetQuestState.OnServerInvoke = function(player)
+	return QuestService:GetState(player.UserId)
+end
+
+rfClaimQuest.OnServerInvoke = function(player, scope, questId)
+	if type(scope) ~= "string" or type(questId) ~= "string" then
+		return { success = false, error = "Invalid request." }
+	end
+	local ok, err = QuestService:ClaimQuest(player.UserId, scope, questId)
+	return { success = ok, error = err, gems = InventoryService:GetGems(player.UserId), packs = InventoryService:GetPacks(player.UserId) }
+end
+
+rfClaimLoginStreak.OnServerInvoke = function(player)
+	local ok, err = QuestService:ClaimLoginStreak(player.UserId)
+	return { success = ok, error = err, gems = InventoryService:GetGems(player.UserId), packs = InventoryService:GetPacks(player.UserId) }
+end
+
+rfGetLeaderboard.OnServerInvoke = function(player, board)
+	if type(board) ~= "string" then return { top = {}, mine = nil } end
+	return {
+		top  = LeaderboardService:GetTopN(board, 20),
+		mine = LeaderboardService:GetPlayerScore(board, player.UserId),
+	}
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────

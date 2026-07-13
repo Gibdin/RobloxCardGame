@@ -52,6 +52,10 @@ local reHubInteract         = remotes:WaitForChild("HubInteract")
 local rfGetCosmetics        = remotes:WaitForChild("GetCosmetics")
 local rfBuyCosmetic         = remotes:WaitForChild("BuyCosmetic")
 local rfEquipCosmetic       = remotes:WaitForChild("EquipCosmetic")
+local rfGetQuestState       = remotes:WaitForChild("GetQuestState")
+local rfClaimQuest          = remotes:WaitForChild("ClaimQuest")
+local rfClaimLoginStreak    = remotes:WaitForChild("ClaimLoginStreak")
+local rfGetLeaderboard      = remotes:WaitForChild("GetLeaderboard")
 
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
@@ -80,6 +84,8 @@ local GlobalTeamBar = require(uiFolder.GlobalTeamBar)
 local TeamBuilderUI = require(uiFolder.TeamBuilderUI)
 local SettingsUI    = require(uiFolder.SettingsUI)
 local ShopStoreUI   = require(uiFolder.ShopStoreUI)
+local QuestUI       = require(uiFolder.QuestUI)
+local LeaderboardUI = require(uiFolder.LeaderboardUI)
 
 -- Battle modules
 local DungeonController = require(script.Parent.DungeonController)
@@ -414,12 +420,65 @@ ShopStoreUI:Init(screenGui, CardDatabase, RarityConfig, MonetizationConfig, Cosm
 local storePanel = ShopStoreUI:GetPanel()
 refreshStore()
 
+-- Quests: daily/weekly/login-streak + Battle Pass tier display.
+local function refreshQuests()
+	task.spawn(function()
+		local ok, questState = pcall(function() return rfGetQuestState:InvokeServer() end)
+		if ok and questState then QuestUI:Refresh(questState) end
+	end)
+end
+
+QuestUI:Init(screenGui, MonetizationConfig, {
+	onClaimQuest = function(scope, questId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfClaimQuest:InvokeServer(scope, questId) end)
+			if ok and res and res.success then
+				PackOpeningUI:UpdatePackList(res.packs)
+				PackOpeningUI:UpdateGems(res.gems)
+			elseif not (ok and res and res.success) then
+				warn("[GachaSystem] ClaimQuest failed:", ok and res and res.error or "request failed")
+			end
+			refreshQuests()
+		end)
+	end,
+	onClaimStreak = function()
+		task.spawn(function()
+			local ok, res = pcall(function() return rfClaimLoginStreak:InvokeServer() end)
+			if ok and res and res.success then
+				PackOpeningUI:UpdatePackList(res.packs)
+				PackOpeningUI:UpdateGems(res.gems)
+			elseif not (ok and res and res.success) then
+				warn("[GachaSystem] ClaimLoginStreak failed:", ok and res and res.error or "request failed")
+			end
+			refreshQuests()
+		end)
+	end,
+})
+
+local questPanel = QuestUI:GetPanel()
+refreshQuests()
+
+-- Leaderboards: fetched on-demand per tab (no need to keep all boards fresh
+-- while the panel is closed).
+LeaderboardUI:Init(screenGui, {
+	onRequestBoard = function(boardId)
+		task.spawn(function()
+			local ok, data = pcall(function() return rfGetLeaderboard:InvokeServer(boardId) end)
+			if ok and data then LeaderboardUI:Refresh(boardId, data) end
+		end)
+	end,
+})
+
+local leaderboardPanel = LeaderboardUI:GetPanel()
+
 -- Side menu
 local function closeAllExcept(except)
 	if except~="packs"     then PackOpeningUI:ClosePacksDrawer() end
 	if except~="inventory" then InventoryUI:Hide() end
 	if except~="team"      then TeamBuilderUI:Hide() end
 	if except~="battle"    then DungeonController:Hide() end
+	if except~="quests"    then questPanel.Visible=false end
+	if except~="rankings"  then leaderboardPanel.Visible=false end
 	if except~="store"     then storePanel.Visible=false end
 	if except~="settings"  then settingsPanel.Visible=false end
 end
@@ -434,6 +493,14 @@ SideMenuUI:Init(screenGui,{
 		else closeAllExcept("team"); TeamBuilderUI:Show() end
 	end,
 	battle=function() closeAllExcept("battle"); DungeonController:Toggle() end,
+	quests=function()
+		if questPanel.Visible then questPanel.Visible=false
+		else closeAllExcept("quests"); refreshQuests(); QuestUI:Show() end
+	end,
+	rankings=function()
+		if leaderboardPanel.Visible then leaderboardPanel.Visible=false
+		else closeAllExcept("rankings"); LeaderboardUI:ShowBoard(LeaderboardUI:GetActiveBoard()); LeaderboardUI:Show() end
+	end,
 	store=function()
 		if storePanel.Visible then storePanel.Visible=false
 		else closeAllExcept("store"); refreshStore(); ShopStoreUI:Show() end

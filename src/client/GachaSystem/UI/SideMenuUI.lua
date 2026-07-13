@@ -19,6 +19,8 @@ local BUTTONS = {
 	{ id="inventory", label="INVENTORY", color=Color3.fromRGB(70, 180, 110) },
 	{ id="team",      label="TEAM",      color=Color3.fromRGB(210, 140,  50) },
 	{ id="battle",    label="BATTLE",    color=Color3.fromRGB(200,  70,  70) },
+	{ id="quests",    label="QUESTS",    color=Color3.fromRGB(120, 220, 160) },
+	{ id="rankings",  label="RANKINGS",  color=Color3.fromRGB(255, 210,  90) },
 	{ id="store",     label="STORE",     color=Color3.fromRGB(255, 200,  60) },
 	{ id="settings",  label="SETTINGS",  color=Color3.fromRGB(100,  90, 170) },
 }

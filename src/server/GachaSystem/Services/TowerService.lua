@@ -18,6 +18,7 @@ local EnemyGenerator   = require(script.Parent.EnemyGenerator)
 local RunModifiers     = require(script.Parent.RunModifiers)
 local RunLock          = require(script.Parent.RunLock)
 local InventoryService = require(script.Parent.InventoryService)
+local QuestService     = require(script.Parent.QuestService)
 
 local TowerService = {}
 
@@ -224,6 +225,8 @@ function TowerService:NextFloor(userId)
 	if victory then
 		run.floor = floor
 		writeBackHp(run, result.playerUnits)
+		QuestService:RecordProgress(userId, "battle_win", 1)
+		QuestService:RecordProgress(userId, "tower_floor", 1)
 		local xpReport = awardXp(run, TowerConfig.XpPerFloor(floor), result.playerUnits)
 		local packs = grantPacks(userId, milestonePacks(floor))
 		InventoryService:SetBestFloor(userId, floor)

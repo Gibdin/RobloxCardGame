@@ -2,9 +2,12 @@
 -- Persists to DataStore on leave; loads on join. PityService snapshot is
 -- embedded in the same blob so only one DataStore key is needed per player.
 
-local DataStoreService = game:GetService("DataStoreService")
+local DataStoreService  = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local PityService      = require(script.Parent.PityService)
 local BannerService    = require(script.Parent.BannerService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
+local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 
 local InventoryService = {}
 
@@ -28,6 +31,14 @@ local function blankSettings()
 	}
 end
 
+local function blankQuests()
+	return {
+		daily       = { day = 0, active = {}, progress = {}, claimed = {} },
+		weekly      = { week = 0, active = {}, progress = {}, claimed = {} },
+		loginStreak = { lastLoginDay = 0, streak = 0, claimedToday = false },
+	}
+end
+
 local function blank()
 	return {
 		cards     = {},
@@ -40,10 +51,11 @@ local function blank()
 		settings  = blankSettings(),
 		gems      = 0,
 		vip       = { owned = false, lastDailyClaim = "" },
-		battlePass = { premium = false },
+		battlePass = { premium = false, xp = 0, tier = 0 },
 		bannerPulls = {},
 		processedReceipts = {},   -- [receiptId] = true; makes ProcessReceipt idempotent
 		cosmetics = { owned = { none = true }, equipped = "none" },
+		quests    = blankQuests(),
 	}
 end
 
@@ -81,9 +93,15 @@ function InventoryService:Load(userId)
 	d.gems      = d.gems      or 0
 	d.vip       = d.vip       or { owned = false, lastDailyClaim = "" }
 	d.battlePass = d.battlePass or { premium = false }
+	d.battlePass.xp = d.battlePass.xp or 0
+	d.battlePass.tier = d.battlePass.tier or 0
 	d.bannerPulls = d.bannerPulls or {}
 	d.processedReceipts = d.processedReceipts or {}
 	d.cosmetics = d.cosmetics or { owned = { none = true }, equipped = "none" }
+	d.quests = d.quests or blankQuests()
+	d.quests.daily = d.quests.daily or { day = 0, active = {}, progress = {}, claimed = {} }
+	d.quests.weekly = d.quests.weekly or { week = 0, active = {}, progress = {}, claimed = {} }
+	d.quests.loginStreak = d.quests.loginStreak or { lastLoginDay = 0, streak = 0, claimedToday = false }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -193,6 +211,7 @@ function InventoryService:SetBestFloor(userId, floor)
 	local d = get(userId)
 	if d and type(floor) == "number" and floor > d.tower.bestFloor then
 		d.tower.bestFloor = floor
+		LeaderboardService:UpdateScore(userId, "TowerBestFloor", floor)
 	end
 end
 
@@ -210,6 +229,7 @@ function InventoryService:RecordDungeonResult(userId, info)
 	if not d then return end
 	if type(info.deepestRow) == "number" and info.deepestRow > d.dungeon.deepestRow then
 		d.dungeon.deepestRow = info.deepestRow
+		LeaderboardService:UpdateScore(userId, "DungeonDeepestRow", info.deepestRow)
 	end
 	d.dungeon.runsCompleted = d.dungeon.runsCompleted + 1
 	if info.completed then
@@ -302,6 +322,27 @@ function InventoryService:SetBattlePassPremium(userId, owned)
 	local d = get(userId)
 	if not d then return end
 	d.battlePass.premium = owned
+end
+
+function InventoryService:AddBattlePassXp(userId, amount)
+	local d = get(userId)
+	if not d or type(amount) ~= "number" or amount <= 0 then return end
+	d.battlePass.xp = d.battlePass.xp + amount
+	d.battlePass.tier = math.min(
+		MonetizationConfig.BattlePass.maxTier,
+		math.floor(d.battlePass.xp / MonetizationConfig.BattlePass.xpPerTier)
+	)
+end
+
+-- ── Quests (daily/weekly/login-streak — see QuestService for the logic that
+-- reads and mutates this) ──────────────────────────────────────────────────
+-- Returns the live table by reference: QuestService owns quest shape/rules
+-- and mutates sub-fields directly rather than InventoryService re-exposing a
+-- setter for every quest concept.
+
+function InventoryService:GetQuestData(userId)
+	local d = get(userId)
+	return d and d.quests or blankQuests()
 end
 
 -- ── Cosmetics (Gem-purchased, never touches gacha odds) ──────────────────────
