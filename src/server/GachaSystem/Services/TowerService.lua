@@ -21,6 +21,9 @@ local InventoryService = require(script.Parent.InventoryService)
 local QuestService     = require(script.Parent.QuestService)
 local GuildService     = require(script.Parent.GuildService)
 local GuildConfig       = require(gachaShared:WaitForChild("GuildConfig"))
+local AccountService   = require(script.Parent.AccountService)
+local PrestigeService  = require(script.Parent.PrestigeService)
+local AccountConfig     = require(gachaShared:WaitForChild("AccountConfig"))
 
 local TowerService = {}
 
@@ -38,14 +41,17 @@ local function teamCardDefs(run)
 	return defs
 end
 
-local function buildPlayerUnits(run)
+local function buildPlayerUnits(run, userId)
 	local defs = teamCardDefs(run)
 	local ctx = BattleEngine.BuildTeamContext(defs)
+	local prestigeMult = PrestigeService:GetPrestigeMult(userId)
 	local units = {}
 	for slot, id in ipairs(run.team) do
 		if id then
 			local card = CardDatabase:GetById(id)
-			table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, RunModifiers.Compute(run.cards[id])))
+			local mods = RunModifiers.Compute(run.cards[id])
+			AccountService:ApplyStatMods(mods, userId, prestigeMult)
+			table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, mods))
 		end
 	end
 	return units
@@ -206,7 +212,7 @@ function TowerService:NextFloor(userId)
 	local kind = isBoss and "TowerBoss" or "TowerFloor"
 	local floorSeed = run.seed + floor * 7919
 
-	local playerUnits = buildPlayerUnits(run)
+	local playerUnits = buildPlayerUnits(run, userId)
 	local gen = EnemyGenerator.Generate(kind, floor, floorSeed)
 	local enemyUnits = EnemyGenerator.BuildUnits(gen)
 
@@ -234,6 +240,7 @@ function TowerService:NextFloor(userId)
 		InventoryService:SetBestFloor(userId, floor)
 		if isBoss then
 			GuildService:ContributeXP(userId, GuildConfig.XPPerPvEWin)
+			AccountService:AddXp(userId, AccountConfig.XPPerPvEWin)
 		end
 
 		-- Surprise pack drop (dedicated seeded stream; offset 31 mirrors the

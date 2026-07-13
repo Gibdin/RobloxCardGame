@@ -81,6 +81,12 @@ local rfTradeGetOutgoing    = remotes:WaitForChild("Trade_GetOutgoing")
 local rfFriendsGetInServer  = remotes:WaitForChild("Friends_GetInServer")
 local rfFriendsGiftPack     = remotes:WaitForChild("Friends_GiftPack")
 
+local rfGetAccountState     = remotes:WaitForChild("GetAccountState")
+local rfEquipTitle          = remotes:WaitForChild("EquipTitle")
+local rfEquipArtifact       = remotes:WaitForChild("EquipArtifact")
+local rfGetPrestigeInfo     = remotes:WaitForChild("GetPrestigeInfo")
+local rfDoPrestige          = remotes:WaitForChild("DoPrestige")
+
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
 local RarityConfig = require(gachaShared:WaitForChild("RarityConfig"))
@@ -455,6 +461,20 @@ local function refreshQuests()
 	end)
 end
 
+-- Account progression (Phase 8): level/titles/artifacts + Tower Prestige,
+-- shown under QuestUI's PROGRESS tab. One combined refresh, same reasoning
+-- as SocialUI's refreshSocial — none of these calls are hot/high-volume.
+local function refreshAccount()
+	task.spawn(function()
+		local acctOk, account = pcall(function() return rfGetAccountState:InvokeServer() end)
+		local prestOk, prestige = pcall(function() return rfGetPrestigeInfo:InvokeServer() end)
+		QuestUI:RefreshAccount({
+			account = acctOk and account or {},
+			prestige = prestOk and prestige or {},
+		})
+	end)
+end
+
 QuestUI:Init(screenGui, MonetizationConfig, {
 	onClaimQuest = function(scope, questId)
 		task.spawn(function()
@@ -480,10 +500,40 @@ QuestUI:Init(screenGui, MonetizationConfig, {
 			refreshQuests()
 		end)
 	end,
+	onEquipTitle = function(title)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfEquipTitle:InvokeServer(title) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] EquipTitle failed:", ok and res and res.error or "request failed")
+			end
+			refreshAccount()
+		end)
+	end,
+	onEquipArtifact = function(artifactId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfEquipArtifact:InvokeServer(artifactId) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] EquipArtifact failed:", ok and res and res.error or "request failed")
+			end
+			refreshAccount()
+		end)
+	end,
+	onPrestige = function()
+		task.spawn(function()
+			local ok, res = pcall(function() return rfDoPrestige:InvokeServer() end)
+			if ok and res and res.success then
+				refreshQuests()
+			else
+				warn("[GachaSystem] Prestige failed:", ok and res and res.error or "request failed")
+			end
+			refreshAccount()
+		end)
+	end,
 })
 
 local questPanel = QuestUI:GetPanel()
 refreshQuests()
+refreshAccount()
 
 -- Leaderboards: fetched on-demand per tab (no need to keep all boards fresh
 -- while the panel is closed).
@@ -789,7 +839,7 @@ SideMenuUI:Init(screenGui,{
 	end,
 	quests=function()
 		if questPanel.Visible then questPanel.Visible=false
-		else closeAllExcept("quests"); refreshQuests(); QuestUI:Show() end
+		else closeAllExcept("quests"); refreshQuests(); refreshAccount(); QuestUI:Show() end
 	end,
 	rankings=function()
 		if leaderboardPanel.Visible then leaderboardPanel.Visible=false

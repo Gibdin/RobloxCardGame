@@ -65,6 +65,14 @@ local function blank()
 		-- One gift total per day (not per-friend) — the simplest bound on
 		-- resource injection regardless of friend-list size.
 		giftDaily = { day = 0, giftedToday = false },
+		accountXp    = 0,
+		accountLevel = 1,
+		equippedTitle = "",
+		ownedArtifacts   = {},   -- [artifactId] = true
+		equippedArtifact = "",   -- "" = none
+		-- cycleBestFloor resets on Prestige (see PrestigeService); tower.bestFloor
+		-- above never resets — it's the permanent all-time leaderboard record.
+		prestige = { count = 0, cycleBestFloor = 0 },
 	}
 end
 
@@ -116,6 +124,12 @@ function InventoryService:Load(userId)
 	d.tradeHistory = d.tradeHistory or {}
 	d.lastTradeAt  = d.lastTradeAt or 0
 	d.giftDaily = d.giftDaily or { day = 0, giftedToday = false }
+	d.accountXp    = d.accountXp or 0
+	d.accountLevel = d.accountLevel or 1
+	d.equippedTitle = d.equippedTitle or ""
+	d.ownedArtifacts   = d.ownedArtifacts or {}
+	d.equippedArtifact = d.equippedArtifact or ""
+	d.prestige = d.prestige or { count = 0, cycleBestFloor = 0 }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -241,9 +255,16 @@ end
 -- Max-only write: never lowers the recorded best.
 function InventoryService:SetBestFloor(userId, floor)
 	local d = get(userId)
-	if d and type(floor) == "number" and floor > d.tower.bestFloor then
+	if not d or type(floor) ~= "number" then return end
+	if floor > d.tower.bestFloor then
 		d.tower.bestFloor = floor
 		LeaderboardService:UpdateScore(userId, "TowerBestFloor", floor)
+	end
+	-- Separate resettable ratchet gating Prestige eligibility — tower.bestFloor
+	-- above is the permanent all-time record and must never be lowered by a
+	-- rebirth (see PrestigeService).
+	if floor > d.prestige.cycleBestFloor then
+		d.prestige.cycleBestFloor = floor
 	end
 end
 
@@ -597,6 +618,70 @@ function InventoryService:ClaimDailyGift(userId)
 	if d.giftDaily.giftedToday then return false end
 	d.giftDaily.giftedToday = true
 	return true
+end
+
+-- ── Account level, titles, artifacts, prestige (see AccountService/PrestigeService) ──
+
+function InventoryService:GetAccountProgress(userId)
+	local d = get(userId)
+	if not d then return 0, 1 end
+	return d.accountXp, d.accountLevel
+end
+
+function InventoryService:SetAccountProgress(userId, xp, level)
+	local d = get(userId)
+	if not d then return end
+	d.accountXp = xp
+	d.accountLevel = level
+end
+
+function InventoryService:GetEquippedTitle(userId)
+	local d = get(userId)
+	return d and d.equippedTitle or ""
+end
+
+function InventoryService:SetEquippedTitle(userId, title)
+	local d = get(userId)
+	if not d then return end
+	d.equippedTitle = title or ""
+end
+
+function InventoryService:GetOwnedArtifacts(userId)
+	local d = get(userId)
+	return d and d.ownedArtifacts or {}
+end
+
+function InventoryService:AddArtifact(userId, artifactId)
+	local d = get(userId)
+	if not d then return end
+	d.ownedArtifacts[artifactId] = true
+end
+
+function InventoryService:GetEquippedArtifact(userId)
+	local d = get(userId)
+	return d and d.equippedArtifact or ""
+end
+
+function InventoryService:SetEquippedArtifact(userId, artifactId)
+	local d = get(userId)
+	if not d then return end
+	d.equippedArtifact = artifactId or ""
+end
+
+function InventoryService:GetPrestigeInfo(userId)
+	local d = get(userId)
+	if not d then return { count = 0, cycleBestFloor = 0, bestFloor = 0 } end
+	return { count = d.prestige.count, cycleBestFloor = d.prestige.cycleBestFloor, bestFloor = d.tower.bestFloor }
+end
+
+-- Increments prestige count and resets the resettable cycle-floor ratchet.
+-- Threshold validation happens in PrestigeService, not here (this is a pure
+-- data-mutation primitive, same split as the rest of InventoryService).
+function InventoryService:DoPrestige(userId)
+	local d = get(userId)
+	if not d then return end
+	d.prestige.count = d.prestige.count + 1
+	d.prestige.cycleBestFloor = 0
 end
 
 return InventoryService

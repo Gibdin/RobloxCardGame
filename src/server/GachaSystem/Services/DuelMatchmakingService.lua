@@ -25,6 +25,8 @@ local PvPService       = require(script.Parent.PvPService)
 local QuestService     = require(script.Parent.QuestService)
 local GuildService     = require(script.Parent.GuildService)
 local GuildConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("GuildConfig"))
+local AccountService   = require(script.Parent.AccountService)
+local AccountConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("AccountConfig"))
 
 local DuelMatchmakingService = {}
 
@@ -125,8 +127,8 @@ end
 local function resolveDuel(userIdA, userIdB)
 	local teamA = InventoryService:GetTeam(userIdA)
 	local teamB = InventoryService:GetTeam(userIdB)
-	local unitsA = PvPService:BuildUnitsForTeam(teamA)
-	local unitsB = PvPService:BuildUnitsForTeam(teamB)
+	local unitsA = PvPService:BuildUnitsForTeam(teamA, userIdA)
+	local unitsB = PvPService:BuildUnitsForTeam(teamB, userIdB)
 	local startA = PvPService:UnitSnapshot(unitsA)
 	local startB = PvPService:UnitSnapshot(unitsB)
 
@@ -142,9 +144,11 @@ local function resolveDuel(userIdA, userIdB)
 	if aWon then
 		QuestService:RecordProgress(userIdA, "pvp_win", 1)
 		GuildService:ContributeXP(userIdA, GuildConfig.XPPerDuelWin, true)
+		AccountService:AddXp(userIdA, AccountConfig.XPPerDuelWin)
 	else
 		QuestService:RecordProgress(userIdB, "pvp_win", 1)
 		GuildService:ContributeXP(userIdB, GuildConfig.XPPerDuelWin, true)
+		AccountService:AddXp(userIdB, AccountConfig.XPPerDuelWin)
 	end
 
 	local playerA = Players:GetPlayerByUserId(userIdA)

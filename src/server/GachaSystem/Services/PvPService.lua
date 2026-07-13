@@ -17,15 +17,20 @@ local InventoryService = require(script.Parent.InventoryService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local QuestService     = require(script.Parent.QuestService)
 local GuildService     = require(script.Parent.GuildService)
+local AccountService   = require(script.Parent.AccountService)
+local PrestigeService  = require(script.Parent.PrestigeService)
 
 local PvPService = {}
 
 -- Builds BattleEngine units for a team of card ids at base stats (no run
 -- levels/items/buffs — a PvP defense squad is always the player's showcase
--- team at full strength, not mid-run state). Exposed publicly so
+-- team at full strength, not mid-run state). `userId` is optional and, when
+-- given, folds that account's level perk/Artifact/Prestige bonus in (both the
+-- live attacker and the possibly-offline defender get their OWN account's
+-- bonus, same as any other battle mode). Exposed publicly so
 -- DuelMatchmakingService (Phase 6) can build both sides of a live duel the
 -- same way, instead of duplicating this logic.
-function PvPService:BuildUnitsForTeam(teamIds)
+function PvPService:BuildUnitsForTeam(teamIds, userId)
 	local defs = {}
 	for _, id in ipairs(teamIds) do
 		if id then
@@ -34,6 +39,10 @@ function PvPService:BuildUnitsForTeam(teamIds)
 		end
 	end
 	local ctx = BattleEngine.BuildTeamContext(defs)
+	local mods = {}
+	if userId then
+		AccountService:ApplyStatMods(mods, userId, PrestigeService:GetPrestigeMult(userId))
+	end
 	local units = {}
 	local slot = 0
 	for _, id in ipairs(teamIds) do
@@ -41,7 +50,7 @@ function PvPService:BuildUnitsForTeam(teamIds)
 		if id then
 			local card = CardDatabase:GetById(id)
 			if card then
-				table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, {}))
+				table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, mods))
 			end
 		end
 	end
@@ -95,8 +104,8 @@ function PvPService:Attack(attackerUserId, opponentUserId)
 		return nil, "This player has no defense team set."
 	end
 
-	local attackerUnits = self:BuildUnitsForTeam(attackerTeam)
-	local opponentUnits = self:BuildUnitsForTeam(opponentTeam)
+	local attackerUnits = self:BuildUnitsForTeam(attackerTeam, attackerUserId)
+	local opponentUnits = self:BuildUnitsForTeam(opponentTeam, opponentUserId)
 	local attackerStart = self:UnitSnapshot(attackerUnits)
 	local opponentStart = self:UnitSnapshot(opponentUnits)
 

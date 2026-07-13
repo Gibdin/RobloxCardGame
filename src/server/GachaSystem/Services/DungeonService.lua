@@ -28,6 +28,9 @@ local InventoryService = require(script.Parent.InventoryService)
 local QuestService     = require(script.Parent.QuestService)
 local GuildService     = require(script.Parent.GuildService)
 local GuildConfig       = require(gachaShared:WaitForChild("GuildConfig"))
+local AccountService   = require(script.Parent.AccountService)
+local PrestigeService  = require(script.Parent.PrestigeService)
+local AccountConfig     = require(gachaShared:WaitForChild("AccountConfig"))
 
 local DungeonService = {}
 
@@ -37,17 +40,20 @@ local Levels = DungeonConfig.Levels
 
 -- ── Helpers (mirrors TowerService's shape) ────────────────────────────────────
 
-local function buildPlayerUnits(run)
+local function buildPlayerUnits(run, userId)
 	local defs = {}
 	for _, id in ipairs(run.team) do
 		if id then table.insert(defs, CardDatabase:GetById(id)) end
 	end
 	local ctx = BattleEngine.BuildTeamContext(defs)
+	local prestigeMult = PrestigeService:GetPrestigeMult(userId)
 	local units = {}
 	for slot, id in ipairs(run.team) do
 		if id then
 			local card = CardDatabase:GetById(id)
-			table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, RunModifiers.Compute(run.cards[id])))
+			local mods = RunModifiers.Compute(run.cards[id])
+			AccountService:ApplyStatMods(mods, userId, prestigeMult)
+			table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, mods))
 		end
 	end
 	return units
@@ -348,7 +354,7 @@ function DungeonService:ChooseNode(userId, nodeId)
 		-- Same formula bakePreviews used, so the preview always matches.
 		local nodeSeed = nodeSeedFor(run, node)
 
-		local playerUnits = buildPlayerUnits(run)
+		local playerUnits = buildPlayerUnits(run, userId)
 		local gen = EnemyGenerator.Generate(node.type, row, nodeSeed)
 		local enemyUnits = EnemyGenerator.BuildUnits(gen)
 		local playerStart = unitSnapshot(playerUnits)
@@ -397,6 +403,7 @@ function DungeonService:ChooseNode(userId, nodeId)
 				payload.runOver = true
 				payload.complete = true
 				GuildService:ContributeXP(userId, GuildConfig.XPPerPvEWin)
+				AccountService:AddXp(userId, AccountConfig.XPPerPvEWin)
 			end
 
 			-- Surprise drop on Mob/Elite wins (boss reward is already the jackpot).

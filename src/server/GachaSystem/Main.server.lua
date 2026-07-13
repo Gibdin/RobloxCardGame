@@ -22,6 +22,8 @@ local DuelMatchmakingService = require(Services.DuelMatchmakingService)
 local GuildService     = require(Services.GuildService)
 local TradeService     = require(Services.TradeService)
 local FriendsService   = require(Services.FriendsService)
+local AccountService   = require(Services.AccountService)
+local PrestigeService  = require(Services.PrestigeService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -143,6 +145,12 @@ local rfTradeGetOutgoing     = RF("Trade_GetOutgoing")
 
 local rfFriendsGetInServer   = RF("Friends_GetInServer")
 local rfFriendsGiftPack      = RF("Friends_GiftPack")
+
+local rfGetAccountState      = RF("GetAccountState")
+local rfEquipTitle           = RF("EquipTitle")
+local rfEquipArtifact        = RF("EquipArtifact")
+local rfGetPrestigeInfo      = RF("GetPrestigeInfo")
+local rfDoPrestige           = RF("DoPrestige")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
@@ -500,6 +508,33 @@ rfFriendsGiftPack.OnServerInvoke = function(player, toUserId)
 	if type(toUserId) ~= "number" then return { success = false, error = "Invalid request." } end
 	local ok, err = FriendsService:GiftPack(player.UserId, toUserId)
 	return { success = ok, error = err }
+end
+
+-- ── Account progression: level, titles, artifacts, prestige (Phase 8) ────────
+
+rfGetAccountState.OnServerInvoke = function(player)
+	return AccountService:GetState(player.UserId)
+end
+
+rfEquipTitle.OnServerInvoke = function(player, title)
+	if type(title) ~= "string" then return { success = false, error = "Invalid request." } end
+	local ok, err = AccountService:EquipTitle(player.UserId, title)
+	return { success = ok, error = err }
+end
+
+rfEquipArtifact.OnServerInvoke = function(player, artifactId)
+	if type(artifactId) ~= "string" then return { success = false, error = "Invalid request." } end
+	local ok, err = AccountService:EquipArtifact(player.UserId, artifactId)
+	return { success = ok, error = err }
+end
+
+rfGetPrestigeInfo.OnServerInvoke = function(player)
+	return PrestigeService:GetInfo(player.UserId)
+end
+
+rfDoPrestige.OnServerInvoke = function(player)
+	local ok, err, artifactId = PrestigeService:Prestige(player.UserId)
+	return { success = ok, error = err, artifactId = artifactId }
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────
