@@ -2,6 +2,8 @@
 
 **Vision:** Become the best addictive-dopamine-loop gacha/autochess game on Roblox — a deep collection game (pull, build, battle, climb) wrapped in a real social world, backed by a full monetization economy and live-ops content pipeline.
 
+**Theme (added 2026-07-13):** this is an anime card game — cards are built around the likeness of popular anime characters rather than generic original fantasy units, and Dungeon Crawl content is themed per specific anime series. This reframes card content (existing and Phase 9 roster expansion) and dungeon theming work, and Phase 3's per-card actives should read as that character's signature move. **Open and unresolved:** whether to use real trademarked character names/likenesses (real IP/moderation/legal risk on Roblox) vs. original characters clearly inspired by/parodying popular anime archetypes (the safer, common industry pattern) — confirm with the user before writing card content that commits to either direction.
+
 This document has two parts:
 1. **Current State Audit** — what's actually built today, with file references, so nobody re-derives it from scratch.
 2. **The Blueprint (Phase 0 → Phase 10)** — the sequenced roadmap from today's state to a ~90%-finished, launch-ready game. Each phase lists concrete systems/files to add or touch and a definition of done.
