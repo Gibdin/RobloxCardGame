@@ -22,6 +22,7 @@ local BUTTONS = {
 	{ id="arena",     label="ARENA",     color=Color3.fromRGB(255, 120, 120) },
 	{ id="quests",    label="QUESTS",    color=Color3.fromRGB(120, 220, 160) },
 	{ id="rankings",  label="RANKINGS",  color=Color3.fromRGB(255, 210,  90) },
+	{ id="social",    label="SOCIAL",    color=Color3.fromRGB(100, 200, 220) },
 	{ id="store",     label="STORE",     color=Color3.fromRGB(255, 200,  60) },
 	{ id="settings",  label="SETTINGS",  color=Color3.fromRGB(100,  90, 170) },
 }

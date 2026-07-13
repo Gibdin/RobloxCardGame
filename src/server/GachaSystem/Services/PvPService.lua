@@ -16,6 +16,7 @@ local BattleEngine     = require(script.Parent.BattleEngine)
 local InventoryService = require(script.Parent.InventoryService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local QuestService     = require(script.Parent.QuestService)
+local GuildService     = require(script.Parent.GuildService)
 
 local PvPService = {}
 
@@ -112,6 +113,7 @@ function PvPService:Attack(attackerUserId, opponentUserId)
 	if victory then
 		gemsAwarded = InventoryService:RecordPvPWin(attackerUserId)
 		if gemsAwarded > 0 then
+			gemsAwarded = math.floor(gemsAwarded * GuildService:GetGuildBuffMultiplier(attackerUserId))
 			InventoryService:AddGems(attackerUserId, gemsAwarded)
 		end
 		QuestService:RecordProgress(attackerUserId, "pvp_win", 1)

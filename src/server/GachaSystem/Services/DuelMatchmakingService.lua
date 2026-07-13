@@ -23,6 +23,8 @@ local BattleEngine     = require(script.Parent.BattleEngine)
 local InventoryService = require(script.Parent.InventoryService)
 local PvPService       = require(script.Parent.PvPService)
 local QuestService     = require(script.Parent.QuestService)
+local GuildService     = require(script.Parent.GuildService)
+local GuildConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("GuildConfig"))
 
 local DuelMatchmakingService = {}
 
@@ -137,8 +139,13 @@ local function resolveDuel(userIdA, userIdB)
 	InventoryService:AdjustPvPRating(userIdA, deltaA)
 	InventoryService:AdjustPvPRating(userIdB, deltaB)
 
-	if aWon then QuestService:RecordProgress(userIdA, "pvp_win", 1)
-	else QuestService:RecordProgress(userIdB, "pvp_win", 1) end
+	if aWon then
+		QuestService:RecordProgress(userIdA, "pvp_win", 1)
+		GuildService:ContributeXP(userIdA, GuildConfig.XPPerDuelWin, true)
+	else
+		QuestService:RecordProgress(userIdB, "pvp_win", 1)
+		GuildService:ContributeXP(userIdB, GuildConfig.XPPerDuelWin, true)
+	end
 
 	local playerA = Players:GetPlayerByUserId(userIdA)
 	local playerB = Players:GetPlayerByUserId(userIdB)

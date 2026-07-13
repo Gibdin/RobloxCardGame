@@ -59,6 +59,12 @@ local function blank()
 		quests    = blankQuests(),
 		pvpRating = PvPConfig.StartingRating,
 		pvpDaily  = { day = 0, winsToday = 0 },
+		guildId   = nil,
+		tradeHistory = {},          -- capped audit log, most recent first
+		lastTradeAt  = 0,           -- os.time() of the last completed trade (cooldown)
+		-- One gift total per day (not per-friend) — the simplest bound on
+		-- resource injection regardless of friend-list size.
+		giftDaily = { day = 0, giftedToday = false },
 	}
 end
 
@@ -107,6 +113,9 @@ function InventoryService:Load(userId)
 	d.quests.loginStreak = d.quests.loginStreak or { lastLoginDay = 0, streak = 0, claimedToday = false }
 	d.pvpRating = d.pvpRating or PvPConfig.StartingRating
 	d.pvpDaily  = d.pvpDaily or { day = 0, winsToday = 0 }
+	d.tradeHistory = d.tradeHistory or {}
+	d.lastTradeAt  = d.lastTradeAt or 0
+	d.giftDaily = d.giftDaily or { day = 0, giftedToday = false }
 
 	cache[userId] = d
 	PityService:Inject(userId, d.pity)
@@ -144,6 +153,24 @@ end
 
 function InventoryService:AddCard(userId, cardId)
 	get(userId).cards[tostring(cardId)] = true
+end
+
+-- Only ever used by trading (TradeService) — nothing else in this project
+-- takes a card away from a player. Ownership here is a simple boolean, not a
+-- per-copy instance count, so "trading away card X" means giving up your
+-- unlock of X entirely: clears ownership, resets awakening progress for it
+-- (which represented dupes fed into that unlock — meaningless once you no
+-- longer hold the base card), and clears it from the active team if present
+-- (mirrors SetTeam's own ownership validation, just applied retroactively).
+function InventoryService:RemoveCard(userId, cardId)
+	local d = get(userId)
+	if not d then return end
+	local key = tostring(cardId)
+	d.cards[key] = nil
+	d.awakening[key] = nil
+	for i, id in ipairs(d.team) do
+		if id == cardId then d.team[i] = false end
+	end
 end
 
 function InventoryService:GetCardIds(userId)
@@ -509,6 +536,67 @@ function InventoryService:RecordPvPWin(userId)
 	end
 	d.pvpDaily.winsToday = d.pvpDaily.winsToday + 1
 	return reward
+end
+
+-- ── Guild membership (see GuildService for guild-entity storage/logic) ───────
+
+function InventoryService:GetGuildId(userId)
+	local d = get(userId)
+	return d and d.guildId or nil
+end
+
+function InventoryService:SetGuildId(userId, guildId)
+	local d = get(userId)
+	if not d then return end
+	d.guildId = guildId
+end
+
+-- ── Trading (see TradeService for offer/accept logic) ────────────────────────
+
+function InventoryService:GetLastTradeAt(userId)
+	local d = get(userId)
+	return d and d.lastTradeAt or 0
+end
+
+function InventoryService:SetLastTradeAt(userId, timestamp)
+	local d = get(userId)
+	if not d then return end
+	d.lastTradeAt = timestamp
+end
+
+-- Keeps only the most recent MAX_TRADE_HISTORY entries (moderation visibility,
+-- not a full ledger — this is not the anti-abuse mechanism itself).
+local MAX_TRADE_HISTORY = 20
+function InventoryService:AddTradeHistoryEntry(userId, entry)
+	local d = get(userId)
+	if not d then return end
+	table.insert(d.tradeHistory, 1, entry)
+	while #d.tradeHistory > MAX_TRADE_HISTORY do
+		table.remove(d.tradeHistory)
+	end
+end
+
+function InventoryService:GetTradeHistory(userId)
+	local d = get(userId)
+	return d and d.tradeHistory or {}
+end
+
+-- ── Friend pack gifting ───────────────────────────────────────────────────────
+
+-- Returns true and marks the gift as used if the player hasn't gifted a pack
+-- to anyone yet today (a single daily gift total, not per-friend — the
+-- simplest bound on resource injection regardless of friend-list size).
+function InventoryService:ClaimDailyGift(userId)
+	local d = get(userId)
+	if not d then return false end
+	local today = os.time() // 86400
+	if d.giftDaily.day ~= today then
+		d.giftDaily.day = today
+		d.giftDaily.giftedToday = false
+	end
+	if d.giftDaily.giftedToday then return false end
+	d.giftDaily.giftedToday = true
+	return true
 end
 
 return InventoryService

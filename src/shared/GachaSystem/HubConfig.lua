@@ -39,11 +39,18 @@ HubConfig.DuelArena = {
 	promptText = "Enter the Duel Arena", action = "OpenArena",
 }
 
--- Reserved zones for later phases (Phase 7 guild hall) — built now as a
--- marked, empty plot so that phase is additive, not a retrofit.
-HubConfig.ReservedZones = {
-	{ id = "guild", name = "GUILD HALL", position = Vector3.new(-90, 0, 0), radius = 20, color = Color3.fromRGB(40, 80, 140), label = "GUILD HALL \226\128\148 COMING SOON" },
+-- Guild hall (Phase 7) — the zone reserved in Phase 2 is now a real
+-- interactive point, same position/color, built the same way Phase 6 turned
+-- the arena's reserved zone into a real platform.
+HubConfig.GuildHall = {
+	id = "guild", name = "GUILD HALL",
+	position = Vector3.new(-90, 0, 0), radius = 20,
+	color = Color3.fromRGB(40, 80, 140),
+	promptText = "Enter the Guild Hall", action = "OpenSocial",
 }
+
+-- Reserved zones for future phases — none currently pending.
+HubConfig.ReservedZones = {}
 
 -- Spawn points around the plaza edge, away from the altar/stalls/reserved zones.
 HubConfig.SpawnPoints = {

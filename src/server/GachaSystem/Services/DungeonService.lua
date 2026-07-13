@@ -26,6 +26,8 @@ local RunModifiers     = require(script.Parent.RunModifiers)
 local RunLock          = require(script.Parent.RunLock)
 local InventoryService = require(script.Parent.InventoryService)
 local QuestService     = require(script.Parent.QuestService)
+local GuildService     = require(script.Parent.GuildService)
+local GuildConfig       = require(gachaShared:WaitForChild("GuildConfig"))
 
 local DungeonService = {}
 
@@ -394,6 +396,7 @@ function DungeonService:ChooseNode(userId, nodeId)
 				payload.rewards.packs = packs
 				payload.runOver = true
 				payload.complete = true
+				GuildService:ContributeXP(userId, GuildConfig.XPPerPvEWin)
 			end
 
 			-- Surprise drop on Mob/Elite wins (boss reward is already the jackpot).

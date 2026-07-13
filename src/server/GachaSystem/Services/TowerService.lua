@@ -19,6 +19,8 @@ local RunModifiers     = require(script.Parent.RunModifiers)
 local RunLock          = require(script.Parent.RunLock)
 local InventoryService = require(script.Parent.InventoryService)
 local QuestService     = require(script.Parent.QuestService)
+local GuildService     = require(script.Parent.GuildService)
+local GuildConfig       = require(gachaShared:WaitForChild("GuildConfig"))
 
 local TowerService = {}
 
@@ -230,6 +232,9 @@ function TowerService:NextFloor(userId)
 		local xpReport = awardXp(run, TowerConfig.XpPerFloor(floor), result.playerUnits)
 		local packs = grantPacks(userId, milestonePacks(floor))
 		InventoryService:SetBestFloor(userId, floor)
+		if isBoss then
+			GuildService:ContributeXP(userId, GuildConfig.XPPerPvEWin)
+		end
 
 		-- Surprise pack drop (dedicated seeded stream; offset 31 mirrors the
 		-- dungeon's bonus-loot stream).

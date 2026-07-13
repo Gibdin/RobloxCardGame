@@ -19,6 +19,9 @@ local QuestService     = require(Services.QuestService)
 local LeaderboardService = require(Services.LeaderboardService)
 local PvPService       = require(Services.PvPService)
 local DuelMatchmakingService = require(Services.DuelMatchmakingService)
+local GuildService     = require(Services.GuildService)
+local TradeService     = require(Services.TradeService)
+local FriendsService   = require(Services.FriendsService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -122,6 +125,24 @@ local rfGetDuelQueueStatus   = RF("GetDuelQueueStatus")
 local rfGetRecentDuels       = RF("GetRecentDuels")
 local rfWatchDuel            = RF("WatchDuel")
 local reDuelMatched          = RE("DuelMatched")
+
+local rfGuildCreate          = RF("Guild_Create")
+local rfGuildJoin            = RF("Guild_Join")
+local rfGuildLeave           = RF("Guild_Leave")
+local rfGuildGetMy           = RF("Guild_GetMy")
+local rfGuildList            = RF("Guild_List")
+local rfGuildSendChat        = RF("Guild_SendChat")
+local rfGuildGetChat         = RF("Guild_GetChat")
+local rfGuildGetWarBoard     = RF("Guild_GetWarLeaderboard")
+
+local rfTradePropose         = RF("Trade_Propose")
+local rfTradeRespond         = RF("Trade_Respond")
+local rfTradeCancel          = RF("Trade_Cancel")
+local rfTradeGetIncoming     = RF("Trade_GetIncoming")
+local rfTradeGetOutgoing     = RF("Trade_GetOutgoing")
+
+local rfFriendsGetInServer   = RF("Friends_GetInServer")
+local rfFriendsGiftPack      = RF("Friends_GiftPack")
 
 MonetizationService:SetVIPGrantedCallback(function(player)
 	reVIPGranted:FireClient(player)
@@ -399,6 +420,86 @@ rfWatchDuel.OnServerInvoke = function(player, duelId)
 	local battle, nameA, nameB = DuelMatchmakingService:WatchDuel(duelId)
 	if not battle then return { success = false, error = "That duel is no longer available." } end
 	return { success = true, battle = battle, nameA = nameA, nameB = nameB }
+end
+
+-- ── Social: Guilds, Trading, Friends (Phase 7) ───────────────────────────────
+
+rfGuildCreate.OnServerInvoke = function(player, name)
+	if type(name) ~= "string" then return { success = false, error = "Invalid request." } end
+	local guild, err = GuildService:CreateGuild(player.UserId, name)
+	return { success = guild ~= nil, guild = guild, error = err }
+end
+
+rfGuildJoin.OnServerInvoke = function(player, guildId)
+	if type(guildId) ~= "number" then return { success = false, error = "Invalid request." } end
+	local ok, err = GuildService:JoinGuild(player.UserId, guildId)
+	return { success = ok, error = err }
+end
+
+rfGuildLeave.OnServerInvoke = function(player)
+	GuildService:LeaveGuild(player.UserId)
+	return { success = true }
+end
+
+rfGuildGetMy.OnServerInvoke = function(player)
+	return GuildService:GetMyGuild(player.UserId)
+end
+
+rfGuildList.OnServerInvoke = function(player)
+	return GuildService:ListGuilds()
+end
+
+rfGuildSendChat.OnServerInvoke = function(player, text)
+	if type(text) ~= "string" then return { success = false, error = "Invalid request." } end
+	local ok, err = GuildService:SendChatMessage(player.UserId, text)
+	return { success = ok, error = err }
+end
+
+rfGuildGetChat.OnServerInvoke = function(player)
+	return GuildService:GetChatLog(player.UserId)
+end
+
+rfGuildGetWarBoard.OnServerInvoke = function(player)
+	return GuildService:GetGuildWarLeaderboard(20)
+end
+
+rfTradePropose.OnServerInvoke = function(player, toUserId, offerCardId, requestCardId)
+	if type(toUserId) ~= "number" or type(offerCardId) ~= "number" or type(requestCardId) ~= "number" then
+		return { success = false, error = "Invalid request." }
+	end
+	local offer, err = TradeService:ProposeTrade(player.UserId, toUserId, offerCardId, requestCardId)
+	return { success = offer ~= nil, error = err }
+end
+
+rfTradeRespond.OnServerInvoke = function(player, offerId, accept)
+	if type(offerId) ~= "number" or type(accept) ~= "boolean" then
+		return { success = false, error = "Invalid request." }
+	end
+	local ok, err = TradeService:RespondToTrade(player.UserId, offerId, accept)
+	return { success = ok, error = err }
+end
+
+rfTradeCancel.OnServerInvoke = function(player, offerId)
+	if type(offerId) ~= "number" then return { success = false } end
+	return { success = TradeService:CancelTrade(player.UserId, offerId) }
+end
+
+rfTradeGetIncoming.OnServerInvoke = function(player)
+	return TradeService:GetIncomingOffers(player.UserId)
+end
+
+rfTradeGetOutgoing.OnServerInvoke = function(player)
+	return TradeService:GetOutgoingOffers(player.UserId)
+end
+
+rfFriendsGetInServer.OnServerInvoke = function(player)
+	return FriendsService:GetFriendsInServer(player.UserId)
+end
+
+rfFriendsGiftPack.OnServerInvoke = function(player, toUserId)
+	if type(toUserId) ~= "number" then return { success = false, error = "Invalid request." } end
+	local ok, err = FriendsService:GiftPack(player.UserId, toUserId)
+	return { success = ok, error = err }
 end
 
 -- ── Autosave ──────────────────────────────────────────────────────────────────

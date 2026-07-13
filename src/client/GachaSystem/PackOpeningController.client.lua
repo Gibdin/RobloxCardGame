@@ -65,6 +65,22 @@ local rfGetRecentDuels      = remotes:WaitForChild("GetRecentDuels")
 local rfWatchDuel           = remotes:WaitForChild("WatchDuel")
 local reDuelMatched         = remotes:WaitForChild("DuelMatched")
 
+local rfGuildCreate         = remotes:WaitForChild("Guild_Create")
+local rfGuildJoin           = remotes:WaitForChild("Guild_Join")
+local rfGuildLeave          = remotes:WaitForChild("Guild_Leave")
+local rfGuildGetMy          = remotes:WaitForChild("Guild_GetMy")
+local rfGuildList           = remotes:WaitForChild("Guild_List")
+local rfGuildSendChat       = remotes:WaitForChild("Guild_SendChat")
+local rfGuildGetChat        = remotes:WaitForChild("Guild_GetChat")
+local rfGuildGetWarBoard    = remotes:WaitForChild("Guild_GetWarLeaderboard")
+local rfTradePropose        = remotes:WaitForChild("Trade_Propose")
+local rfTradeRespond        = remotes:WaitForChild("Trade_Respond")
+local rfTradeCancel         = remotes:WaitForChild("Trade_Cancel")
+local rfTradeGetIncoming    = remotes:WaitForChild("Trade_GetIncoming")
+local rfTradeGetOutgoing    = remotes:WaitForChild("Trade_GetOutgoing")
+local rfFriendsGetInServer  = remotes:WaitForChild("Friends_GetInServer")
+local rfFriendsGiftPack     = remotes:WaitForChild("Friends_GiftPack")
+
 -- Shared modules
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
 local RarityConfig = require(gachaShared:WaitForChild("RarityConfig"))
@@ -95,6 +111,7 @@ local ShopStoreUI   = require(uiFolder.ShopStoreUI)
 local QuestUI       = require(uiFolder.QuestUI)
 local LeaderboardUI = require(uiFolder.LeaderboardUI)
 local ArenaUI       = require(uiFolder.ArenaUI)
+local SocialUI      = require(uiFolder.SocialUI)
 
 -- Battle modules
 local DungeonController = require(script.Parent.DungeonController)
@@ -632,6 +649,112 @@ task.spawn(function()
 	end
 end)
 
+-- Social: guilds, trading, friends (Phase 7). One combined refresh pulls
+-- everything the panel needs; simpler than per-tab fetch-on-demand since none
+-- of these calls touch DataStore write volume that would matter at this scale.
+local function refreshSocial()
+	task.spawn(function()
+		local myGuildOk, myGuild = pcall(function() return rfGuildGetMy:InvokeServer() end)
+		local listOk, guildList = pcall(function() return rfGuildList:InvokeServer() end)
+		local chatOk, chat = pcall(function() return rfGuildGetChat:InvokeServer() end)
+		local inOk, incoming = pcall(function() return rfTradeGetIncoming:InvokeServer() end)
+		local outOk, outgoing = pcall(function() return rfTradeGetOutgoing:InvokeServer() end)
+		local friendsOk, friends = pcall(function() return rfFriendsGetInServer:InvokeServer() end)
+
+		SocialUI:Refresh({
+			guild = myGuildOk and myGuild or nil,
+			guildList = listOk and guildList or {},
+			chat = chatOk and chat or {},
+			incomingOffers = inOk and incoming or {},
+			outgoingOffers = outOk and outgoing or {},
+			friends = friendsOk and friends or {},
+		})
+	end)
+end
+
+SocialUI:Init(screenGui, {
+	onCreateGuild = function(name)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfGuildCreate:InvokeServer(name) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] CreateGuild failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+		end)
+	end,
+	onJoinGuild = function(guildId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfGuildJoin:InvokeServer(guildId) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] JoinGuild failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+		end)
+	end,
+	onLeaveGuild = function()
+		task.spawn(function()
+			pcall(function() rfGuildLeave:InvokeServer() end)
+			refreshSocial()
+		end)
+	end,
+	onSendChat = function(text)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfGuildSendChat:InvokeServer(text) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] SendChat failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+		end)
+	end,
+	onProposeTrade = function(toUserId, offerCardId, requestCardId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfTradePropose:InvokeServer(toUserId, offerCardId, requestCardId) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] ProposeTrade failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+		end)
+	end,
+	onRespondTrade = function(offerId, accept)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfTradeRespond:InvokeServer(offerId, accept) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] RespondToTrade failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+			refreshPacks()
+		end)
+	end,
+	onCancelTrade = function(offerId)
+		task.spawn(function()
+			pcall(function() return rfTradeCancel:InvokeServer(offerId) end)
+			refreshSocial()
+		end)
+	end,
+	onGiftPack = function(toUserId)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfFriendsGiftPack:InvokeServer(toUserId) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] GiftPack failed:", ok and res and res.error or "request failed")
+			end
+			refreshSocial()
+		end)
+	end,
+})
+
+local socialPanel = SocialUI:GetPanel()
+
+-- Keep guild chat reasonably fresh while the Social panel is open (no push
+-- event for chat — polling is simplest given chat is in-memory/per-server).
+task.spawn(function()
+	while true do
+		task.wait(4)
+		if socialPanel.Visible then
+			refreshSocial()
+		end
+	end
+end)
+
 -- Side menu
 local function closeAllExcept(except)
 	if except~="packs"     then PackOpeningUI:ClosePacksDrawer() end
@@ -641,6 +764,7 @@ local function closeAllExcept(except)
 	if except~="arena"     then arenaPanel.Visible=false end
 	if except~="quests"    then questPanel.Visible=false end
 	if except~="rankings"  then leaderboardPanel.Visible=false end
+	if except~="social"    then socialPanel.Visible=false end
 	if except~="store"     then storePanel.Visible=false end
 	if except~="settings"  then settingsPanel.Visible=false end
 end
@@ -671,6 +795,10 @@ SideMenuUI:Init(screenGui,{
 		if leaderboardPanel.Visible then leaderboardPanel.Visible=false
 		else closeAllExcept("rankings"); LeaderboardUI:ShowBoard(LeaderboardUI:GetActiveBoard()); LeaderboardUI:Show() end
 	end,
+	social=function()
+		if socialPanel.Visible then socialPanel.Visible=false
+		else closeAllExcept("social"); refreshSocial(); SocialUI:Show() end
+	end,
 	store=function()
 		if storePanel.Visible then storePanel.Visible=false
 		else closeAllExcept("store"); refreshStore(); ShopStoreUI:Show() end
@@ -691,6 +819,11 @@ local hubActions = {
 		closeAllExcept("arena")
 		refreshArena(); refreshDuelQueueStatus(); refreshSpectate()
 		ArenaUI:Show()
+	end,
+	OpenSocial = function()
+		closeAllExcept("social")
+		refreshSocial()
+		SocialUI:Show()
 	end,
 }
 reHubInteract.OnClientEvent:Connect(function(action)

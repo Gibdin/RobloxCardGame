@@ -216,6 +216,33 @@ local function buildDuelArena(root, cfg)
 	addPrompt(platform, cfg.promptText, cfg.action, "Enter")
 end
 
+-- Guild hall (Phase 7) — built the same way buildDuelArena was, since it's
+-- the same "activate a reserved zone into a real platform" pattern.
+local function buildGuildHall(root, cfg)
+	local folder = Instance.new("Folder")
+	folder.Name = "GuildHall"
+	folder.Parent = root
+
+	local platform = part({
+		Name = "GuildHallPlatform",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1, cfg.radius * 2, cfg.radius * 2),
+		CFrame = CFrame.new(cfg.position + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = cfg.color,
+		Material = Enum.Material.Neon,
+		Parent = folder,
+	})
+
+	local light = Instance.new("PointLight")
+	light.Color = cfg.color
+	light.Range = 25
+	light.Brightness = 2
+	light.Parent = platform
+
+	billboardLabel(platform, cfg.name, cfg.color, UDim2.new(0, 220, 0, 44))
+	addPrompt(platform, cfg.promptText, cfg.action, "Enter")
+end
+
 local function buildReservedZone(root, zoneCfg)
 	local marker = part({
 		Name = "Zone_" .. zoneCfg.id,
@@ -294,6 +321,7 @@ function HubService:Build()
 		buildVendor(root, vendorCfg)
 	end
 	buildDuelArena(root, HubConfig.DuelArena)
+	buildGuildHall(root, HubConfig.GuildHall)
 	for _, zoneCfg in ipairs(HubConfig.ReservedZones) do
 		buildReservedZone(root, zoneCfg)
 	end
