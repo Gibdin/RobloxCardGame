@@ -2,7 +2,7 @@
 
 **Vision:** Become the best addictive-dopamine-loop gacha/autochess game on Roblox — a deep collection game (pull, build, battle, climb) wrapped in a real social world, backed by a full monetization economy and live-ops content pipeline.
 
-**Theme (added 2026-07-13):** this is an anime card game — cards are built around the likeness of popular anime characters rather than generic original fantasy units, and Dungeon Crawl content is themed per specific anime series. This reframes card content (existing and Phase 9 roster expansion) and dungeon theming work, and Phase 3's per-card actives should read as that character's signature move. **Open and unresolved:** whether to use real trademarked character names/likenesses (real IP/moderation/legal risk on Roblox) vs. original characters clearly inspired by/parodying popular anime archetypes (the safer, common industry pattern) — confirm with the user before writing card content that commits to either direction.
+**Theme (added 2026-07-13):** this is an anime card game — cards are built around the likeness of popular anime characters rather than generic original fantasy units, and Dungeon Crawl content is themed per specific anime series. This reframes card content (existing and any future roster expansion) and dungeon theming work, and Phase 3's per-card actives should read as that character's signature move. **Resolved (Phase 3, 2026-07-13):** the user confirmed original characters clearly parodying popular anime archetypes — never real trademarked names/likenesses — e.g. "World Cutter" (Sukuna), "The Honored Guy" (Gojo). All future card content should follow this parody-naming convention.
 
 This document has two parts:
 1. **Current State Audit** — what's actually built today, with file references, so nobody re-derives it from scratch.
@@ -17,6 +17,8 @@ Scope decisions already locked in:
 ---
 
 ## Part 1 — Current State Audit
+
+> **Historical snapshot, not current state:** this audit describes the game as it stood *before Phase 0*, at the start of this roadmap (2026-07-13). It's kept as-is (not updated per-phase) so the "before" picture stays intact for reference — every gap it describes (no monetization, no hub, generic per-role actives, etc.) has since been addressed by the shipped phases below. For what the game actually looks like today, read each phase's "✅ Shipped" notes in Part 2, not this section.
 
 ### Gacha / Economy
 Files: `src/shared/GachaSystem/{RarityConfig,CardDatabase,RoleConfig}.lua`, `src/server/GachaSystem/Services/{PityService,CardService,RollService,PackService,InventoryService}.lua`
