@@ -4,6 +4,7 @@
 
 local TweenService = game:GetService("TweenService")
 local RunService   = game:GetService("RunService")
+local Workspace    = game:GetService("Workspace")
 
 local SideMenuUI = {}
 
@@ -117,7 +118,14 @@ function SideMenuUI:Init(gui, callbacks)
 	handlers = callbacks or {}
 	local totalH = #BUTTONS * BTN_H + (#BUTTONS - 1) * BTN_GAP + PAD * 2
 
-	local panel = Instance.new("Frame")
+	-- The button list has grown across phases (5 -> 11 with Debug); on a
+	-- shorter viewport, centering a fixed-height panel at 40% of screen
+	-- height can push the TOP buttons (including Packs) above y=0 — entirely
+	-- unreachable, not just visually clipped. Making the panel a
+	-- ScrollingFrame with a viewport-clamped height fixes that regardless of
+	-- screen size or how many buttons get added later, instead of re-tuning
+	-- a magic percentage every time the list grows.
+	local panel = Instance.new("ScrollingFrame")
 	panel.Name              = "SideMenu"
 	panel.Size              = UDim2.new(0, MENU_W, 0, totalH)
 	-- 14px (not 6px) from the edge: a small safe-area margin against
@@ -127,7 +135,26 @@ function SideMenuUI:Init(gui, callbacks)
 	panel.BackgroundTransparency = 1
 	panel.BorderSizePixel   = 0
 	panel.ZIndex            = 5
+	panel.ScrollBarThickness = 4
+	panel.ScrollBarImageTransparency = 0.4
+	panel.CanvasSize        = UDim2.new(0, 0, 0, totalH)
+	panel.AutomaticCanvasSize = Enum.AutomaticSize.None
 	panel.Parent            = gui
+
+	local function fitToViewport()
+		local viewportH = Workspace.CurrentCamera.ViewportSize.Y
+		local margin = 20
+		-- min/max instead of math.clamp: viewportH can legitimately be 0 or
+		-- tiny for a frame or two while the camera is still initializing,
+		-- which would make (viewportH - margin*2) negative and violate
+		-- clamp's min<=max requirement.
+		local visibleH = math.max(1, math.min(totalH, viewportH - margin * 2))
+		local topY = math.max(margin, math.floor(viewportH * 0.40 - visibleH / 2))
+		panel.Size = UDim2.new(0, MENU_W, 0, visibleH)
+		panel.Position = UDim2.new(0, 14, 0, topY)
+	end
+	fitToViewport()
+	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitToViewport)
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop    = UDim.new(0, PAD)
