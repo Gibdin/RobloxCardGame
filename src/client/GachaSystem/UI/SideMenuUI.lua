@@ -120,7 +120,10 @@ function SideMenuUI:Init(gui, callbacks)
 	local panel = Instance.new("Frame")
 	panel.Name              = "SideMenu"
 	panel.Size              = UDim2.new(0, MENU_W, 0, totalH)
-	panel.Position          = UDim2.new(0, 6, 0.40, -totalH/2)
+	-- 14px (not 6px) from the edge: a small safe-area margin against
+	-- notches/rounded corners on mobile, which the game can't reliably query
+	-- from Lua — a conservative fixed margin is the standard mitigation.
+	panel.Position          = UDim2.new(0, 14, 0.40, -totalH/2)
 	panel.BackgroundTransparency = 1
 	panel.BorderSizePixel   = 0
 	panel.ZIndex            = 5

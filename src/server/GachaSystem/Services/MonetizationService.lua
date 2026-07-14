@@ -10,10 +10,12 @@
 -- return the same decision if called again with the same receipt.
 
 local MarketplaceService = game:GetService("MarketplaceService")
+local Players            = game:GetService("Players")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local InventoryService   = require(script.Parent.InventoryService)
+local AnalyticsService   = require(script.Parent.AnalyticsService)
 
 local MonetizationService = {}
 
@@ -65,6 +67,11 @@ function MonetizationService:ProcessReceipt(receiptInfo)
 	local granted = InventoryService:GrantPurchase(userId, receiptId, function(d)
 		d.gems = d.gems + totalGems
 	end)
+
+	if granted then
+		AnalyticsService:LogGemsEarned(Players:GetPlayerByUserId(userId), totalGems,
+			InventoryService:GetGems(userId), "IAP", product.id)
+	end
 
 	return granted and Enum.ProductPurchaseDecision.PurchaseGranted
 		or Enum.ProductPurchaseDecision.NotProcessedYet

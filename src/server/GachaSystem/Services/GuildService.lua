@@ -23,6 +23,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuildConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("GuildConfig"))
 
 local InventoryService = require(script.Parent.InventoryService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local GuildService = {}
 
@@ -31,12 +32,13 @@ pcall(function()
 	store = DataStoreService:GetDataStore("Guilds_v1")
 end)
 
--- In-memory cache — write-through on every mutation. Falls back gracefully
--- (in-memory only) if DataStoreService is unavailable, same pattern as
--- InventoryService's Studio-execute_luau fallback.
+-- In-memory cache — write-through on structural mutations. Falls back
+-- gracefully (in-memory only) if DataStoreService is unavailable, same
+-- pattern as InventoryService's Studio-execute_luau fallback.
 local guilds = {}       -- [id] = entity
 local index  = nil      -- { nextId = N, list = { {id,name,level,memberCount}, ... } }
 local chatLog = {}      -- [id] = { {userId,name,text,ts}, ... }
+local indexDirty = false
 
 local function loadIndex()
 	if index then return index end
@@ -47,12 +49,29 @@ local function loadIndex()
 	return index
 end
 
-local function saveIndex()
+-- Immediate write — only used for structural changes (create/join/leave),
+-- which are rare relative to XP contributions. Frequent per-win updates
+-- (updateIndexEntry, below) mark the index dirty instead and let the
+-- periodic flush loop persist it, so a Guild Wars event with many
+-- concurrent duel wins doesn't hammer the DataStore write budget with a
+-- full-index SetAsync on every single win.
+local function saveIndexNow()
 	if not store then return end
 	pcall(function()
 		store:SetAsync("index", index)
 	end)
+	indexDirty = false
 end
+
+local FLUSH_INTERVAL = 60 -- seconds
+task.spawn(function()
+	while true do
+		task.wait(FLUSH_INTERVAL)
+		if indexDirty then
+			saveIndexNow()
+		end
+	end
+end)
 
 local function loadGuild(id)
 	if guilds[id] then return guilds[id] end
@@ -89,19 +108,22 @@ local function levelForXP(xp)
 	return level
 end
 
-local function updateIndexEntry(entity)
+-- `immediate`: structural changes (create/join/leave — rare) pass true to
+-- persist right away; high-frequency callers (ContributeXP, once per win)
+-- leave it false and just mark the index dirty for the periodic flush loop.
+local function updateIndexEntry(entity, immediate)
 	local idx = loadIndex()
 	local memberCount = 0
 	for _ in pairs(entity.members) do memberCount = memberCount + 1 end
 	for _, e in ipairs(idx.list) do
 		if e.id == entity.id then
 			e.name, e.level, e.memberCount, e.warScore = entity.name, entity.level, memberCount, entity.warScore
-			saveIndex()
+			if immediate then saveIndexNow() else indexDirty = true end
 			return
 		end
 	end
 	table.insert(idx.list, { id = entity.id, name = entity.name, level = entity.level, memberCount = memberCount, warScore = entity.warScore })
-	saveIndex()
+	if immediate then saveIndexNow() else indexDirty = true end
 end
 
 local function removeIndexEntry(id)
@@ -109,7 +131,7 @@ local function removeIndexEntry(id)
 	for i, e in ipairs(idx.list) do
 		if e.id == id then table.remove(idx.list, i); break end
 	end
-	saveIndex()
+	saveIndexNow()
 end
 
 local function nameTaken(name)
@@ -139,6 +161,19 @@ function GuildService:CreateGuild(userId, name)
 		return nil, "That guild name is already taken."
 	end
 
+	-- Guild names are player-chosen text visible to every other player in the
+	-- game (browse list, hub hall, etc.) — the same Trust & Safety filtering
+	-- requirement as chat messages, just applied once at creation instead of
+	-- per-message.
+	local filterOk, filteredName = pcall(function()
+		local result = TextService:FilterStringAsync(name, userId)
+		return result:GetNonChatStringForBroadcastAsync()
+	end)
+	if not filterOk then
+		return nil, "Couldn't validate that name right now — try again."
+	end
+	name = filteredName
+
 	local idx = loadIndex()
 	idx.nextId = idx.nextId + 1
 	local id = idx.nextId
@@ -155,8 +190,9 @@ function GuildService:CreateGuild(userId, name)
 		createdAt = os.time(),
 	}
 	saveGuild(entity)
-	updateIndexEntry(entity)
+	updateIndexEntry(entity, true)
 	InventoryService:SetGuildId(userId, id)
+	AnalyticsService:LogGuildActivity(Players:GetPlayerByUserId(userId), "create", id)
 	return entity, nil
 end
 
@@ -176,8 +212,9 @@ function GuildService:JoinGuild(userId, guildId)
 	entity.members[tostring(userId)] = true
 	table.insert(entity.memberList, userId)
 	saveGuild(entity)
-	updateIndexEntry(entity)
+	updateIndexEntry(entity, true)
 	InventoryService:SetGuildId(userId, guildId)
+	AnalyticsService:LogGuildActivity(Players:GetPlayerByUserId(userId), "join", guildId)
 	return true, nil
 end
 
@@ -197,6 +234,7 @@ function GuildService:LeaveGuild(userId)
 	for _ in pairs(entity.members) do remaining = remaining + 1 end
 	if remaining == 0 then
 		guilds[guildId] = nil
+		chatLog[guildId] = nil
 		removeIndexEntry(guildId)
 		if store then pcall(function() store:RemoveAsync("g_" .. guildId) end) end
 		return
@@ -206,7 +244,7 @@ function GuildService:LeaveGuild(userId)
 		entity.ownerUserId = entity.memberList[1]
 	end
 	saveGuild(entity)
-	updateIndexEntry(entity)
+	updateIndexEntry(entity, true)
 end
 
 -- Returns a display-friendly snapshot (member names resolved) or nil.

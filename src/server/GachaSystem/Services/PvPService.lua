@@ -7,6 +7,7 @@
 -- PvPConfig.lua for why). Rewards are Gems, diminishing per day via
 -- InventoryService:RecordPvPWin so the same easy opponent can't be farmed.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gachaShared  = ReplicatedStorage:WaitForChild("GachaSystem")
 local CardDatabase = require(gachaShared:WaitForChild("CardDatabase"))
@@ -19,6 +20,7 @@ local QuestService     = require(script.Parent.QuestService)
 local GuildService     = require(script.Parent.GuildService)
 local AccountService   = require(script.Parent.AccountService)
 local PrestigeService  = require(script.Parent.PrestigeService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local PvPService = {}
 
@@ -127,6 +129,7 @@ function PvPService:Attack(attackerUserId, opponentUserId)
 		end
 		QuestService:RecordProgress(attackerUserId, "pvp_win", 1)
 	end
+	AnalyticsService:LogPvPResult(Players:GetPlayerByUserId(attackerUserId), "async", victory, ratingAfter)
 
 	return {
 		victory = victory,

@@ -73,6 +73,7 @@ local rfGuildList           = remotes:WaitForChild("Guild_List")
 local rfGuildSendChat       = remotes:WaitForChild("Guild_SendChat")
 local rfGuildGetChat        = remotes:WaitForChild("Guild_GetChat")
 local rfGuildGetWarBoard    = remotes:WaitForChild("Guild_GetWarLeaderboard")
+local rfGuildReportMessage  = remotes:WaitForChild("Guild_ReportMessage")
 local rfTradePropose        = remotes:WaitForChild("Trade_Propose")
 local rfTradeRespond        = remotes:WaitForChild("Trade_Respond")
 local rfTradeCancel         = remotes:WaitForChild("Trade_Cancel")
@@ -788,6 +789,14 @@ SocialUI:Init(screenGui, {
 				warn("[GachaSystem] GiftPack failed:", ok and res and res.error or "request failed")
 			end
 			refreshSocial()
+		end)
+	end,
+	onReportMessage = function(targetUserId, text)
+		task.spawn(function()
+			local ok, res = pcall(function() return rfGuildReportMessage:InvokeServer(targetUserId, text) end)
+			if not (ok and res and res.success) then
+				warn("[GachaSystem] ReportMessage failed:", ok and res and res.error or "request failed")
+			end
 		end)
 	end,
 })

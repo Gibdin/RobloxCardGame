@@ -10,6 +10,7 @@
 -- time) — a card offered in two pending trades simultaneously just fails the
 -- second accept instead of duplicating or silently no-opping.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local gachaShared = ReplicatedStorage:WaitForChild("GachaSystem")
 local CardDatabase = require(gachaShared:WaitForChild("CardDatabase"))
@@ -17,6 +18,7 @@ local RarityConfig = require(gachaShared:WaitForChild("RarityConfig"))
 local TradeConfig  = require(gachaShared:WaitForChild("TradeConfig"))
 
 local InventoryService = require(script.Parent.InventoryService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local TradeService = {}
 
@@ -27,6 +29,26 @@ local nextOfferId = 1
 local function isExpired(offer)
 	return os.time() - offer.createdAt > TradeConfig.OfferExpirySeconds
 end
+
+-- Without this, `offers`/`offerOrder` would grow for the entire lifetime of
+-- the server — every completed/declined/expired/cancelled/invalid offer
+-- stayed in memory forever with no eviction. Periodically drops anything no
+-- longer "pending" once it's well past its expiry window, so a long-running
+-- server's memory/scan cost doesn't grow unbounded with trade volume.
+local CLEANUP_INTERVAL = 300 -- seconds
+task.spawn(function()
+	while true do
+		task.wait(CLEANUP_INTERVAL)
+		for i = #offerOrder, 1, -1 do
+			local id = offerOrder[i]
+			local o = offers[id]
+			if not o or (o.status ~= "pending" and isExpired(o)) then
+				offers[id] = nil
+				table.remove(offerOrder, i)
+			end
+		end
+	end
+end)
 
 local function isTradeable(cardId)
 	local card = CardDatabase:GetById(cardId)
@@ -174,6 +196,9 @@ function TradeService:RespondToTrade(userId, offerId, accept)
 	InventoryService:AddTradeHistoryEntry(o.toUserId, {
 		ts = now, withUserId = o.fromUserId, gaveCardId = o.requestCardId, gotCardId = o.offerCardId,
 	})
+
+	AnalyticsService:LogTradeCompleted(Players:GetPlayerByUserId(o.fromUserId), o.toUserId)
+	AnalyticsService:LogTradeCompleted(Players:GetPlayerByUserId(o.toUserId), o.fromUserId)
 
 	o.status = "completed"
 	return true, nil

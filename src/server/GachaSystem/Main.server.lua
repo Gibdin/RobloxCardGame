@@ -24,6 +24,8 @@ local TradeService     = require(Services.TradeService)
 local FriendsService   = require(Services.FriendsService)
 local AccountService   = require(Services.AccountService)
 local PrestigeService  = require(Services.PrestigeService)
+local ModerationService = require(Services.ModerationService)
+local AnalyticsService  = require(Services.AnalyticsService)
 
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CosmeticConfig"))
@@ -136,6 +138,7 @@ local rfGuildList            = RF("Guild_List")
 local rfGuildSendChat        = RF("Guild_SendChat")
 local rfGuildGetChat         = RF("Guild_GetChat")
 local rfGuildGetWarBoard     = RF("Guild_GetWarLeaderboard")
+local rfGuildReportMessage   = RF("Guild_ReportMessage")
 
 local rfTradePropose         = RF("Trade_Propose")
 local rfTradeRespond         = RF("Trade_Respond")
@@ -469,6 +472,14 @@ end
 
 rfGuildGetWarBoard.OnServerInvoke = function(player)
 	return GuildService:GetGuildWarLeaderboard(20)
+end
+
+rfGuildReportMessage.OnServerInvoke = function(player, targetUserId, text)
+	if type(targetUserId) ~= "number" or type(text) ~= "string" then
+		return { success = false, error = "Invalid request." }
+	end
+	local ok, err = ModerationService:Report(player.UserId, targetUserId, "guild_chat", text)
+	return { success = ok, error = err }
 end
 
 rfTradePropose.OnServerInvoke = function(player, toUserId, offerCardId, requestCardId)

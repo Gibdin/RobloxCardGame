@@ -27,6 +27,7 @@ local GuildService     = require(script.Parent.GuildService)
 local GuildConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("GuildConfig"))
 local AccountService   = require(script.Parent.AccountService)
 local AccountConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("AccountConfig"))
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local DuelMatchmakingService = {}
 
@@ -155,6 +156,9 @@ local function resolveDuel(userIdA, userIdB)
 	local playerB = Players:GetPlayerByUserId(userIdB)
 	local nameA = playerA and playerA.Name or ("Player#" .. userIdA)
 	local nameB = playerB and playerB.Name or ("Player#" .. userIdB)
+
+	AnalyticsService:LogPvPResult(playerA, "duel", aWon, InventoryService:GetPvPRating(userIdA))
+	AnalyticsService:LogPvPResult(playerB, "duel", not aWon, InventoryService:GetPvPRating(userIdB))
 
 	local battleA = { events = result.events, playerStart = startA, enemyStart = startB }
 

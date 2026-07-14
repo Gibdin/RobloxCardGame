@@ -214,16 +214,34 @@ local function buildGuildTab(gui)
 	chatScroll.Size = UDim2.new(0.63, -8, 1, -128); chatScroll.Position = UDim2.new(0.37, 0, 0, 80)
 	chatScroll.BackgroundColor3 = Color3.fromRGB(14, 18, 22); chatScroll.BorderSizePixel = 0
 	chatScroll.ScrollBarThickness = 4
-	chatScroll.CanvasSize = UDim2.new(0, 0, 0, 50 * 20)
+	chatScroll.CanvasSize = UDim2.new(0, 0, 0, 50 * 22)
 	chatScroll.ZIndex = 21; chatScroll.Parent = inGuild
 	corner(chatScroll, 6)
 
+	-- Each row pairs the message with a small REPORT button (Trust & Safety —
+	-- filtering catches profanity, not harassment/context-dependent abuse, so
+	-- players still need a way to flag a message for human review).
 	for i = 1, 50 do
-		local c = label(chatScroll, "", UDim2.new(1, -8, 0, 18), UDim2.new(0, 4, 0, (i - 1) * 20),
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -8, 0, 20); row.Position = UDim2.new(0, 4, 0, (i - 1) * 22)
+		row.BackgroundTransparency = 1
+		row.ZIndex = 21; row.Parent = chatScroll
+		row.Visible = false
+
+		local c = label(row, "", UDim2.new(1, -52, 1, 0), UDim2.new(0, 0, 0, 0),
 			Color3.fromRGB(210, 220, 230), Enum.Font.Gotham)
 		c.TextXAlignment = Enum.TextXAlignment.Left; c.TextWrapped = true; c.TextSize = 12
-		c.Visible = false
-		chatRows[i] = c
+
+		local reportBtn = button(row, "REPORT", UDim2.new(0, 48, 0, 18), UDim2.new(1, -48, 0, 1), Color3.fromRGB(90, 40, 40))
+		reportBtn.TextSize = 9
+		reportBtn.MouseButton1Click:Connect(function()
+			local targetUserId = reportBtn:GetAttribute("targetUserId")
+			if targetUserId and callbacks.onReportMessage then
+				callbacks.onReportMessage(targetUserId, c.Text)
+			end
+		end)
+
+		chatRows[i] = { row = row, label = c, reportBtn = reportBtn }
 	end
 	panel.chatScroll = chatScroll
 
@@ -270,30 +288,33 @@ local function buildTradeTab(gui)
 	inScroll.Size = UDim2.new(0.5, -12, 1, -100); inScroll.Position = UDim2.new(0, 8, 0, 94)
 	inScroll.BackgroundTransparency = 1; inScroll.BorderSizePixel = 0
 	inScroll.ScrollBarThickness = 4
-	inScroll.CanvasSize = UDim2.new(0, 0, 0, 8 * 60)
+	inScroll.CanvasSize = UDim2.new(0, 0, 0, 8 * 70)
 	inScroll.ZIndex = 21; inScroll.Parent = f
 
+	-- Row/button sizing here targets a touch-friendly ~32px minimum tap
+	-- height (mobile is the majority of Roblox's audience) rather than the
+	-- ~22px the rest of this project's smallest buttons use elsewhere.
 	for i = 1, 8 do
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 54); row.Position = UDim2.new(0, 0, 0, (i - 1) * 60)
+		row.Size = UDim2.new(1, 0, 0, 64); row.Position = UDim2.new(0, 0, 0, (i - 1) * 70)
 		row.BackgroundColor3 = Color3.fromRGB(16, 20, 26); row.BorderSizePixel = 0
 		row.ZIndex = 22; row.Parent = inScroll
 		row.Visible = false
 		corner(row, 6)
 
-		local descLbl = label(row, "—", UDim2.new(1, -16, 0, 34), UDim2.new(0, 8, 0, 2),
+		local descLbl = label(row, "—", UDim2.new(1, -16, 0, 26), UDim2.new(0, 8, 0, 2),
 			Color3.fromRGB(210, 220, 230), Enum.Font.Gotham)
 		descLbl.TextXAlignment = Enum.TextXAlignment.Left; descLbl.TextWrapped = true; descLbl.TextSize = 12
 
-		local acceptBtn = button(row, "ACCEPT", UDim2.new(0, 70, 0, 22), UDim2.new(0, 8, 1, -26), Color3.fromRGB(50, 130, 60))
-		acceptBtn.TextSize = 11
+		local acceptBtn = button(row, "ACCEPT", UDim2.new(0, 76, 0, 32), UDim2.new(0, 8, 1, -36), Color3.fromRGB(50, 130, 60))
+		acceptBtn.TextSize = 12
 		acceptBtn.MouseButton1Click:Connect(function()
 			local id = acceptBtn:GetAttribute("offerId")
 			if id and callbacks.onRespondTrade then callbacks.onRespondTrade(id, true) end
 		end)
 
-		local declineBtn = button(row, "DECLINE", UDim2.new(0, 70, 0, 22), UDim2.new(0, 84, 1, -26), Color3.fromRGB(120, 40, 40))
-		declineBtn.TextSize = 11
+		local declineBtn = button(row, "DECLINE", UDim2.new(0, 76, 0, 32), UDim2.new(0, 90, 1, -36), Color3.fromRGB(120, 40, 40))
+		declineBtn.TextSize = 12
 		declineBtn.MouseButton1Click:Connect(function()
 			local id = declineBtn:GetAttribute("offerId")
 			if id and callbacks.onRespondTrade then callbacks.onRespondTrade(id, false) end
@@ -309,23 +330,23 @@ local function buildTradeTab(gui)
 	outScroll.Size = UDim2.new(0.5, -12, 1, -100); outScroll.Position = UDim2.new(0.5, 4, 0, 94)
 	outScroll.BackgroundTransparency = 1; outScroll.BorderSizePixel = 0
 	outScroll.ScrollBarThickness = 4
-	outScroll.CanvasSize = UDim2.new(0, 0, 0, 8 * 60)
+	outScroll.CanvasSize = UDim2.new(0, 0, 0, 8 * 70)
 	outScroll.ZIndex = 21; outScroll.Parent = f
 
 	for i = 1, 8 do
 		local row = Instance.new("Frame")
-		row.Size = UDim2.new(1, 0, 0, 54); row.Position = UDim2.new(0, 0, 0, (i - 1) * 60)
+		row.Size = UDim2.new(1, 0, 0, 64); row.Position = UDim2.new(0, 0, 0, (i - 1) * 70)
 		row.BackgroundColor3 = Color3.fromRGB(16, 20, 26); row.BorderSizePixel = 0
 		row.ZIndex = 22; row.Parent = outScroll
 		row.Visible = false
 		corner(row, 6)
 
-		local descLbl = label(row, "—", UDim2.new(1, -16, 0, 34), UDim2.new(0, 8, 0, 2),
+		local descLbl = label(row, "—", UDim2.new(1, -16, 0, 26), UDim2.new(0, 8, 0, 2),
 			Color3.fromRGB(210, 220, 230), Enum.Font.Gotham)
 		descLbl.TextXAlignment = Enum.TextXAlignment.Left; descLbl.TextWrapped = true; descLbl.TextSize = 12
 
-		local cancelBtn = button(row, "CANCEL", UDim2.new(0, 80, 0, 22), UDim2.new(0, 8, 1, -26), Color3.fromRGB(120, 40, 40))
-		cancelBtn.TextSize = 11
+		local cancelBtn = button(row, "CANCEL", UDim2.new(0, 90, 0, 32), UDim2.new(0, 8, 1, -36), Color3.fromRGB(120, 40, 40))
+		cancelBtn.TextSize = 12
 		cancelBtn.MouseButton1Click:Connect(function()
 			local id = cancelBtn:GetAttribute("offerId")
 			if id and callbacks.onCancelTrade then callbacks.onCancelTrade(id) end
@@ -384,7 +405,7 @@ end
 
 -- cbs: { onCreateGuild(name), onJoinGuild(guildId), onLeaveGuild(), onSendChat(text),
 --        onProposeTrade(toUserId, offerCardId, requestCardId), onRespondTrade(offerId, accept),
---        onCancelTrade(offerId), onGiftPack(toUserId) }
+--        onCancelTrade(offerId), onGiftPack(toUserId), onReportMessage(targetUserId, text) }
 function SocialUI:Init(gui, cbs)
 	callbacks = cbs or {}
 
@@ -475,13 +496,14 @@ function SocialUI:Refresh(data)
 
 	if data.chat then
 		local chat = data.chat
-		for i, c in ipairs(chatRows) do
+		for i, rowUI in ipairs(chatRows) do
 			local e = chat[i]
 			if e then
-				c.Visible = true
-				c.Text = string.format("[%s] %s", e.name, e.text)
+				rowUI.row.Visible = true
+				rowUI.label.Text = string.format("[%s] %s", e.name, e.text)
+				rowUI.reportBtn:SetAttribute("targetUserId", e.userId)
 			else
-				c.Visible = false
+				rowUI.row.Visible = false
 			end
 		end
 	end

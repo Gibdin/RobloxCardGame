@@ -1,6 +1,7 @@
 -- Orchestrates the full pack-opening pipeline:
 -- validate → consume → roll → select card → handle duplicate → return result.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RarityConfig      = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("RarityConfig"))
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
@@ -10,6 +11,7 @@ local InventoryService = require(script.Parent.InventoryService)
 local PityService      = require(script.Parent.PityService)
 local BannerService    = require(script.Parent.BannerService)
 local QuestService     = require(script.Parent.QuestService)
+local AnalyticsService = require(script.Parent.AnalyticsService)
 
 local PackService = {}
 
@@ -61,6 +63,7 @@ local function rollAndGrant(userId, packType, bannerId)
 	end
 
 	QuestService:RecordProgress(userId, "pack_open", 1)
+	AnalyticsService:LogPackOpened(Players:GetPlayerByUserId(userId), packType, displayRarity, bannerId)
 
 	return {
 		card           = card,
@@ -111,6 +114,7 @@ function PackService:BuyAndOpenWithGems(userId, packType, bannerId)
 	if not InventoryService:SpendGems(userId, cost) then
 		return nil, "Not enough Gems."
 	end
+	AnalyticsService:LogGemsSpent(Players:GetPlayerByUserId(userId), cost, InventoryService:GetGems(userId), packType)
 
 	local result, err = rollAndGrant(userId, packType, bannerId)
 	if not result then

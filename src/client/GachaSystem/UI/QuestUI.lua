@@ -165,7 +165,8 @@ local function buildStreakTab(gui)
 		local rewardLbl = label(cell, "", UDim2.new(1, -6, 0, 34), UDim2.new(0, 3, 0, 22), Color3.fromRGB(150, 200, 255), Enum.Font.Gotham)
 		rewardLbl.TextWrapped = true; rewardLbl.TextSize = 11
 
-		local claimBtn = button(cell, "CLAIM", UDim2.new(1, -8, 0, 22), UDim2.new(0, 4, 1, -26), Color3.fromRGB(50, 130, 60))
+		-- 30px tap height (was 22px) — mobile is the majority of Roblox's audience.
+		local claimBtn = button(cell, "CLAIM", UDim2.new(1, -8, 0, 30), UDim2.new(0, 4, 1, -34), Color3.fromRGB(50, 130, 60))
 		claimBtn.TextSize = 11
 		claimBtn.MouseButton1Click:Connect(function()
 			if callbacks.onClaimStreak then callbacks.onClaimStreak() end
