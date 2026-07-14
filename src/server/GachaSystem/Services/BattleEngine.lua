@@ -544,6 +544,19 @@ function Resolver:basicAttack(side, attacker)
 		giveMp(target, MPConf.OnDamaged)
 	end
 
+	-- Cast immediately once MP crosses the threshold from landing/taking a
+	-- hit, rather than waiting for the next round's cast phase (step 2 of
+	-- Resolve already ran for THIS round before attacks happen) — MP visibly
+	-- fills mid-attack, so the ability should fire right then, not up to a
+	-- full round later.
+	if attacker.alive and attacker.mp >= side.castThreshold * attacker.maxMp then
+		self:castActive(side, attacker)
+	end
+	if not defeated(side) and not defeated(enemySide)
+		and target.alive and target.mp >= enemySide.castThreshold * target.maxMp then
+		self:castActive(enemySide, target)
+	end
+
 	if attacker.passive == "Rage" and attacker.rageStacks < Passives.Rage.maxStacks then
 		attacker.rageStacks = attacker.rageStacks + 1
 	end

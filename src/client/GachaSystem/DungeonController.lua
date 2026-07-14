@@ -33,17 +33,26 @@ end
 -- ── Result payload building ───────────────────────────────────────────────────
 
 local function summarizeXp(xpReport)
-	if not xpReport then return nil, nil end
+	if not xpReport then return nil, nil, nil end
 	local total = 0
 	local levelUps = {}
+	local cardXp = {}
 	for idStr, rep in pairs(xpReport) do
 		total = total + (rep.gained or 0)
+		local card = deps.CardDatabase:GetById(tonumber(idStr))
+		local name = card and card.name or idStr
 		if rep.leveledUp then
-			local card = deps.CardDatabase:GetById(tonumber(idStr))
-			table.insert(levelUps, (card and card.name or idStr) .. " reached Lv " .. rep.level .. "!")
+			table.insert(levelUps, name .. " reached Lv " .. rep.level .. "!")
 		end
+		table.insert(cardXp, {
+			name = name,
+			level = rep.level,
+			leveledUp = rep.leveledUp,
+			beforeRatio = rep.xpForLevelBefore and (rep.xpBefore / rep.xpForLevelBefore) or 1,
+			afterRatio = rep.xpForNext and (rep.xp / rep.xpForNext) or 1,
+		})
 	end
-	return total, levelUps
+	return total, levelUps, cardXp
 end
 
 local function buildSummary(battle)
@@ -146,7 +155,7 @@ local function fightFloor()
 			refreshTowerPanel()
 			RunTeamPanel:PlayXpGains(res.rewards and res.rewards.xp)
 
-			local xpTotal, levelUps = summarizeXp(res.rewards and res.rewards.xp)
+			local xpTotal, levelUps, cardXp = summarizeXp(res.rewards and res.rewards.xp)
 			local continueCb = function()
 				BattleUI:Hide()
 				refreshTowerPanel()
@@ -158,6 +167,7 @@ local function fightFloor()
 				title = "FLOOR " .. res.floor .. " CLEARED",
 				summary = buildSummary(res.battle),
 				xpTotal = xpTotal,
+				cardXp = cardXp,
 				levelUps = levelUps,
 				packs = res.rewards and res.rewards.packs,
 				bonus = buildBonus(res.rewards and res.rewards.bonus),
@@ -277,7 +287,7 @@ local function chooseNode(nodeId)
 
 		if res.victory then
 			dungeonRun = res.run
-			local xpTotal, levelUps = summarizeXp(res.rewards and res.rewards.xp)
+			local xpTotal, levelUps, cardXp = summarizeXp(res.rewards and res.rewards.xp)
 			local recordLabel = res.newDeepest and res.run and ("NEW DEEPEST ROW: " .. res.run.deepestRow) or nil
 
 			if res.run then
@@ -298,6 +308,7 @@ local function chooseNode(nodeId)
 					summary = buildSummary(res.battle),
 					gold = res.rewards and res.rewards.gold,
 					xpTotal = xpTotal,
+					cardXp = cardXp,
 					levelUps = levelUps,
 					packs = res.rewards and res.rewards.packs,
 					recordLabel = (res.newDeepest and res.records) and ("NEW DEEPEST ROW: " .. res.records.deepestRow) or nil,
@@ -318,6 +329,7 @@ local function chooseNode(nodeId)
 					summary = buildSummary(res.battle),
 					gold = res.rewards and res.rewards.gold,
 					xpTotal = xpTotal,
+					cardXp = cardXp,
 					levelUps = levelUps,
 					packs = res.rewards and res.rewards.packs,
 					bonus = buildBonus(res.rewards and res.rewards.bonus),

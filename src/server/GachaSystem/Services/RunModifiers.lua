@@ -38,6 +38,13 @@ function RunModifiers.Compute(cardRunState)
 		fold(mods, { atkMult = 1 + pct, hpMult = 1 + pct })
 	end
 
+	-- Ability power grows in tiers (every AbilityTierSize levels) rather than
+	-- every level — see DungeonConfig.Levels' comment for why.
+	local tier = level // DungeonConfig.Levels.AbilityTierSize
+	if tier > 0 then
+		fold(mods, { activePowerMult = 1 + tier * DungeonConfig.Levels.AbilityPowerPerTier })
+	end
+
 	for _, itemId in ipairs(cardRunState.items or {}) do
 		local item = DungeonConfig.Items[itemId]
 		if item then fold(mods, item.effects) end

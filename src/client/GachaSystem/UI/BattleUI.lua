@@ -582,6 +582,7 @@ end
 --   summary  = { rounds, totalDamage, kills, mvpName, mvpColor, mvpDamage } (optional)
 --   gold     = n (optional; count-up row)
 --   xpTotal  = n (optional; count-up row)
+--   cardXp   = { { name, level, leveledUp, beforeRatio, afterRatio }, ... } (optional; per-card bar row)
 --   levelUps = { "Name reached Lv 3!", ... } (optional)
 --   packs    = { [packType] = n } (optional)
 --   bonus    = { kind, gold, itemName, cardName, packLabel } (optional; own beat)
@@ -629,8 +630,18 @@ function BattleUI:ShowResult(payload)
 
 	local rows = {}          -- { { frame, onShow } }
 	local rowOrder = 0
-	local function addRow(text, color, height, onShow, font)
+	-- Shared by addRow (plain text) and the per-card XP bar row below — both
+	-- just need "take my turn in the staggered reveal," not necessarily a
+	-- TextLabel.
+	local function addCustomRow(inst, onShow)
 		rowOrder = rowOrder + 1
+		inst.LayoutOrder = rowOrder
+		inst.Visible = false
+		inst.Parent = rowsHolder
+		table.insert(rows, { frame = inst, onShow = onShow })
+		return inst
+	end
+	local function addRow(text, color, height, onShow, font)
 		local lbl = Instance.new("TextLabel")
 		lbl.Size = UDim2.new(1, 0, 0, height or 24)
 		lbl.BackgroundTransparency = 1
@@ -638,12 +649,8 @@ function BattleUI:ShowResult(payload)
 		lbl.TextColor3 = color or Color3.fromRGB(210, 210, 235)
 		lbl.TextScaled = true
 		lbl.Font = font or Enum.Font.Gotham
-		lbl.LayoutOrder = rowOrder
 		lbl.ZIndex = 46
-		lbl.Visible = false
-		lbl.Parent = rowsHolder
-		table.insert(rows, { frame = lbl, onShow = onShow })
-		return lbl
+		return addCustomRow(lbl, onShow)
 	end
 
 	-- Build rows from the structured payload.
@@ -669,6 +676,76 @@ function BattleUI:ShowResult(payload)
 			FxUtil.countUp(lbl, 0, payload.xpTotal, resultsConf.countUpTime,
 				{ prefix = "+", suffix = " XP", tickEvery = resultsConf.tickEvery, sound = { mgr = Sound, name = "xp_tick" } })
 		end
+	end
+	-- Per-card XP bars: demonstrates progression visually (fill from the
+	-- pre-battle position) instead of only the aggregate count-up above and
+	-- the plain "reached Lv N!" text below.
+	if payload.cardXp and #payload.cardXp > 0 then
+		local holder = Instance.new("Frame")
+		holder.Size = UDim2.new(1, 0, 0, 44)
+		holder.BackgroundTransparency = 1
+		holder.ZIndex = 46
+
+		local list = Instance.new("UIListLayout")
+		list.FillDirection = Enum.FillDirection.Horizontal
+		list.Padding = UDim.new(0, 6)
+		list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		list.Parent = holder
+
+		local n = #payload.cardXp
+		local chips = {}
+		for _, entry in ipairs(payload.cardXp) do
+			local chip = Instance.new("Frame")
+			chip.Size = UDim2.new(1 / n, -6, 1, 0)
+			chip.BackgroundTransparency = 1
+			chip.ZIndex = 46
+			chip.Parent = holder
+
+			local nameLbl = Instance.new("TextLabel")
+			nameLbl.Size = UDim2.new(1, 0, 0, 16)
+			nameLbl.BackgroundTransparency = 1
+			nameLbl.Text = ("%s  Lv%d"):format(entry.name, entry.level)
+			nameLbl.TextColor3 = Color3.fromRGB(200, 200, 225)
+			nameLbl.TextScaled = true; nameLbl.Font = Enum.Font.GothamBold
+			nameLbl.ZIndex = 47; nameLbl.Parent = chip
+
+			local barBg = Instance.new("Frame")
+			barBg.Size = UDim2.new(1, 0, 0, 8); barBg.Position = UDim2.new(0, 0, 0, 22)
+			barBg.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
+			barBg.BorderSizePixel = 0
+			barBg.ZIndex = 46; barBg.Parent = chip
+			corner(barBg, 3)
+
+			local barFill = Instance.new("Frame")
+			barFill.Size = UDim2.new(math.clamp(entry.beforeRatio or 0, 0, 1), 0, 1, 0)
+			barFill.BackgroundColor3 = Color3.fromRGB(170, 140, 255)
+			barFill.BorderSizePixel = 0
+			barFill.ZIndex = 47; barFill.Parent = barBg
+			corner(barFill, 3)
+
+			table.insert(chips, { fill = barFill, entry = entry })
+		end
+
+		addCustomRow(holder, function()
+			for _, c in ipairs(chips) do
+				local afterRatio = math.clamp(c.entry.afterRatio or 0, 0, 1)
+				if c.entry.leveledUp then
+					-- Fill to full, flash, then settle at the post-levelup ratio
+					-- (measured against the NEW level's requirement).
+					TweenService:Create(c.fill, TweenInfo.new(resultsConf.countUpTime, Enum.EasingStyle.Quad),
+						{ Size = UDim2.new(1, 0, 1, 0) }):Play()
+					task.delay(resultsConf.countUpTime, function()
+						if not c.fill.Parent then return end
+						Sound:Play("level_up")
+						FxUtil.floatText(c.fill.Parent.Parent, "LV UP!", Color3.fromRGB(255, 225, 130), { yStart = 0 })
+						TweenService:Create(c.fill, TweenInfo.new(0.3), { Size = UDim2.new(afterRatio, 0, 1, 0) }):Play()
+					end)
+				else
+					TweenService:Create(c.fill, TweenInfo.new(resultsConf.countUpTime, Enum.EasingStyle.Quad),
+						{ Size = UDim2.new(afterRatio, 0, 1, 0) }):Play()
+				end
+			end
+		end)
 	end
 	for _, line in ipairs(payload.levelUps or {}) do
 		addRow("▲ " .. line, Color3.fromRGB(255, 225, 130), 24, function() Sound:Play("level_up") end, Enum.Font.GothamBold)

@@ -79,6 +79,7 @@ local function awardXp(run, amount, resultUnits)
 		if id then
 			local cs = run.cards[id]
 			local mods = RunModifiers.Compute(cs)
+			local levelBefore, xpBefore = cs.level, cs.xp
 			local gained = math.floor(amount * (mods.xpGainMult or 1) * (aliveBySlot[slot] and 1 or Levels.DeadXpPct))
 			cs.xp = cs.xp + gained
 			local leveled = false
@@ -90,7 +91,14 @@ local function awardXp(run, amount, resultUnits)
 				cs.hpPct = math.min(1, (cs.hpPct or 1) + Levels.StatPerLevel)
 			end
 			-- String key: sparse numeric keys don't survive remote serialization.
-			report[tostring(id)] = { gained = gained, level = cs.level, leveledUp = leveled }
+			-- xpBefore/xpForLevelBefore let the client animate a fill from the
+			-- pre-battle bar position, not just show the post-battle snapshot.
+			report[tostring(id)] = {
+				gained = gained, level = cs.level, leveledUp = leveled,
+				levelBefore = levelBefore, xpBefore = xpBefore,
+				xpForLevelBefore = levelBefore < Levels.Cap and Levels.XpForLevel(levelBefore) or nil,
+				xp = cs.xp, xpForNext = cs.level < Levels.Cap and Levels.XpForLevel(cs.level) or nil,
+			}
 		end
 	end
 	return report

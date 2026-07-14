@@ -23,6 +23,13 @@ DungeonConfig.Levels = {
 	XpForLevel = function(level) return 100 * level end,  -- XP to go from level L to L+1
 	StatPerLevel = 0.08,           -- +ATK and +MaxHP per level above 1
 	DeadXpPct = 0.5,               -- cards dead at battle end earn this fraction
+	-- Ability power (BattleEngine's activePowerMult, already scaling both the
+	-- generic role active AND every per-card unique active step) grows in
+	-- tiers rather than every level, so a level-up doesn't just make a card
+	-- hit harder passively (StatPerLevel) but occasionally makes its ACTIVE
+	-- meaningfully stronger too. A first prototype pass — tune freely.
+	AbilityTierSize    = 5,    -- a tier is reached every N levels (levels 5-9 = tier 1, 10 = tier 2)
+	AbilityPowerPerTier = 0.15, -- +15% active power per tier reached
 }
 DungeonConfig.XpAward = {
 	Mob   = function(row) return 90 + 18 * row end,
