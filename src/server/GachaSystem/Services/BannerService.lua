@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local RarityConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("RarityConfig"))
+local SeasonConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("SeasonConfig"))
 
 local BannerService = {}
 
@@ -29,11 +30,26 @@ function BannerService:Snapshot(userId)
 	return get(userId)
 end
 
+-- The active banner is purely a function of real time (MonetizationConfig.
+-- BannerRotation's weekly cadence), unless a live Season pins a specific
+-- banner for its whole window (SeasonConfig:GetPinnedBannerId) — e.g. a
+-- launch promotion that shouldn't rotate away mid-event.
 function BannerService:GetActiveBanner()
-	for _, banner in ipairs(MonetizationConfig.Banners) do
-		if banner.active then return banner end
-	end
-	return nil
+	local pinnedId = SeasonConfig:GetPinnedBannerId()
+	local bannerId = pinnedId or self:GetScheduledBannerId(os.time())
+	return bannerId and self:GetBanner(bannerId) or nil
+end
+
+-- Exposed separately (rather than inlined) so DebugService:PreviewBannerRotation
+-- can compute "what banner is live at time T" for arbitrary future timestamps
+-- without duplicating the modulo math.
+function BannerService:GetScheduledBannerId(atTime)
+	local rotation = MonetizationConfig.BannerRotation
+	if not rotation or #rotation.Order == 0 then return nil end
+	local periodSeconds = rotation.DurationDays * 86400
+	local elapsed = atTime - rotation.RotationEpoch
+	local index = (elapsed // periodSeconds) % #rotation.Order + 1
+	return rotation.Order[index]
 end
 
 function BannerService:GetBanner(bannerId)

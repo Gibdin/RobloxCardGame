@@ -194,15 +194,19 @@ Verified via direct in-memory service tests in a single Studio session: XP→lev
 
 **Definition of done:** maxed-out players have a visible, regularly-updated long-term goal (✅ Prestige ladder + Artifact chase + account level/titles) instead of a content ceiling.
 
-### Phase 9 — Content Scaling & Live Content Pipeline
+### Phase 9 — Content Scaling & Live Content Pipeline ✅ Core shipped 2026-07-14
 **Goal:** volume and cadence, not new systems — everything that makes new content matter (identity, monetization, banners, guilds, PvP) already exists by now.
 
-- Roster expansion from 50 → 200+ cards over a defined cadence, backfilling per-card unique actives rarity-tier by rarity-tier.
-- Regular banner rotation cadence (weekly/bi-weekly) via Phase 1's system; seasonal event content via `SeasonConfig.lua`.
-- Studio-only balancing/admin tooling (extends the existing `DebugService.lua` pattern) to preview rarity distributions, synergy math, and PvP rating curves without redeploying.
-- A documented content-authoring template (stat bands per rarity, synergy-fit rules, active-ability budget) so new cards stay balanced without re-deriving the system each time.
+> **Scope note:** per standing direction (`[[feedback_placeholder_content_first]]`), the actual "50 → 200+ cards" roster expansion is deliberately **not** done in this pass — the current 50 cards remain explicit placeholders until a dedicated card-design-depth pass. This phase ships everything else: the systems/tooling/cadence work that makes future roster growth predictable and low-risk, so that whenever the roster-expansion pass happens, it's pure content authoring against an already-built pipeline instead of also having to invent the pipeline.
 
-**Definition of done:** new cards/events ship on a predictable schedule using documented templates and in-Studio tools.
+- Automatic weekly banner rotation cadence: `MonetizationConfig.Banners` now holds one entry per already-shipped Legendary+ card (ids 44-50 — reusing existing roster, not adding cards) and a new `BannerRotation` table (`RotationEpoch` + `DurationDays` + a fixed `Order`). `BannerService:GetActiveBanner()` computes the live banner purely from `os.time()` — no more hand-flipped `active` flag, and the schedule is decided arbitrarily far in advance.
+- `SeasonConfig.lua` — replaced its Phase-4-era static "current season name" stub (never wired to anything) with a real time-boxed season calendar. A season can optionally pin a specific banner for its whole window (overriding the normal weekly rotation, for a themed promotional push) via `SeasonConfig:GetPinnedBannerId()`, which `BannerService` now checks first.
+- `DebugService.lua` extended with 5 Studio-only balancing functions, callable directly via `execute_luau` against a live session (no redeploy, no new UI needed — this is developer/designer tooling, not player-facing): `PreviewRarityDistribution`, `PreviewStatBands`, `PreviewSynergyMath`, `PreviewPvPRatingCurve`, `PreviewBannerRotation`.
+- `CardAuthoringGuide.md` (repo root): the documented content-authoring template — stat bands per rarity (sourced from `PreviewStatBands`' live numbers), role/passive-category rules, synergy-fit rules (respecting each faction's `maxCount`), the Legendary+ active-ability power budget observed from the 7 shipped kits, a step-by-step checklist for adding a card, and an explicit "out of scope for routine additions" section (new passives/factions/ops/roles, and any Common-Epic unique-mechanic work) pointing back at the deferred depth pass.
+
+Verified live in a Studio play session: `PreviewStatBands` output matches this doc's table exactly; `PreviewRarityDistribution` over 20,000 simulated rolls landed within noise of `RarityConfig`'s configured weights (e.g. Common 45.66% vs. configured 45%, Secret 0.19% vs. 0.2%); `PreviewSynergyMath` and `PreviewPvPRatingCurve` printed correct, sane output; `PreviewBannerRotation` correctly cycled through all 7 banners across a 7-week preview window; and the real client-facing `GetMonetizationInfo` remote returned the exact banner (`World Cutter Banner`, card 49) that the Week+0 preview predicted, confirming the schedule math is identical between the debug tool and the live path.
+
+**Definition of done:** new cards/events can ship on a predictable schedule using documented templates and in-Studio tools (✅ — pipeline built and verified; the roster-expansion content itself is intentionally deferred to the dedicated design pass).
 
 ### Phase 10 — Polish, Performance, Compliance & Launch Readiness
 **Goal:** the "make it real" pass — turn a feature-complete build into a shippable, stable, compliant live game. This is the ~90%-finished mark.

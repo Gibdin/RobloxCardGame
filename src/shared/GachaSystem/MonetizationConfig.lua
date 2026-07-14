@@ -56,17 +56,31 @@ MonetizationConfig.BattlePass = {
 -- rarity roll lands on that card's rarity or higher. `guaranteeAfter` pulls on
 -- THIS banner without obtaining the featured card forces the next pull to be
 -- the featured card outright (rarity included) — a standard gacha "hard pity
--- on the rate-up unit." Only one banner should be `active` at a time; swapping
--- which one is active is the whole rotation mechanism for now (a scheduler/
--- calendar is a later roadmap phase, not needed for the mechanism to work).
+-- on the rate-up unit." One entry per existing Legendary+ card (44-50, all
+-- already-built roster — Phase 9 is about cadence, not new cards); which one
+-- is "active" is now computed automatically from BannerRotation below rather
+-- than a hand-flipped flag (see BannerService:GetActiveBanner).
 MonetizationConfig.Banners = {
-	{
-		id             = "banner_launch",
-		name           = "Launch Banner",
-		featuredCardId = 44,   -- swap per rotation; must reference a real CardDatabase id
-		rateMult       = 4,    -- effective pick-weight multiplier vs other cards of the same rarity
-		guaranteeAfter = 50,
-		active         = true,
+	{ id = "banner_launch",      name = "Launch Banner",              featuredCardId = 44, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_sage",        name = "Hundred-Heal Sage Banner",    featuredCardId = 45, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_honored",     name = "The Honored Guy Banner",      featuredCardId = 46, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_tidewarden",  name = "Tide Warden Banner",          featuredCardId = 47, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_illusion",    name = "Illusion Sovereign Banner",   featuredCardId = 48, rateMult = 4, guaranteeAfter = 80  },
+	{ id = "banner_worldcutter", name = "World Cutter Banner",         featuredCardId = 49, rateMult = 4, guaranteeAfter = 150 },
+	{ id = "banner_nameless",    name = "The Nameless Banner",         featuredCardId = 50, rateMult = 4, guaranteeAfter = 250 },
+}
+
+-- Automatic weekly rotation cadence. Which banner is live in any given week
+-- is purely a function of real time (RotationEpoch anchors week 0), so the
+-- schedule is always already decided arbitrarily far in advance — nobody
+-- needs to remember to flip a flag, and DebugService:PreviewBannerRotation
+-- can print the upcoming N weeks to verify it in Studio without waiting.
+MonetizationConfig.BannerRotation = {
+	RotationEpoch = 1751328000, -- fixed anchor timestamp for week 0 (2025-07-01T00:00:00Z)
+	DurationDays  = 7,
+	Order = {
+		"banner_launch", "banner_sage", "banner_honored", "banner_tidewarden",
+		"banner_illusion", "banner_worldcutter", "banner_nameless",
 	},
 }
 
