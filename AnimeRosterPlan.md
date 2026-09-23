@@ -4,6 +4,10 @@ This is the deferred "card-design-depth pass" the project has been saving up sin
 
 **Not yet implemented — this is the plan for review before any `CardDatabase.lua` changes.**
 
+**2026-08-26 update:** §1's "does not expand the total count" no longer holds for JJK — see §9. JJK is now the pilot for a merged, larger expansion (this pass + Phase 9's separately-deferred 50→200+ roster expansion), sized up before the other 4 anime are touched. Sections 1-8 below are the original as-reviewed plan and still apply to Naruto/DBZ/One Piece/Demon Slayer until JJK-21 is finished and reviewed.
+
+**2026-09-23 update:** §9's 22-card roster/rarity/reskin table is superseded by a character-first pass — see §10. The pilot grew to 26 named characters, chosen before rarity was assigned (reversing §9's count-first approach). §9's synergy character lists (Best Friends, Best Friends' Itadori+Todo; First Years' Itadori+Nobara+Fushiguro) still hold membership-wise but haven't been re-balanced against the new rarity assignments in §10. §9 is kept for history/reasoning, not as the current source of truth.
+
 ## 1. Scope
 
 - **5 anime pillars, 10 cards each, 50 total.** This reorganizes the *existing* 50-card roster — it does not expand the total count (that's Phase 9's separately-deferred 50→200+ roster expansion).
@@ -81,3 +85,71 @@ Recommend building **one anime at a time**, reviewed before continuing, rather t
 - The per-anime rarity split in §4 (adjustable — e.g. if you want Demon Slayer at a full 10 instead of 9, something else has to give up a slot).
 - §5's Rare+Epic-get-real-kits / Common+Uncommon-stay-generic split — this is the biggest scope lever in the whole plan.
 - Pilot order (JJK first, per §7) — say if you'd rather start elsewhere.
+
+## 9. JJK-21 pilot (supersedes §1's "no count change" for this anime only)
+
+Rather than deciding the full 50→200 expansion (10 anime pillars × 20 cards) in one sitting, JJK becomes the proof-of-concept pillar at a larger size first. Pillars 6-10 (5 more anime, TBD) and the global rarity budget stay undecided until this pilot is finished and reviewed — the same "reviewed before continuing" order from §7, just applied one level up. Naruto/DBZ/One Piece/Demon Slayer stay at the original 10-card assumption (§1-§8) until then.
+
+**JJK rarity split (22 cards, updated 2026-08-31):** 6 Common / 5 Uncommon / 4 Rare / 3 Epic / 2 Legendary / 1 God / **1 Secret (Mahoraga)**. Sukuna and Gojo stay the only *original* top-tier cards; one more Legendary is added new. Secret sits outside normal stat banding (per `CardAuthoringGuide.md`'s exempt joke-tier rule) and outside the 21-count, same as the roster-wide "Nameless One" Secret — this makes 2 Secret cards total across the whole roster, the ceiling for keeping the tier exclusive; no more Secrets should get added for other pillars.
+
+**Synergies** (pure data — read generically off `card.series` by `BattleEngine`/`RoleConfig.Synergies`/`CombatConfig.Synergies`, same mechanism as the existing 8 fantasy factions; no engine change):
+- **Best Friends** (maxCount 2) — Itadori + Todo. Tier @2: +18% ATK to both; Executioner passives trigger 5% HP earlier (35%→40%).
+- **First Years** (maxCount 3) — Itadori (double-tagged, max 2 series/card per `CardAuthoringGuide.md` §3) + Nobara + Fushiguro. Tier @2: +8% ATK / +8% HP. Tier @3: +12% ATK / +12% HP, first ally below 30% HP gets a one-time 20%-Max-HP shield.
+
+**Card assignment** ("reskin" = existing `CardDatabase.lua` id, stats/band already set, just rename+reflavor; "new" = no existing id, full authoring via `CardAuthoringGuide.md`):
+
+| Rarity | Character / slot | Status |
+|---|---|---|
+| Secret | **Mahoraga** | Open — new, exempt stat band |
+| God | Sukuna, "World Cutter" | Done — untouched |
+| Legendary | Gojo, "The Honored Guy" | Done — untouched |
+| Legendary | — | Open — new |
+| Epic | Itadori (id 37, reskin of "Void Sorcerer") | Cast — needs `CardDatabase.lua` edit |
+| Epic | — | Open — new |
+| Epic | — | Open — new |
+| Rare | Todo (id 27, reskin of "Aether Mage") | Cast — needs `CardDatabase.lua` edit |
+| Rare | **Nanami** (id 28, reskin of "Golden Warden", Tank/Drain) | Cast — needs `CardDatabase.lua` edit |
+| Rare | — | Open — new |
+| Rare | — | Open — new |
+| Uncommon | **Panda** (id 15, reskin of "Silver Paladin", Tank/Drain) | Cast — needs `CardDatabase.lua` edit |
+| Uncommon | **Shoko** (id 16, reskin of "Thornvine Druid", Support/Medic) | Cast — needs `CardDatabase.lua` edit |
+| Uncommon | **Inumaki** (Support/Battery — utility flavor) | Open — new, character decided |
+| Uncommon | — | Open — new |
+| Uncommon | — | Open — new |
+| Common | Nobara (id 1, reskin of "Iron Soldier") | Cast — needs `CardDatabase.lua` edit |
+| Common | Fushiguro (id 2, reskin of "Copper Knight") | Cast — needs `CardDatabase.lua` edit |
+| Common | **Choso** (id 3, reskin of "Rusted Golem", Tank/Drain) | Cast — needs `CardDatabase.lua` edit |
+| Common | — | Open — new |
+| Common | — | Open — new |
+| Common | — | Open — new |
+
+**2 done (no edit needed), 8 cast (character decided, edit pending), 2 new-card slots with character already decided (Inumaki, Mahoraga), 10 open new cards (character TBD) = 22 total.**
+
+## 10. JJK-26 revision (supersedes §9's roster — character-first pass)
+
+§9 picked a total count first and backfilled characters into open slots. This revision reversed that: 26 specific named characters were picked first, then rarity and role were derived from that list. This section is the current source of truth for the JJK roster; §9's specific card/rarity table above is kept for history only.
+
+**Rarity split (26 total, decided 2026-09-23):** 7 Common / 6 Uncommon / 5 Rare / 3 Epic / 2 Legendary / 2 God / 1 Secret. Two decisions worth calling out since they depart from §9:
+- **God is now 2 cards, not 1** — the reasoning was that having exactly one card at the single highest rarity (Secret) with no "runner-up" tier bigger than 1 read oddly, so God was bumped to 2 and Epic absorbed the corresponding reduction (4→3).
+- **Gojo moved from Legendary to God** (paired with Sukuna — matches the "strongest vs. strongest" rivalry that's central to JJK), swapping with **Kenjaku** (God→Legendary→Epic across two swaps) and **Itadori** (Epic→Legendary, swapped with Kenjaku's final Legendary→Epic move).
+
+**Full roster (26), by rarity then role:**
+
+| Rarity | DPS | Tank | Support |
+|---|---|---|---|
+| Secret (1) | — | Mahoraga | — |
+| God (2) | Sukuna (DPS / true-form Tank), Gojo | — | — |
+| Legendary (2) | Itadori, Yuta Okkotsu | — | — |
+| Epic (3) | Toji Fushiguro | — | Kenjaku, Geto |
+| Rare (5) | Mahito, Jogo, Maki Zenin | Todo, Nanami | — |
+| Uncommon (6) | Yuki Tsukumo, Hakari, Naoya Zenin | Panda (hybrid — swaps Tank/DPS each turn) | Shoko, Inumaki |
+| Common (7) | Nobara, Megumi, Choso, Mai Zenin | Mechamaru | Utahime, Hiromi Higuruma |
+
+Role totals: 15 DPS, 4 pure Tank + 1 Tank/DPS hybrid (Panda), 6 Support.
+
+**Known gap (flagged, not yet resolved):** no Tank from Epic through God (only Mahoraga at Secret), and no Support from Legendary through God (last Support is Epic). A top-tier pull is always DPS (plus Kenjaku/Geto Support at Epic, or Mahoraga Tank at Secret). May be intentional — JJK's strongest named characters are casters, not tanks — but flagging before kits get written.
+
+**Still open — not decided in this pass:**
+- Whether Common/Uncommon get real per-card `active.effects` kits (per §5's proposal) or stay on `CardAuthoringGuide.md`'s current generic-role-active rule for Common-Epic. This matters more now than when §5 was written, since these are named characters with iconic techniques (Nobara's Straw Doll, Choso's blood curses, etc.), not placeholder archetypes.
+- Synergy factions for the new 26-character list — §9's two factions (Best Friends, First Years) still work membership-wise but weren't re-tuned for Itadori's rarity change (Epic→Legendary) or the 4 newly-added characters that might fit a faction.
+- Individual card stats/passives/actives — not started. Next step per `CardAuthoringGuide.md` §5's checklist, working bottom-up from Common.

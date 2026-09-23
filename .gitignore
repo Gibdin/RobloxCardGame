@@ -1,3 +1,6 @@
 *.rbxl
 *.rbxl.lock
 *.rbxlx
+
+# Personal, not for the repo
+NEXT_STEPS.md
