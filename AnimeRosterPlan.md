@@ -138,14 +138,16 @@ Rather than deciding the full 50→200 expansion (10 anime pillars × 20 cards) 
 | Rarity | DPS | Tank | Support |
 |---|---|---|---|
 | Secret (1) | — | Mahoraga | — |
-| God (2) | Sukuna (DPS / true-form Tank), Gojo | — | — |
+| God (2) | Sukuna, Gojo | — | — |
 | Legendary (2) | Itadori, Yuta Okkotsu | — | — |
 | Epic (3) | Toji Fushiguro | — | Kenjaku, Geto |
 | Rare (5) | Mahito, Jogo, Maki Zenin | Todo, Nanami | — |
 | Uncommon (6) | Yuki Tsukumo, Hakari, Naoya Zenin | Panda (hybrid — swaps Tank/DPS each turn) | Shoko, Inumaki |
 | Common (7) | Nobara, Megumi, Choso, Mai Zenin | Mechamaru | Utahime, Hiromi Higuruma |
 
-Role totals: 15 DPS, 4 pure Tank + 1 Tank/DPS hybrid (Panda), 6 Support.
+Role totals: 15 DPS, 5 Tank (counting the Panda hybrid as a Tank), 6 Support.
+
+A true-form Sukuna (Tank) is deferred to a future event card and is not part of this roster; the base Sukuna card is DPS only.
 
 **Known gap (flagged, not yet resolved):** no Tank from Epic through God (only Mahoraga at Secret), and no Support from Legendary through God (last Support is Epic). A top-tier pull is always DPS (plus Kenjaku/Geto Support at Epic, or Mahoraga Tank at Secret). May be intentional — JJK's strongest named characters are casters, not tanks — but flagging before kits get written.
 
@@ -153,3 +155,100 @@ Role totals: 15 DPS, 4 pure Tank + 1 Tank/DPS hybrid (Panda), 6 Support.
 - Whether Common/Uncommon get real per-card `active.effects` kits (per §5's proposal) or stay on `CardAuthoringGuide.md`'s current generic-role-active rule for Common-Epic. This matters more now than when §5 was written, since these are named characters with iconic techniques (Nobara's Straw Doll, Choso's blood curses, etc.), not placeholder archetypes.
 - Synergy factions for the new 26-character list — §9's two factions (Best Friends, First Years) still work membership-wise but weren't re-tuned for Itadori's rarity change (Epic→Legendary) or the 4 newly-added characters that might fit a faction.
 - Individual card stats/passives/actives — not started. Next step per `CardAuthoringGuide.md` §5's checklist, working bottom-up from Common.
+
+(All three were resolved on 2026-09-24. Every JJK card gets its own ability kit; the two §9 factions ship; stats, passives and actives are built. See §11.)
+
+## 11. Card structure & combat rules (decided 2026-09-24, implemented with the JJK-26 build)
+
+This section is the source of truth for how every card is built from here on. Where it conflicts with `CardAuthoringGuide.md` §2/§4 (written for the old placeholder roster), this wins.
+
+### 11.1 Anatomy of a card
+
+| Field | Meaning |
+|---|---|
+| ATK / HP | Per-rarity bands in `CardAuthoringGuide.md` §1 (unchanged). |
+| Role | Tank / DPS / Support. |
+| Subrole | One of two per role (below). Every card has exactly one. |
+| Mana cost (`mp`) | Whole points, **2-5**. 2 = cheap/frequent, 3 = standard, 4 = heavy, 5 = ultimate (God/Secret). |
+| Passive | Either a role-passive category (Drain / Rage / Executioner / Medic / Battery, same numbers as before) **or** a unique **Trait**. |
+| Active | The card's special ability, cast when mana is full. Every JJK card gets its own kit (`active.effects`), Commons included. |
+
+### 11.2 Mana
+
+- **+1 mana per swing landed** (one basic-attack hit). No per-round gain, and no gain from being hit.
+- The ability fires **the moment the bar is full** (right after the swing that fills it) and does **not** replace the unit's attack.
+- Leftover fractions carry over, so "+X% mana gain" items still matter. Casting spends exactly the cost.
+- A stunned unit skips its attack, so it gains no mana that turn.
+- Old effects, reinterpreted: Void Walkers' "cast at 90% MP" becomes **abilities cost 1 less mana (min 1)**. Battery restores **1 mana** to allies on any death.
+
+### 11.3 Subroles
+
+| Role | Subrole | Identity |
+|---|---|---|
+| DPS | **Duelist** | Single-target damage. |
+| DPS | **Skirmisher** | Area damage (hits the whole enemy row). |
+| Tank | **Vanguard** | Protection: shields and soaking damage for the team. |
+| Tank | **Juggernaut** | Crowd control: stuns and disruption. |
+| Support | **Enchanter** | Buffs and aid: heals, ATK buffs, mana for allies. |
+| Support | **Hexer** | Debuffs: weakens enemies (ATK/defense shred, mana drain). |
+
+Hexer ATK debuffs are capped at **-20%** total so they can't cancel the DPS counter. Subrole **set bonuses** (e.g. 2 Duelists unlock an effect) are **not decided yet**. For now subroles are an identity and a UI label.
+
+### 11.4 Role counter cycle (all 10%)
+
+**Tank → DPS → Support → Tank.** Each counter is triggered by the *enemy's* role, never your own, so pairing roles on your own team never stacks a counter.
+
+| Counter | Rule |
+|---|---|
+| Tank beats DPS | Tanks take 10% less damage from enemy DPS. |
+| DPS beats Support | DPS deal 10% more damage to enemy Supports (Supports are fragile). |
+| Support beats Tank | Supports deal 10% more damage to enemy Tanks, and Support effects (heals, shields, buffs, debuffs) are 10% stronger while the enemy frontline is a Tank. |
+
+Planned UI: a small ⓘ "counter wheel" popup (three role icons with a one-line label on each arrow), opened from team select and the battle screen. Not a permanent panel.
+
+### 11.5 Role stacking bonus
+
+For each card of the same role on your team: **+5 / +10 / +15 / +18 / +20%** (diminishing after 3). DPS → +ATK, Tank → +Max HP, Support → ability effectiveness (heals, shields, buffs and debuffs cast by Supports).
+
+### 11.6 Traits
+
+A Trait is a unique passive that replaces the role-passive category. Rule: **Epic and above get Traits**. Lower rarities get one only when the character's identity demands it; Panda's hybrid form is the only current exception. The user designed Itadori's Trait; the rest were drafted during the build.
+
+### 11.7 JJK card sheet (as built)
+
+Card names are parody-style per the theme rule; the character is in brackets. Stats sit inside the §1 bands (Secret is exempt).
+
+| Rarity | Card [character] | Role / Subrole | Mana | ATK / HP | Passive / Trait | Active |
+|---|---|---|---|---|---|---|
+| Secret | The Eight-Handled Wheel [Mahoraga] | Tank / Juggernaut | 4 | 2200 / 16000 | **Trait: Adaptation.** Each hit from the same enemy makes that enemy's later hits on it deal 10% less (max 50%). | **Sword of Extermination:** 400% ATK true damage to the frontline enemy, and stuns it for 1 turn. |
+| God | World Cutter [Sukuna] | DPS / Skirmisher | 5 | 2600 / 8200 | **Trait: Dismantle.** Every basic attack also slashes the next enemy in line for 50% ATK. | **Malevolent Shrine:** 600% ATK true damage to every enemy, and permanently cuts 10% off their Max HP. |
+| God | The Honored One [Gojo] | DPS / Skirmisher | 5 | 2400 / 8600 | **Trait: Infinity.** The first hit Gojo takes each round deals no damage. | **Hollow Purple:** 500% ATK to every enemy, and stuns them all for 1 turn. |
+| Legendary | The Cursed Vessel [Itadori] | DPS / Duelist | 2 | 780 / 2400 | **Trait: Divergent Fist.** The first attack each turn strikes twice. The second swing deals the first swing's damage + 0.8% of the target's current HP. Both swings give mana. | **Black Flash:** a 100% ATK strike that always crits, at 2.5x instead of 1.5x. |
+| Legendary | Rika's Beloved [Yuta] | DPS / Skirmisher | 4 | 950 / 2600 | **Trait: Queen of Curses.** The first time Yuta would die, he survives at 1 HP and gains a shield worth 30% of his Max HP. | **Pure Love:** 350% ATK to every enemy. |
+| Epic | The Sorcerer Killer [Toji] | DPS / Duelist | 3 | 640 / 1400 | **Trait: Heavenly Restriction.** Can't be stunned, ignores enemy ATK debuffs, +10% crit chance. | **Inverted Spear:** 300% ATK to the lowest-HP enemy, ignoring shields. |
+| Epic | The Stitched-Brow Schemer [Kenjaku] | Support / Hexer | 4 | 520 / 1600 | **Trait: Thousand-Year Plan.** Gains 1 mana whenever an enemy casts an ability. | **Maximum Uzumaki:** 150% ATK to every enemy, and shreds 5% of their defense (stacking to 20%). |
+| Epic | The Curse Collector [Geto] | Support / Enchanter | 4 | 480 / 1700 | **Trait: Cursed Spirit Manipulation.** All allies start the battle with 1 mana. | **Spirit Swarm:** gives every other ally 1 mana and +6% ATK (stacking to 18%). |
+| Rare | The Soul Sculptor [Mahito] | DPS / Skirmisher | 4 | 360 / 780 | Executioner | **Idle Transfiguration:** 120% ATK true damage to every enemy. |
+| Rare | Volcano Head [Jogo] | DPS / Skirmisher | 4 | 400 / 620 | Rage | **Maximum: Meteor:** 160% ATK to every enemy. |
+| Rare | The Cursed-Tool Prodigy [Maki] | DPS / Duelist | 3 | 380 / 900 | Rage | **Split Soul Katana:** 250% ATK to the frontline enemy. |
+| Rare | The Boogie-Woogie Brother [Todo] | Tank / Juggernaut | 3 | 330 / 1250 | Drain | **Boogie Woogie:** 120% ATK to the frontline enemy, and stuns it for 1 turn. |
+| Rare | The Overtime Salaryman [Nanami] | Tank / Vanguard | 3 | 300 / 1300 | Drain | **Ratio 7:3:** 150% ATK guaranteed crit on the frontline enemy, then shields every ally for 10% of their Max HP. |
+| Uncommon | The Star-Mass Wanderer [Yuki] | DPS / Duelist | 4 | 230 / 560 | Rage | **Bonbaye:** 280% ATK to the frontline enemy. |
+| Uncommon | The Jackpot Gambler [Hakari] | DPS / Duelist | 3 | 210 / 620 | Rage | **Idle Death Gamble:** 120% ATK hit. A 1-in-3 jackpot fully heals Hakari and gives him +10% ATK permanently. |
+| Uncommon | The Projection Sprinter [Naoya] | DPS / Duelist | 2 | 245 / 480 | Executioner | **24 Frames:** 140% ATK to the frontline enemy, and freezes (stuns) it for 1 turn. |
+| Uncommon | The Cursed Corpse Bear [Panda] | Tank / Juggernaut | 3 | 200 / 900 | **Trait: Three Cores.** Odd rounds: Tank form (-20% damage taken, counts as Tank for counters). Even rounds: Gorilla form (+25% ATK, counts as DPS for counters). | **Drumming Beat:** 150% ATK to the frontline enemy, and stuns it for 1 turn. |
+| Uncommon | The Reverse-Cursed Medic [Shoko] | Support / Enchanter | 3 | 150 / 520 | Medic | **Reverse Cursed Technique:** heals every ally for 14% of their Max HP. |
+| Uncommon | The Onigiri Speaker [Inumaki] | Support / Hexer | 3 | 160 / 500 | Battery | **Cursed Speech: Don't Move:** stuns the frontline enemy for 1 turn, and cuts enemy ATK by 4% (stacking to 12%). |
+| Common | The Straw Doll Striker [Nobara] | DPS / Duelist | 3 | 135 / 360 | Executioner | **Resonance:** 150% ATK true damage to the frontline enemy. |
+| Common | The Shadow Summoner [Megumi] | DPS / Skirmisher | 3 | 120 / 450 | Rage | **Divine Dogs:** 70% ATK to every enemy. |
+| Common | The Blood Brother [Choso] | DPS / Skirmisher | 3 | 130 / 420 | Rage | **Supernova:** 60% ATK to every enemy, and shreds 3% of their defense (stacking to 12%). |
+| Common | The Revolver Heiress [Mai] | DPS / Duelist | 2 | 145 / 290 | Executioner | **Final Bullet:** 160% ATK to the lowest-HP enemy. |
+| Common | The Puppet Pilot [Mechamaru] | Tank / Vanguard | 3 | 70 / 780 | Drain | **Absolute Guard:** shields every ally for 8% of their Max HP. |
+| Common | The Solo Songstress [Utahime] | Support / Enchanter | 3 | 60 / 400 | Medic | **Solo Forbidden Area:** every ally gains +4% ATK (stacking to 16%). |
+| Common | The Courtroom Judge [Higuruma] | Support / Hexer | 3 | 65 / 420 | Battery | **Confiscation:** drains 2 mana from the frontline enemy. |
+
+Role totals: 15 DPS / 5 Tank (Panda counted as Tank) / 6 Support. Gojo (id 46) and Sukuna (id 49) are reworked in place; the other 24 get new ids. The 48 remaining placeholder cards stay as they are, with `mp` converted to 3-5 mana.
+
+**Synergies:** §9's two factions ship as designed, minus the Executioner-threshold tweak (no current member uses Executioner). **Best Friends** (Itadori + Todo) @2: +18% ATK. **First Years** (Itadori + Nobara + Megumi) @2: +8% ATK/HP; @3: +12% ATK/HP, and the first member to drop below 30% HP gets a one-time shield worth 20% of their Max HP. The other 21 JJK cards have no faction yet; that's still open.
+
+**Balance flags for playtesting:** Itadori casts Black Flash every turn by design (2 swings × 1 mana = cost 2), so his ATK sits at the low end of the Legendary band to compensate. The 0.8%-of-current-HP bonus is implemented as specified but is small (about 20-60 damage). It's one number in `CombatConfig.Traits` if it should be 8%.
