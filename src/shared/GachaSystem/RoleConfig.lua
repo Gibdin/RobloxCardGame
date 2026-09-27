@@ -12,7 +12,7 @@ RoleConfig.Roles = {
 		passive     = "Drain",
 		passiveDesc = "Heals for a percentage of all damage dealt to this card.",
 		bonusLabel  = "Max HP",
-		bonuses     = { "+6% Max HP", "+12% Max HP", "+20% Max HP" },
+		bonuses     = { "+5% Max HP", "+10% Max HP", "+15% Max HP", "+18% Max HP", "+20% Max HP" },
 	},
 	DPS = {
 		icon     = "⚔",
@@ -22,18 +22,35 @@ RoleConfig.Roles = {
 			Executioner = "Deals amplified damage to targets below 35% HP.",
 		},
 		bonusLabel = "ATK",
-		bonuses    = { "+6% ATK", "+12% ATK", "+20% ATK" },
+		bonuses    = { "+5% ATK", "+10% ATK", "+15% ATK", "+18% ATK", "+20% ATK" },
 	},
 	Support = {
 		icon     = "✚",
 		color    = Color3.fromRGB(60, 200, 120),
 		passives = {
 			Medic   = "Heals the lowest HP ally after each round.",
-			Battery = "Restores MP to allies whenever any unit on the field dies.",
+			Battery = "Restores 1 mana to allies whenever any unit on the field dies.",
 		},
 		bonusLabel = "Effectiveness",
-		bonuses    = { "+8% Ability Effectiveness", "+16% Ability Effectiveness", "+25% Ability Effectiveness" },
+		bonuses    = { "+5% Ability Effectiveness", "+10% Ability Effectiveness", "+15% Ability Effectiveness", "+18% Ability Effectiveness", "+20% Ability Effectiveness" },
 	},
+}
+
+-- ── Subroles (two per role; AnimeRosterPlan.md §11.3) ─────────────────────────
+RoleConfig.Subroles = {
+	Duelist    = { role = "DPS",     desc = "Single-target damage." },
+	Skirmisher = { role = "DPS",     desc = "Area damage that hits the whole enemy row." },
+	Vanguard   = { role = "Tank",    desc = "Protects the team with shields and soaks damage." },
+	Juggernaut = { role = "Tank",    desc = "Crowd control: stuns and disrupts enemies." },
+	Enchanter  = { role = "Support", desc = "Aids allies with heals, ATK buffs and mana." },
+	Hexer      = { role = "Support", desc = "Weakens enemies with debuffs and mana drain." },
+}
+
+-- ── Role counter cycle text (numbers in CombatConfig.Counters) ────────────────
+RoleConfig.Counters = {
+	{ from = "Tank",    to = "DPS",     text = "Tanks take 10% less damage from DPS" },
+	{ from = "DPS",     to = "Support", text = "DPS deal 10% more damage to Supports" },
+	{ from = "Support", to = "Tank",    text = "Supports deal 10% more to Tanks; their effects are 10% stronger vs a Tank frontline" },
 }
 
 -- ── Synergy groups ────────────────────────────────────────────────────────────
@@ -103,8 +120,8 @@ RoleConfig.Synergies = {
 		color      = Color3.fromRGB(140, 60, 220),
 		maxCount   = 4,
 		thresholds = {
-			{ count = 2, bonus = "Actives trigger at 90% MP instead of 100%" },
-			{ count = 4, bonus = "Actives trigger at 90% MP; abilities also ignore 35% of enemy defenses" },
+			{ count = 2, bonus = "Abilities cost 1 less mana" },
+			{ count = 4, bonus = "Abilities cost 1 less mana and ignore 35% of enemy defenses" },
 		},
 	},
 	["Ancient Ones"] = {
@@ -114,6 +131,23 @@ RoleConfig.Synergies = {
 		thresholds = {
 			{ count = 2, bonus = "+15% Max HP for all Ancient Ones members" },
 			{ count = 4, bonus = "Titans' Will: cannot be one-shot above 30% HP; take -20% damage below 50% HP" },
+		},
+	},
+	["Best Friends"] = {
+		desc       = "Two sorcerers who share one very specific taste in people. Together, their fists hit harder.",
+		color      = Color3.fromRGB(240, 120, 60),
+		maxCount   = 2,
+		thresholds = {
+			{ count = 2, bonus = "+18% ATK for both members" },
+		},
+	},
+	["First Years"] = {
+		desc       = "The newest class at the jujutsu school. They cover for each other when things go wrong.",
+		color      = Color3.fromRGB(90, 110, 230),
+		maxCount   = 3,
+		thresholds = {
+			{ count = 2, bonus = "+8% ATK and +8% Max HP for members" },
+			{ count = 3, bonus = "+12% ATK and +12% Max HP; the first member to drop below 30% HP gets a 20% Max HP shield" },
 		},
 	},
 }
@@ -128,6 +162,8 @@ RoleConfig.SynergyOrder = {
 	"Void Walkers",
 	"Ancient Ones",
 	"Nature's Call",
+	"First Years",
+	"Best Friends",
 }
 
 -- Passive type chip colors used in card detail views.
@@ -137,6 +173,7 @@ RoleConfig.PassiveColor = {
 	Executioner = Color3.fromRGB(220, 130,  40),
 	Medic       = Color3.fromRGB(60,  200, 120),
 	Battery     = Color3.fromRGB(60,  180, 200),
+	Trait       = Color3.fromRGB(230, 180,  60),
 }
 
 return RoleConfig

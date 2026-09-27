@@ -1,8 +1,16 @@
--- 50-card database.
+-- Card database: 48 placeholder cards (ids 1-50) + the JJK pillar (26 cards,
+-- ids 46/49 reworked in place + 51-74). Card rules: AnimeRosterPlan.md §11.
 -- series: array of synergy group names (matches RoleConfig.Synergies keys). Can be empty or have 2 entries.
--- passive: role-passive category label (Drain | Rage | Executioner | Medic | Battery).
+-- stat: { atk, hp } personality modifiers (~0.85-1.15); attack/hp are computed
+--   from CombatConfig.CardStats at require time (fixedStats = true opts out).
+-- mp: mana cost of the active, in whole points (2-5). +1 mana per swing landed.
+-- subrole: Duelist | Skirmisher (DPS), Vanguard | Juggernaut (Tank), Enchanter | Hexer (Support).
+-- passive: role-passive category label (Drain | Rage | Executioner | Medic | Battery),
+--   or "Trait" when the card has a unique trait instead (see `trait`).
+-- trait: unique passive id handled by BattleEngine (numbers in CombatConfig.Traits).
 -- passive_desc: unique flavour description of this card's personal passive.
--- active: { name, desc } — the card's active ability.
+-- active: { name, desc, effects? } — the card's active ability; `effects` is
+--   the real kit BattleEngine runs (cards without it use the generic role active).
 
 local CardDatabase = {}
 
@@ -14,7 +22,7 @@ CardDatabase.Cards = {
 
 	{
 		id = 1, name = "Iron Soldier", rarity = "Common",
-		attack = 110, hp = 480, mp = 40,
+		stat = { atk = 0.97, hp = 1.15 }, mp = 3,
 		role = "DPS", passive = "Rage",
 		passive_name = "Combat High",
 		passive_desc = "After each kill, gains +6% ATK for the rest of battle. Stacks up to 3 times.",
@@ -23,7 +31,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 2, name = "Copper Knight", rarity = "Common",
-		attack = 75, hp = 660, mp = 35,
+		stat = { atk = 1.05, hp = 0.89 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Copper Guard",
 		passive_desc = "Reduces all incoming damage by 6%.",
@@ -32,7 +40,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 3, name = "Rusted Golem", rarity = "Common",
-		attack = 80, hp = 720, mp = 25,
+		stat = { atk = 1.12, hp = 0.98 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Scrap Armor",
 		passive_desc = "When below 40% HP, gains +15% damage reduction.",
@@ -41,7 +49,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 4, name = "Forest Sprite", rarity = "Common",
-		attack = 65, hp = 420, mp = 85,
+		stat = { atk = 1.08, hp = 1.07 }, mp = 4,
 		role = "Support", passive = "Medic",
 		passive_name = "Bloom",
 		passive_desc = "Each round, heals the lowest HP ally for 3% of their Max HP.",
@@ -50,7 +58,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 5, name = "Pebble Golem", rarity = "Common",
-		attack = 70, hp = 760, mp = 25,
+		stat = { atk = 0.98, hp = 1.03 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Rocky Hide",
 		passive_desc = "Absorbs up to 60 flat damage per hit before HP is reduced.",
@@ -59,7 +67,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 6, name = "Wind Imp", rarity = "Common",
-		attack = 120, hp = 360, mp = 70,
+		stat = { atk = 1.06, hp = 0.96 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Gusting Blades",
 		passive_desc = "Every 4th attack deals double damage.",
@@ -68,7 +76,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 7, name = "River Eel", rarity = "Common",
-		attack = 100, hp = 400, mp = 55,
+		stat = { atk = 0.88, hp = 1.06 }, mp = 3,
 		role = "DPS", passive = "Rage",
 		passive_name = "Slick Scales",
 		passive_desc = "12% chance to dodge incoming attacks.",
@@ -77,7 +85,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 8, name = "Marsh Frog", rarity = "Common",
-		attack = 95, hp = 450, mp = 60,
+		stat = { atk = 0.85, hp = 1.15 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Toxic Coating",
 		passive_desc = "Normal attacks apply a poison dealing 5% ATK per round for 3 rounds.",
@@ -86,7 +94,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 9, name = "Mud Slime", rarity = "Common",
-		attack = 60, hp = 810, mp = 20,
+		stat = { atk = 0.85, hp = 1.10 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Ooze Regeneration",
 		passive_desc = "Heals 2% Max HP at the end of each round.",
@@ -95,7 +103,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 10, name = "Bone Scout", rarity = "Common",
-		attack = 130, hp = 310, mp = 50,
+		stat = { atk = 1.14, hp = 0.85 }, mp = 3,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Hollow Eyes",
 		passive_desc = "Deals +15% bonus damage to enemies below 50% HP.",
@@ -104,7 +112,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 11, name = "Dust Wisp", rarity = "Common",
-		attack = 55, hp = 370, mp = 100,
+		stat = { atk = 0.92, hp = 0.94 }, mp = 4,
 		role = "Support", passive = "Battery",
 		passive_name = "Mana Siphon",
 		passive_desc = "Each time any ally lands a kill, restore 3 MP to all allies.",
@@ -113,7 +121,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 12, name = "Cave Bat", rarity = "Common",
-		attack = 95, hp = 340, mp = 55,
+		stat = { atk = 0.85, hp = 0.90 }, mp = 3,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Swooping Strike",
 		passive_desc = "First attack each battle deals +50% bonus damage.",
@@ -122,7 +130,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 13, name = "Stray Arrow", rarity = "Common",
-		attack = 145, hp = 290, mp = 65,
+		stat = { atk = 1.15, hp = 0.85 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Piercing Shot",
 		passive_desc = "Attacks ignore 15% of the target's defenses.",
@@ -131,7 +139,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 14, name = "Bog Witch", rarity = "Common",
-		attack = 60, hp = 385, mp = 95,
+		stat = { atk = 1.00, hp = 0.98 }, mp = 4,
 		role = "Support", passive = "Battery",
 		passive_name = "Hex Aura",
 		passive_desc = "Enemies start each round with -5% ATK (does not stack per cast).",
@@ -145,7 +153,7 @@ CardDatabase.Cards = {
 
 	{
 		id = 15, name = "Silver Paladin", rarity = "Uncommon",
-		attack = 175, hp = 830, mp = 100,
+		stat = { atk = 1.01, hp = 0.96 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Holy Barrier",
 		passive_desc = "At the start of battle, gains a shield equal to 10% of Max HP.",
@@ -154,7 +162,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 16, name = "Thornvine Druid", rarity = "Uncommon",
-		attack = 155, hp = 760, mp = 135,
+		stat = { atk = 0.91, hp = 1.15 }, mp = 4,
 		role = "Support", passive = "Medic",
 		passive_name = "Regrowth",
 		passive_desc = "Heals a random ally for 5% of their Max HP each round.",
@@ -163,7 +171,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 17, name = "Shadow Rogue", rarity = "Uncommon",
-		attack = 250, hp = 500, mp = 120,
+		stat = { atk = 1.11, hp = 0.89 }, mp = 3,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Backstab",
 		passive_desc = "First attack on any enemy deals +35% bonus damage.",
@@ -172,7 +180,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 18, name = "Frost Archer", rarity = "Uncommon",
-		attack = 200, hp = 580, mp = 115,
+		stat = { atk = 0.89, hp = 1.04 }, mp = 3,
 		role = "DPS", passive = "Rage",
 		passive_name = "Chill Shot",
 		passive_desc = "20% chance on hit to slow the target, reducing their ATK by 8% for 2 turns.",
@@ -181,7 +189,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 19, name = "Storm Drake", rarity = "Uncommon",
-		attack = 215, hp = 610, mp = 130,
+		stat = { atk = 0.96, hp = 1.09 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Lightning Skin",
 		passive_desc = "When struck, 20% chance to retaliate with a lightning bolt dealing 60% ATK to the attacker.",
@@ -190,7 +198,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 20, name = "Bone Wizard", rarity = "Uncommon",
-		attack = 165, hp = 460, mp = 205,
+		stat = { atk = 0.97, hp = 0.85 }, mp = 4,
 		role = "Support", passive = "Battery",
 		passive_name = "Death Siphon",
 		passive_desc = "On any ally or enemy death, restores 5 MP to all allies.",
@@ -199,7 +207,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 21, name = "Iron Bear", rarity = "Uncommon",
-		attack = 190, hp = 920, mp = 60,
+		stat = { atk = 1.09, hp = 1.06 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Berserker Guard",
 		passive_desc = "Each time Iron Bear takes damage, gains +3% ATK (max 5 stacks per battle).",
@@ -208,7 +216,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 22, name = "Tide Serpent", rarity = "Uncommon",
-		attack = 185, hp = 700, mp = 120,
+		stat = { atk = 1.06, hp = 0.85 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Hydro Shell",
 		passive_desc = "Heals 3% Max HP when taking damage (once per turn maximum).",
@@ -217,7 +225,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 23, name = "Verdant Fox", rarity = "Uncommon",
-		attack = 235, hp = 545, mp = 115,
+		stat = { atk = 1.04, hp = 0.98 }, mp = 3,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Evasion",
 		passive_desc = "Dodges the first attack each battle. After dodging, gains +15% ATK for 2 turns.",
@@ -226,7 +234,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 24, name = "Stone Sentinel", rarity = "Uncommon",
-		attack = 145, hp = 1020, mp = 70,
+		stat = { atk = 0.85, hp = 1.15 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Fortify",
 		passive_desc = "Reduces damage taken from critical hits by 50%.",
@@ -235,7 +243,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 25, name = "Dusk Witch", rarity = "Uncommon",
-		attack = 210, hp = 490, mp = 185,
+		stat = { atk = 1.15, hp = 0.88 }, mp = 4,
 		role = "Support", passive = "Medic",
 		passive_name = "Blood Pact",
 		passive_desc = "Whenever a Shadow Covenant ally kills an enemy, heals all allies for 4% Max HP.",
@@ -244,7 +252,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 26, name = "Sky Shaman", rarity = "Uncommon",
-		attack = 150, hp = 520, mp = 175,
+		stat = { atk = 0.88, hp = 0.93 }, mp = 4,
 		role = "Support", passive = "Battery",
 		passive_name = "Storm Blessing",
 		passive_desc = "Storm Rider allies gain +5% ATK at the start of each round.",
@@ -258,7 +266,7 @@ CardDatabase.Cards = {
 
 	{
 		id = 27, name = "Aether Mage", rarity = "Rare",
-		attack = 320, hp = 700, mp = 285,
+		stat = { atk = 1.14, hp = 0.90 }, mp = 4,
 		role = "Support", passive = "Battery",
 		passive_name = "Arcane Surge",
 		passive_desc = "Every 3 rounds, the next ability cast by any ally costs 0 MP.",
@@ -267,7 +275,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 28, name = "Golden Warden", rarity = "Rare",
-		attack = 255, hp = 1120, mp = 150,
+		stat = { atk = 0.95, hp = 0.95 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Shield Wall",
 		passive_desc = "Reduces damage taken by 12%. With 3+ Iron Legion members on the team, this increases to 20%.",
@@ -276,7 +284,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 29, name = "Crimson Assassin", rarity = "Rare",
-		attack = 410, hp = 600, mp = 200,
+		stat = { atk = 1.13, hp = 0.85 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Lethal Strike",
 		passive_desc = "Critical kills (targets below 30% HP) restore 10% of the Assassin's Max HP.",
@@ -285,7 +293,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 30, name = "Tempest Falcon", rarity = "Rare",
-		attack = 355, hp = 755, mp = 220,
+		stat = { atk = 0.98, hp = 0.99 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Wind Dash",
 		passive_desc = "Every 3 turns, next attack deals double damage and cannot be dodged.",
@@ -294,7 +302,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 31, name = "Glacial Titan", rarity = "Rare",
-		attack = 270, hp = 1320, mp = 120,
+		stat = { atk = 1.01, hp = 1.11 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Permafrost Aura",
 		passive_desc = "At the start of each round, reduces all enemies' ATK by 6%.",
@@ -303,7 +311,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 32, name = "Venom Hydra", rarity = "Rare",
-		attack = 310, hp = 910, mp = 170,
+		stat = { atk = 0.86, hp = 1.15 }, mp = 3,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Poison Cloud",
 		passive_desc = "Passively emits a toxic aura that deals 4% ATK to all enemies at the start of each round.",
@@ -312,7 +320,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 33, name = "Moon Priestess", rarity = "Rare",
-		attack = 240, hp = 860, mp = 325,
+		stat = { atk = 0.86, hp = 1.10 }, mp = 4,
 		role = "Support", passive = "Medic",
 		passive_name = "Lunar Blessing",
 		passive_desc = "From round 3 onward, heals all allies for 6% Max HP at the start of each round.",
@@ -321,7 +329,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 34, name = "Inferno Drake", rarity = "Rare",
-		attack = 375, hp = 800, mp = 200,
+		stat = { atk = 1.03, hp = 1.04 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Blazing Scales",
 		passive_desc = "Each time Inferno Drake takes damage, gains +5% ATK (up to 4 stacks per battle).",
@@ -330,7 +338,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 35, name = "Forest Ancient", rarity = "Rare",
-		attack = 280, hp = 1220, mp = 195,
+		stat = { atk = 1.05, hp = 1.03 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Nature's Grasp",
 		passive_desc = "Once every 3 rounds, roots the frontline enemy at the start of the round, preventing them from attacking for 1 turn.",
@@ -339,7 +347,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 36, name = "Sacred Ironclad", rarity = "Rare",
-		attack = 265, hp = 1080, mp = 140,
+		stat = { atk = 0.99, hp = 0.91 }, mp = 3,
 		role = "Tank", passive = "Drain",
 		passive_name = "Holy Fortitude",
 		passive_desc = "Gains +10% damage reduction. If contributing to both Iron Legion AND Divine Pantheon synergies simultaneously, this doubles to +20%.",
@@ -353,7 +361,7 @@ CardDatabase.Cards = {
 
 	{
 		id = 37, name = "Void Sorcerer", rarity = "Epic",
-		attack = 590, hp = 910, mp = 510,
+		stat = { atk = 0.95, hp = 0.90 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Dimension Rift",
 		passive_desc = "Abilities have a 25% chance to instantly recharge on use, allowing an immediate second cast.",
@@ -362,7 +370,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 38, name = "Celestial Knight", rarity = "Epic",
-		attack = 490, hp = 1550, mp = 300,
+		stat = { atk = 0.93, hp = 0.85 }, mp = 4,
 		role = "Tank", passive = "Drain",
 		passive_name = "Divine Protect",
 		passive_desc = "The first time any ally would be reduced to 0 HP, Celestial Knight intercepts and takes the hit instead (once per battle).",
@@ -371,7 +379,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 39, name = "Abyssal Leviathan", rarity = "Epic",
-		attack = 630, hp = 1850, mp = 200,
+		stat = { atk = 1.15, hp = 0.92 }, mp = 4,
 		role = "Tank", passive = "Drain",
 		passive_name = "Crushing Depth",
 		passive_desc = "Deals +15% bonus damage for each enemy on the field currently below 50% HP.",
@@ -380,7 +388,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 40, name = "Phantom Empress", rarity = "Epic",
-		attack = 660, hp = 1010, mp = 455,
+		stat = { atk = 1.06, hp = 1.00 }, mp = 4,
 		role = "DPS", passive = "Executioner",
 		passive_name = "Soul Sever",
 		passive_desc = "Killing blow restores 15% of the Empress's Max HP and grants +10% ATK for the rest of battle (stacks).",
@@ -389,7 +397,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 41, name = "Storm Colossus", rarity = "Epic",
-		attack = 520, hp = 2050, mp = 250,
+		stat = { atk = 0.99, hp = 1.02 }, mp = 4,
 		role = "Tank", passive = "Drain",
 		passive_name = "Thunder Slam",
 		passive_desc = "Melee attacks have a 30% chance to stun the target for 1 turn.",
@@ -398,7 +406,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 42, name = "Bloodmoon Vampire", rarity = "Epic",
-		attack = 610, hp = 1110, mp = 385,
+		stat = { atk = 0.98, hp = 1.10 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Life Drain II",
 		passive_desc = "Heals for 20% of all damage dealt. On kill, heals for an additional 10% of Max HP.",
@@ -407,7 +415,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 43, name = "Ancient Golem King", rarity = "Epic",
-		attack = 460, hp = 2560, mp = 150,
+		stat = { atk = 0.88, hp = 1.15 }, mp = 4,
 		role = "Tank", passive = "Drain",
 		passive_name = "Earthen Core",
 		passive_desc = "When below 30% HP, gains +30% damage reduction and +25% ATK simultaneously.",
@@ -416,7 +424,7 @@ CardDatabase.Cards = {
 	},
 
 	-- ═══════════════════════════════════════════════════════════════════════════
-	-- LEGENDARY (4)
+	-- LEGENDARY (3)
 	-- ═══════════════════════════════════════════════════════════════════════════
 
 	-- Card identities 44-50 are anime-character parodies (original names/kits
@@ -426,7 +434,7 @@ CardDatabase.Cards = {
 	-- `active.name`/`active.desc` remain the display strings shown in UI panels.
 	{
 		id = 44, name = "The Ever-Rising Fist", rarity = "Legendary",
-		attack = 920, hp = 2020, mp = 610,
+		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Never Backs Down",
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
@@ -442,7 +450,7 @@ CardDatabase.Cards = {
 	},
 	{
 		id = 45, name = "The Hundred-Heal Sage", rarity = "Legendary",
-		attack = 790, hp = 2560, mp = 820,
+		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
 		role = "Support", passive = "Medic",
 		passive_name = "Steady Hands",
 		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
@@ -457,23 +465,8 @@ CardDatabase.Cards = {
 		series = { "Divine Pantheon", "Nature's Call" },
 	},
 	{
-		id = 46, name = "The Honored Guy", rarity = "Legendary",
-		attack = 1010, hp = 1820, mp = 715,
-		role = "DPS", passive = "Executioner",
-		passive_name = "Nothing Gets Close",
-		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
-		active = {
-			name = "Nothing Gets Through",
-			desc = "An unblockable, unavoidable strike for 500% true damage — instantly ends any foe already below 25% HP.",
-			effects = {
-				{ op = "single_true_execute", mult = 5.0, executeThreshold = 0.25 },
-			},
-		},
-		series = { "Void Walkers", "Shadow Covenant" },
-	},
-	{
 		id = 47, name = "Iron Gill, the Tide Warden", rarity = "Legendary",
-		attack = 740, hp = 3580, mp = 400,
+		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
 		role = "Tank", passive = "Drain",
 		passive_name = "Living Current",
 		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
@@ -494,7 +487,7 @@ CardDatabase.Cards = {
 
 	{
 		id = 48, name = "The Illusion Sovereign", rarity = "Mythic",
-		attack = 1520, hp = 4100, mp = 1250,
+		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
 		role = "DPS", passive = "Rage",
 		passive_name = "Every Move Foreseen",
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
@@ -509,26 +502,6 @@ CardDatabase.Cards = {
 		series = { "Void Walkers" },
 	},
 
-	-- ═══════════════════════════════════════════════════════════════════════════
-	-- GOD (1)
-	-- ═══════════════════════════════════════════════════════════════════════════
-
-	{
-		id = 49, name = "World Cutter", rarity = "God",
-		attack = 2600, hp = 8200, mp = 2100,
-		role = "DPS", passive = "Executioner",
-		passive_name = "No Mercy for the Weak",
-		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
-		active = {
-			name = "Domainless Cleave",
-			desc = "No domain, no barrier, no defense has ever been enough — 800% true damage to every enemy, permanently cleaving 10% off their Max HP.",
-			effects = {
-				{ op = "true_damage_all", mult = 8.0 },
-				{ op = "maxhp_shred_all", pct = 0.10 },
-			},
-		},
-		series = {},
-	},
 
 	-- ═══════════════════════════════════════════════════════════════════════════
 	-- SECRET (1)
@@ -543,7 +516,7 @@ CardDatabase.Cards = {
 	-- just a gag.
 	{
 		id = 50, name = "The Nameless One", rarity = "Secret",
-		attack = 9999, hp = 9999, mp = 9999,
+		attack = 9999, hp = 9999, mp = 5, fixedStats = true, adminOnly = true,
 		role = "DPS", passive = "Rage",
 		passive_name = "???",
 		passive_desc = "Its true nature is unknown.",
@@ -558,7 +531,445 @@ CardDatabase.Cards = {
 		},
 		series = {},
 	},
+
+	-- ═══════════════════════════════════════════════════════════════════════════
+	-- JUJUTSU KAISEN (26) — AnimeRosterPlan.md §11.7
+	-- Parody-style names; every card has a real kit. Traits: Epic+ plus Panda.
+	-- ═══════════════════════════════════════════════════════════════════════════
+
+	-- ── Secret ──
+	{
+		id = 74, name = "The Eight-Handled Wheel", rarity = "Secret",
+		stat = { atk = 1.00, hp = 1.15 }, mp = 4,
+		role = "Tank", subrole = "Juggernaut", passive = "Trait", trait = "adaptation",
+		passive_name = "Adaptation",
+		passive_desc = "Each hit from the same enemy makes that enemy's later hits on it deal 10% less (up to 50%).",
+		active = {
+			name = "Sword of Extermination",
+			desc = "Deals 400% ATK true damage to the frontline enemy and stuns it for 1 turn.",
+			effects = {
+				{ op = "single_damage", mult = 4.0, trueDamage = true },
+				{ op = "stun", target = "front", turns = 1 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── God ──
+	{
+		id = 49, name = "World Cutter", rarity = "God",
+		stat = { atk = 1.15, hp = 1.00 }, mp = 5,
+		role = "DPS", subrole = "Skirmisher", passive = "Trait", trait = "dismantle",
+		passive_name = "Dismantle",
+		passive_desc = "Every basic attack also slashes the next enemy in line for 50% ATK.",
+		active = {
+			name = "Malevolent Shrine",
+			desc = "Deals 600% ATK true damage to every enemy and permanently cuts 10% off their Max HP.",
+			effects = {
+				{ op = "true_damage_all", mult = 6.0 },
+				{ op = "maxhp_shred_all", pct = 0.10 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 46, name = "The Honored One", rarity = "God",
+		stat = { atk = 1.05, hp = 1.10 }, mp = 5,
+		role = "DPS", subrole = "Skirmisher", passive = "Trait", trait = "infinity",
+		passive_name = "Infinity",
+		passive_desc = "The first hit this card takes each round deals no damage.",
+		active = {
+			name = "Hollow Purple",
+			desc = "Deals 500% ATK to every enemy and stuns them all for 1 turn.",
+			effects = {
+				{ op = "aoe_damage", mult = 5.0 },
+				{ op = "stun", target = "all", turns = 1 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── Legendary ──
+	{
+		id = 51, name = "The Cursed Vessel", rarity = "Legendary",
+		stat = { atk = 0.95, hp = 1.10 }, mp = 2,
+		role = "DPS", subrole = "Duelist", passive = "Trait", trait = "divergent_fist",
+		passive_name = "Divergent Fist",
+		passive_desc = "The first attack each turn strikes twice. The second swing deals the first swing's damage + 0.8% of the target's current HP. Both swings give mana.",
+		active = {
+			name = "Black Flash",
+			desc = "Hits for the last two swings combined + 5% of the target's missing HP. Chains: 35% chance to strike again (then 20%, 10%, 5%), each new Black Flash adding up the previous two hits.",
+			effects = {
+				{ op = "black_flash", missingHpPct = 0.05, repeatChances = { 0.35, 0.20, 0.10, 0.05 } },
+			},
+		},
+		series = { "First Years", "Best Friends" },
+	},
+	{
+		id = 52, name = "Rika's Beloved", rarity = "Legendary",
+		stat = { atk = 1.05, hp = 1.00 }, mp = 4,
+		role = "DPS", subrole = "Skirmisher", passive = "Trait", trait = "queen_of_curses",
+		passive_name = "Queen of Curses",
+		passive_desc = "The first time this card would die, it survives at 1 HP and gains a shield worth 30% of its Max HP.",
+		active = {
+			name = "Pure Love",
+			desc = "Deals 350% ATK to every enemy.",
+			effects = {
+				{ op = "aoe_damage", mult = 3.5 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── Epic ──
+	{
+		id = 53, name = "The Sorcerer Killer", rarity = "Epic",
+		stat = { atk = 1.00, hp = 0.90 }, mp = 3,
+		role = "DPS", subrole = "Duelist", passive = "Trait", trait = "heavenly_restriction",
+		passive_name = "Heavenly Restriction",
+		passive_desc = "Can't be stunned, ignores enemy ATK debuffs, and has +10% crit chance.",
+		active = {
+			name = "Inverted Spear",
+			desc = "Deals 300% ATK to the lowest-HP enemy, ignoring shields.",
+			effects = {
+				{ op = "single_damage", target = "lowest", mult = 3.0, ignoreShield = true },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 54, name = "The Stitched-Brow Schemer", rarity = "Epic",
+		stat = { atk = 1.00, hp = 1.05 }, mp = 4,
+		role = "Support", subrole = "Hexer", passive = "Trait", trait = "thousand_year_plan",
+		passive_name = "Thousand-Year Plan",
+		passive_desc = "Gains 1 mana whenever an enemy casts an ability.",
+		active = {
+			name = "Maximum Uzumaki",
+			desc = "Deals 150% ATK to every enemy and shreds 5% of their defense (stacking to 20%).",
+			effects = {
+				{ op = "aoe_damage", mult = 1.5 },
+				{ op = "enemy_dr_shred", pct = 0.05, cap = 0.20 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 55, name = "The Curse Collector", rarity = "Epic",
+		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
+		role = "Support", subrole = "Enchanter", passive = "Trait", trait = "spirit_manipulation",
+		passive_name = "Cursed Spirit Manipulation",
+		passive_desc = "All allies start the battle with 1 mana.",
+		active = {
+			name = "Spirit Swarm",
+			desc = "Gives every other ally 1 mana and +6% ATK (stacking to 18%).",
+			effects = {
+				{ op = "grant_mana", amount = 1, excludeSelf = true },
+				{ op = "team_atk_buff", pct = 0.06, cap = 0.18 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── Rare ──
+	{
+		id = 56, name = "The Soul Sculptor", rarity = "Rare",
+		stat = { atk = 1.00, hp = 0.95 }, mp = 4,
+		role = "DPS", subrole = "Skirmisher", passive = "Executioner",
+		passive_name = "Soul Predator",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "Idle Transfiguration",
+			desc = "Reshapes souls: 120% ATK true damage to every enemy.",
+			effects = {
+				{ op = "true_damage_all", mult = 1.2 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 57, name = "Volcano Head", rarity = "Rare",
+		stat = { atk = 1.10, hp = 0.85 }, mp = 4,
+		role = "DPS", subrole = "Skirmisher", passive = "Rage",
+		passive_name = "Short Fuse",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Maximum: Meteor",
+			desc = "Drops a meteor on the enemy team: 160% ATK to every enemy.",
+			effects = {
+				{ op = "aoe_damage", mult = 1.6 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 58, name = "The Cursed-Tool Prodigy", rarity = "Rare",
+		stat = { atk = 1.05, hp = 1.05 }, mp = 3,
+		role = "DPS", subrole = "Duelist", passive = "Rage",
+		passive_name = "Weapon Master",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Split Soul Katana",
+			desc = "Deals 250% ATK to the frontline enemy.",
+			effects = {
+				{ op = "single_damage", mult = 2.5 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 59, name = "The Boogie-Woogie Brother", rarity = "Rare",
+		stat = { atk = 1.05, hp = 1.00 }, mp = 3,
+		role = "Tank", subrole = "Juggernaut", passive = "Drain",
+		passive_name = "Brotherly Grit",
+		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
+		active = {
+			name = "Boogie Woogie",
+			desc = "A clap that scrambles the battlefield: 120% ATK to the frontline enemy and stuns it for 1 turn.",
+			effects = {
+				{ op = "single_damage", mult = 1.2 },
+				{ op = "stun", target = "front", turns = 1 },
+			},
+		},
+		series = { "Best Friends" },
+	},
+	{
+		id = 60, name = "The Overtime Salaryman", rarity = "Rare",
+		stat = { atk = 1.00, hp = 1.00 }, mp = 3,
+		role = "Tank", subrole = "Vanguard", passive = "Drain",
+		passive_name = "Overtime",
+		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
+		active = {
+			name = "Ratio 7:3",
+			desc = "A guaranteed critical 150% ATK strike on the frontline enemy, then shields every ally for 10% of their Max HP.",
+			effects = {
+				{ op = "single_damage", mult = 1.5, guaranteedCrit = true },
+				{ op = "shield_all", pct = 0.10 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── Uncommon ──
+	{
+		id = 61, name = "The Star-Mass Wanderer", rarity = "Uncommon",
+		stat = { atk = 1.10, hp = 0.95 }, mp = 4,
+		role = "DPS", subrole = "Duelist", passive = "Rage",
+		passive_name = "Star Rage",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Bonbaye",
+			desc = "A mass-loaded punch: 280% ATK to the frontline enemy.",
+			effects = {
+				{ op = "single_damage", mult = 2.8 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 62, name = "The Jackpot Gambler", rarity = "Uncommon",
+		stat = { atk = 0.95, hp = 1.10 }, mp = 3,
+		role = "DPS", subrole = "Duelist", passive = "Rage",
+		passive_name = "Hot Streak",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Idle Death Gamble",
+			desc = "120% ATK to the frontline enemy. 1-in-3 jackpot: fully heals and gains +10% ATK permanently.",
+			effects = {
+				{ op = "jackpot", mult = 1.2, chance = 1 / 3, atkPct = 0.10 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 63, name = "The Projection Sprinter", rarity = "Uncommon",
+		stat = { atk = 1.00, hp = 0.90 }, mp = 2,
+		role = "DPS", subrole = "Duelist", passive = "Executioner",
+		passive_name = "Frame Perfect",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "24 Frames",
+			desc = "140% ATK to the frontline enemy and freezes (stuns) it for 1 turn.",
+			effects = {
+				{ op = "single_damage", mult = 1.4 },
+				{ op = "stun", target = "front", turns = 1 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 64, name = "The Cursed Corpse Bear", rarity = "Uncommon",
+		stat = { atk = 1.00, hp = 1.05 }, mp = 3,
+		role = "Tank", subrole = "Juggernaut", passive = "Trait", trait = "three_cores",
+		passive_name = "Three Cores",
+		passive_desc = "Odd rounds: Tank form (-20% damage taken). Even rounds: Gorilla form (+25% ATK, counts as DPS for counters).",
+		active = {
+			name = "Drumming Beat",
+			desc = "150% ATK to the frontline enemy and stuns it for 1 turn.",
+			effects = {
+				{ op = "single_damage", mult = 1.5 },
+				{ op = "stun", target = "front", turns = 1 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 65, name = "The Reverse-Cursed Medic", rarity = "Uncommon",
+		stat = { atk = 0.80, hp = 1.00 }, mp = 3,
+		role = "Support", subrole = "Enchanter", passive = "Medic",
+		passive_name = "Night Shift",
+		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
+		active = {
+			name = "Reverse Cursed Technique",
+			desc = "Heals every ally for 14% of their Max HP.",
+			effects = {
+				{ op = "heal_all", pct = 0.14 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 66, name = "The Onigiri Speaker", rarity = "Uncommon",
+		stat = { atk = 1.00, hp = 0.95 }, mp = 3,
+		role = "Support", subrole = "Hexer", passive = "Battery",
+		passive_name = "Salmon Roe",
+		passive_desc = "Restores 1 mana to allies whenever any unit dies (standard Battery passive).",
+		active = {
+			name = "Cursed Speech: Don't Move",
+			desc = "Stuns the frontline enemy for 1 turn and cuts enemy ATK by 4% (stacking to 12%).",
+			effects = {
+				{ op = "stun", target = "front", turns = 1 },
+				{ op = "enemy_atk_shred", pct = 0.04, cap = 0.12 },
+			},
+		},
+		series = {},
+	},
+
+	-- ── Common ──
+	{
+		id = 67, name = "The Straw Doll Striker", rarity = "Common",
+		stat = { atk = 1.00, hp = 0.95 }, mp = 3,
+		role = "DPS", subrole = "Duelist", passive = "Executioner",
+		passive_name = "Hairpin",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "Resonance",
+			desc = "Strikes the soul through a straw doll: 150% ATK true damage to the frontline enemy.",
+			effects = {
+				{ op = "single_damage", mult = 1.5, trueDamage = true },
+			},
+		},
+		series = { "First Years" },
+	},
+	{
+		id = 68, name = "The Shadow Summoner", rarity = "Common",
+		stat = { atk = 1.00, hp = 1.05 }, mp = 3,
+		role = "DPS", subrole = "Skirmisher", passive = "Rage",
+		passive_name = "Ten Shadows",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Divine Dogs",
+			desc = "Shadow hounds maul the enemy team: 70% ATK to every enemy.",
+			effects = {
+				{ op = "aoe_damage", mult = 0.7 },
+			},
+		},
+		series = { "First Years" },
+	},
+	{
+		id = 69, name = "The Blood Brother", rarity = "Common",
+		stat = { atk = 1.00, hp = 1.05 }, mp = 3,
+		role = "DPS", subrole = "Skirmisher", passive = "Rage",
+		passive_name = "Eldest Brother",
+		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
+		active = {
+			name = "Supernova",
+			desc = "60% ATK to every enemy and shreds 3% of their defense (stacking to 12%).",
+			effects = {
+				{ op = "aoe_damage", mult = 0.6 },
+				{ op = "enemy_dr_shred", pct = 0.03, cap = 0.12 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 70, name = "The Revolver Heiress", rarity = "Common",
+		stat = { atk = 1.05, hp = 0.85 }, mp = 2,
+		role = "DPS", subrole = "Duelist", passive = "Executioner",
+		passive_name = "Sharpshooter",
+		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
+		active = {
+			name = "Final Bullet",
+			desc = "160% ATK to the lowest-HP enemy.",
+			effects = {
+				{ op = "single_damage", target = "lowest", mult = 1.6 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 71, name = "The Puppet Pilot", rarity = "Common",
+		stat = { atk = 1.00, hp = 1.00 }, mp = 3,
+		role = "Tank", subrole = "Vanguard", passive = "Drain",
+		passive_name = "Heavy Armor",
+		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
+		active = {
+			name = "Absolute Guard",
+			desc = "Shields every ally for 8% of their Max HP.",
+			effects = {
+				{ op = "shield_all", pct = 0.08 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 72, name = "The Solo Songstress", rarity = "Common",
+		stat = { atk = 0.90, hp = 1.00 }, mp = 3,
+		role = "Support", subrole = "Enchanter", passive = "Medic",
+		passive_name = "Encore",
+		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
+		active = {
+			name = "Solo Forbidden Area",
+			desc = "Every ally gains +4% ATK (stacking to 16%).",
+			effects = {
+				{ op = "team_atk_buff", pct = 0.04, cap = 0.16 },
+			},
+		},
+		series = {},
+	},
+	{
+		id = 73, name = "The Courtroom Judge", rarity = "Common",
+		stat = { atk = 1.00, hp = 1.00 }, mp = 3,
+		role = "Support", subrole = "Hexer", passive = "Battery",
+		passive_name = "Objection",
+		passive_desc = "Restores 1 mana to allies whenever any unit dies (standard Battery passive).",
+		active = {
+			name = "Confiscation",
+			desc = "Drains 2 mana from the frontline enemy.",
+			effects = {
+				{ op = "drain_mana", target = "front", amount = 2 },
+			},
+		},
+		series = {},
+	},
 }
+
+-- ── Stats from the formula (CombatConfig.CardStats) ───────────────────────────
+-- attack/hp = RoleBase × RarityMult × SubroleMod × card.stat. Cards marked
+-- fixedStats keep their literal numbers (The Nameless One admin card).
+
+local CardStats = require(script.Parent:WaitForChild("CombatConfig")).CardStats
+
+for _, card in ipairs(CardDatabase.Cards) do
+	if not card.fixedStats then
+		local base = CardStats.RoleBase[card.role]
+		local rar  = CardStats.RarityMult[card.rarity] or 1
+		local sub  = CardStats.SubroleMod[card.subrole] or { atk = 1, hp = 1 }
+		local own  = card.stat or {}
+		local step = CardStats.RoundTo
+		card.attack = math.max(step, math.floor(base.atk * rar * sub.atk * (own.atk or 1) / step + 0.5) * step)
+		card.hp     = math.max(step, math.floor(base.hp * rar * sub.hp * (own.hp or 1) / step + 0.5) * step)
+	end
+end
 
 -- ── Fast lookup tables ────────────────────────────────────────────────────────
 
@@ -566,8 +977,14 @@ CardDatabase._byId     = {}
 CardDatabase._byRarity = {}
 CardDatabase._bySeries = {}
 
+-- adminOnly cards (The Nameless One) resolve by id but never enter any
+-- random pool: packs, enemy teams, reveal animations and GetAll all skip them.
+CardDatabase._pool     = {}
+
 for _, card in ipairs(CardDatabase.Cards) do
 	CardDatabase._byId[card.id] = card
+	if card.adminOnly then continue end
+	table.insert(CardDatabase._pool, card)
 
 	if not CardDatabase._byRarity[card.rarity] then
 		CardDatabase._byRarity[card.rarity] = {}
@@ -600,8 +1017,9 @@ function CardDatabase:GetRandomOfRarity(rarity)
 	return pool[math.random(1, #pool)]
 end
 
+-- Every obtainable card (excludes adminOnly). Use CardDatabase.Cards for the raw list.
 function CardDatabase:GetAll()
-	return self.Cards
+	return self._pool
 end
 
 return CardDatabase

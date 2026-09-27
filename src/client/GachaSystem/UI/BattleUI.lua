@@ -173,7 +173,7 @@ local function buildUnitFrame(parent, unit, order, sideKey)
 	local role = Instance.new("TextLabel")
 	role.Size = UDim2.new(1, -8, 0.12, 0); role.Position = UDim2.new(0, 4, 0.86, 0)
 	role.BackgroundTransparency = 1
-	role.Text = unit.role
+	role.Text = unit.subrole and (unit.role .. " · " .. unit.subrole) or unit.role
 	role.TextColor3 = Color3.fromRGB(140, 140, 170)
 	role.TextScaled = true; role.Font = Enum.Font.Gotham
 	role.ZIndex = 32; role.Parent = f
@@ -573,6 +573,15 @@ function BattleUI:PlayMaxHpShred(ev)
 	entry.maxHp = ev.newMaxHp
 	FxUtil.floatText(entry.frame, "-" .. math.floor(ev.pct * 100) .. "% Max HP", Color3.fromRGB(200, 100, 220))
 	logLine(entry.name .. "'s Max HP is permanently cut by " .. math.floor(ev.pct * 100) .. "%", Color3.fromRGB(200, 100, 220))
+end
+
+-- Short callouts from traits and crowd control (STUNNED, INFINITY, RIKA!, ...).
+local STATUS_COLOR = Color3.fromRGB(235, 210, 120)
+function BattleUI:ShowStatus(ev)
+	local entry = frames[key(ev.dst)]
+	if not entry then return end
+	FxUtil.floatText(entry.frame, ev.text, STATUS_COLOR)
+	logLine(entry.name .. ": " .. ev.text, STATUS_COLOR)
 end
 
 -- ── Result overlay ────────────────────────────────────────────────────────────

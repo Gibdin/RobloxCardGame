@@ -12,8 +12,8 @@ local RARTBG={Common=Color3.fromRGB(30,30,32),Uncommon=Color3.fromRGB(12,30,12),
 local RTEXT={Common=Color3.fromRGB(190,190,190),Uncommon=Color3.fromRGB(90,220,90),Rare=Color3.fromRGB(100,150,255),Epic=Color3.fromRGB(190,90,250),Legendary=Color3.fromRGB(255,185,20),Mythic=Color3.fromRGB(255,80,80),God=Color3.fromRGB(255,225,20),Secret=Color3.fromRGB(210,30,65)}
 local ROLE_COLOR={Tank=Color3.fromRGB(60,130,220),DPS=Color3.fromRGB(220,60,60),Support=Color3.fromRGB(60,200,120)}
 local ROLE_SHORT={Tank="TANK",DPS="DPS",Support="SUP"}
-local PASSIVE_COLOR={Drain=Color3.fromRGB(60,130,220),Rage=Color3.fromRGB(220,60,60),Executioner=Color3.fromRGB(220,130,40),Medic=Color3.fromRGB(60,200,120),Battery=Color3.fromRGB(60,180,200)}
-local PASSIVE_DESC_COLOR={Drain=Color3.fromRGB(120,170,255),Rage=Color3.fromRGB(255,130,130),Executioner=Color3.fromRGB(255,190,110),Medic=Color3.fromRGB(120,240,160),Battery=Color3.fromRGB(100,230,245)}
+local PASSIVE_COLOR={Drain=Color3.fromRGB(60,130,220),Rage=Color3.fromRGB(220,60,60),Executioner=Color3.fromRGB(220,130,40),Medic=Color3.fromRGB(60,200,120),Battery=Color3.fromRGB(60,180,200),Trait=Color3.fromRGB(230,180,60)}
+local PASSIVE_DESC_COLOR={Drain=Color3.fromRGB(120,170,255),Rage=Color3.fromRGB(255,130,130),Executioner=Color3.fromRGB(255,190,110),Medic=Color3.fromRGB(120,240,160),Battery=Color3.fromRGB(100,230,245),Trait=Color3.fromRGB(250,215,130)}
 local ACTIVE_DESC_COLOR=Color3.fromRGB(195,160,255)
 local RARITY_CYCLE={"All","Common","Uncommon","Rare","Epic","Legendary","Mythic","God","Secret"}
 local SORT_CYCLE={"Rarity","Name","Awakening"}
@@ -605,7 +605,7 @@ local function loadData()
 	for _,id in ipairs(data.cardIds or {}) do
 		local card=cardDb:GetById(id); if card then
 			local awk=(data.awakening or {})[tostring(id)] or 0
-			table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},awakening=awk})
+			table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,subrole=card.subrole,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},awakening=awk})
 		end
 	end
 	capLbl.Text=#allCards.." / "..MAX_CAP

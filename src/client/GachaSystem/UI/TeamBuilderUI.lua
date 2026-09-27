@@ -41,6 +41,7 @@ local PASSIVE_COLOR = {
 	Executioner = Color3.fromRGB(220, 130,  40),
 	Medic       = Color3.fromRGB(60,  200, 120),
 	Battery     = Color3.fromRGB(60,  180, 200),
+	Trait       = Color3.fromRGB(230, 180,  60),
 }
 local RARITY_COLOR = {
 	Common    = Color3.fromRGB(130, 130, 130),
@@ -339,7 +340,7 @@ local function selectCard(card)
 	if detRoleBadge then
 		detRoleBadge.BackgroundColor3 = ROLE_COLOR[card.role] or Color3.fromRGB(80, 80, 80)
 		local lbl = detRoleBadge:FindFirstChild("Lbl")
-		if lbl then lbl.Text = card.role:upper() end
+		if lbl then lbl.Text = (card.subrole or card.role):upper() end
 	end
 
 	if detATK then detATK.Text = tostring(card.attack) end
@@ -356,7 +357,9 @@ local function selectCard(card)
 	if detPassiveDesc then
 		local roleDef = roleConf.Roles[card.role]
 		local desc = ""
-		if roleDef then
+		if card.passive == "Trait" then
+			desc = card.passive_desc or ""
+		elseif roleDef then
 			if roleDef.passiveDesc then
 				desc = roleDef.passiveDesc
 			elseif roleDef.passives and card.passive then
@@ -520,16 +523,16 @@ local function buildCardDetail(centerFrame)
 	local rbl = L(detRarityBadge, "", 0, 0, 78, 20, 10, Color3.new(1, 1, 1), Enum.Font.GothamBold, Enum.TextXAlignment.Center)
 	rbl.Name = "Lbl"; rbl.ZIndex = 14
 
-	detRoleBadge = F(detContent, "RoleBadge", ROLE_COLOR.Tank, IX + 82, 40, 60, 20, 13)
+	detRoleBadge = F(detContent, "RoleBadge", ROLE_COLOR.Tank, IX + 82, 40, 84, 20, 13)
 	corner(detRoleBadge, 5)
-	local rolel = L(detRoleBadge, "", 0, 0, 60, 20, 10, Color3.new(1, 1, 1), Enum.Font.GothamBold, Enum.TextXAlignment.Center)
+	local rolel = L(detRoleBadge, "", 0, 0, 84, 20, 10, Color3.new(1, 1, 1), Enum.Font.GothamBold, Enum.TextXAlignment.Center)
 	rolel.Name = "Lbl"; rolel.ZIndex = 14
 
 	F(detContent, "Div", Color3.fromRGB(35, 35, 50), IX, 66, IW, 1).ZIndex = 13
 
 	-- Stats
 	local statW = math.floor(IW / 3) - 4
-	local statLabels = { { "ATK", "detATK" }, { "HP", "detHP" }, { "MP", "detMP" } }
+	local statLabels = { { "ATK", "detATK" }, { "HP", "detHP" }, { "MANA", "detMP" } }
 	for i, st in ipairs(statLabels) do
 		local sx = IX + (i - 1) * (statW + 6)
 		local box = F(detContent, st[1] .. "Box", Color3.fromRGB(22, 22, 34), sx, 74, statW, 46, 13)

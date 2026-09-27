@@ -61,7 +61,7 @@ local function unitSnapshot(units)
 	local snap = {}
 	for _, u in ipairs(units) do
 		table.insert(snap, {
-			slot = u.slot, cardId = u.cardId, name = u.name, role = u.role,
+			slot = u.slot, cardId = u.cardId, name = u.name, role = u.role, subrole = u.subrole,
 			hp = u.hp, maxHp = u.maxHp, mp = math.floor(u.mp), maxMp = u.maxMp,
 			shield = u.shield, alive = u.alive,
 		})
