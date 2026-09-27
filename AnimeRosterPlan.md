@@ -216,39 +216,80 @@ A Trait is a unique passive that replaces the role-passive category. Rule: **Epi
 
 ### 11.7 JJK card sheet (as built)
 
-Card names are parody-style per the theme rule; the character is in brackets. Stats sit inside the §1 bands (Secret is exempt).
+Card names are parody-style per the theme rule; the character is in brackets. ATK / HP come from the §11.8 formula.
 
 | Rarity | Card [character] | Role / Subrole | Mana | ATK / HP | Passive / Trait | Active |
 |---|---|---|---|---|---|---|
-| Secret | The Eight-Handled Wheel [Mahoraga] | Tank / Juggernaut | 4 | 2200 / 16000 | **Trait: Adaptation.** Each hit from the same enemy makes that enemy's later hits on it deal 10% less (max 50%). | **Sword of Extermination:** 400% ATK true damage to the frontline enemy, and stuns it for 1 turn. |
-| God | World Cutter [Sukuna] | DPS / Skirmisher | 5 | 2600 / 8200 | **Trait: Dismantle.** Every basic attack also slashes the next enemy in line for 50% ATK. | **Malevolent Shrine:** 600% ATK true damage to every enemy, and permanently cuts 10% off their Max HP. |
-| God | The Honored One [Gojo] | DPS / Skirmisher | 5 | 2400 / 8600 | **Trait: Infinity.** The first hit Gojo takes each round deals no damage. | **Hollow Purple:** 500% ATK to every enemy, and stuns them all for 1 turn. |
-| Legendary | The Cursed Vessel [Itadori] | DPS / Duelist | 2 | 780 / 2400 | **Trait: Divergent Fist.** The first attack each turn strikes twice. The second swing deals the first swing's damage + 0.8% of the target's current HP. Both swings give mana. | **Black Flash:** a 100% ATK strike that always crits, at 2.5x instead of 1.5x. |
-| Legendary | Rika's Beloved [Yuta] | DPS / Skirmisher | 4 | 950 / 2600 | **Trait: Queen of Curses.** The first time Yuta would die, he survives at 1 HP and gains a shield worth 30% of his Max HP. | **Pure Love:** 350% ATK to every enemy. |
-| Epic | The Sorcerer Killer [Toji] | DPS / Duelist | 3 | 640 / 1400 | **Trait: Heavenly Restriction.** Can't be stunned, ignores enemy ATK debuffs, +10% crit chance. | **Inverted Spear:** 300% ATK to the lowest-HP enemy, ignoring shields. |
-| Epic | The Stitched-Brow Schemer [Kenjaku] | Support / Hexer | 4 | 520 / 1600 | **Trait: Thousand-Year Plan.** Gains 1 mana whenever an enemy casts an ability. | **Maximum Uzumaki:** 150% ATK to every enemy, and shreds 5% of their defense (stacking to 20%). |
-| Epic | The Curse Collector [Geto] | Support / Enchanter | 4 | 480 / 1700 | **Trait: Cursed Spirit Manipulation.** All allies start the battle with 1 mana. | **Spirit Swarm:** gives every other ally 1 mana and +6% ATK (stacking to 18%). |
-| Rare | The Soul Sculptor [Mahito] | DPS / Skirmisher | 4 | 360 / 780 | Executioner | **Idle Transfiguration:** 120% ATK true damage to every enemy. |
-| Rare | Volcano Head [Jogo] | DPS / Skirmisher | 4 | 400 / 620 | Rage | **Maximum: Meteor:** 160% ATK to every enemy. |
-| Rare | The Cursed-Tool Prodigy [Maki] | DPS / Duelist | 3 | 380 / 900 | Rage | **Split Soul Katana:** 250% ATK to the frontline enemy. |
-| Rare | The Boogie-Woogie Brother [Todo] | Tank / Juggernaut | 3 | 330 / 1250 | Drain | **Boogie Woogie:** 120% ATK to the frontline enemy, and stuns it for 1 turn. |
-| Rare | The Overtime Salaryman [Nanami] | Tank / Vanguard | 3 | 300 / 1300 | Drain | **Ratio 7:3:** 150% ATK guaranteed crit on the frontline enemy, then shields every ally for 10% of their Max HP. |
-| Uncommon | The Star-Mass Wanderer [Yuki] | DPS / Duelist | 4 | 230 / 560 | Rage | **Bonbaye:** 280% ATK to the frontline enemy. |
-| Uncommon | The Jackpot Gambler [Hakari] | DPS / Duelist | 3 | 210 / 620 | Rage | **Idle Death Gamble:** 120% ATK hit. A 1-in-3 jackpot fully heals Hakari and gives him +10% ATK permanently. |
-| Uncommon | The Projection Sprinter [Naoya] | DPS / Duelist | 2 | 245 / 480 | Executioner | **24 Frames:** 140% ATK to the frontline enemy, and freezes (stuns) it for 1 turn. |
-| Uncommon | The Cursed Corpse Bear [Panda] | Tank / Juggernaut | 3 | 200 / 900 | **Trait: Three Cores.** Odd rounds: Tank form (-20% damage taken, counts as Tank for counters). Even rounds: Gorilla form (+25% ATK, counts as DPS for counters). | **Drumming Beat:** 150% ATK to the frontline enemy, and stuns it for 1 turn. |
-| Uncommon | The Reverse-Cursed Medic [Shoko] | Support / Enchanter | 3 | 150 / 520 | Medic | **Reverse Cursed Technique:** heals every ally for 14% of their Max HP. |
-| Uncommon | The Onigiri Speaker [Inumaki] | Support / Hexer | 3 | 160 / 500 | Battery | **Cursed Speech: Don't Move:** stuns the frontline enemy for 1 turn, and cuts enemy ATK by 4% (stacking to 12%). |
-| Common | The Straw Doll Striker [Nobara] | DPS / Duelist | 3 | 135 / 360 | Executioner | **Resonance:** 150% ATK true damage to the frontline enemy. |
-| Common | The Shadow Summoner [Megumi] | DPS / Skirmisher | 3 | 120 / 450 | Rage | **Divine Dogs:** 70% ATK to every enemy. |
-| Common | The Blood Brother [Choso] | DPS / Skirmisher | 3 | 130 / 420 | Rage | **Supernova:** 60% ATK to every enemy, and shreds 3% of their defense (stacking to 12%). |
-| Common | The Revolver Heiress [Mai] | DPS / Duelist | 2 | 145 / 290 | Executioner | **Final Bullet:** 160% ATK to the lowest-HP enemy. |
-| Common | The Puppet Pilot [Mechamaru] | Tank / Vanguard | 3 | 70 / 780 | Drain | **Absolute Guard:** shields every ally for 8% of their Max HP. |
-| Common | The Solo Songstress [Utahime] | Support / Enchanter | 3 | 60 / 400 | Medic | **Solo Forbidden Area:** every ally gains +4% ATK (stacking to 16%). |
-| Common | The Courtroom Judge [Higuruma] | Support / Hexer | 3 | 65 / 420 | Battery | **Confiscation:** drains 2 mana from the frontline enemy. |
+| Secret | The Eight-Handled Wheel [Mahoraga] | Tank / Juggernaut | 4 | 130 / 1720 | **Trait: Adaptation.** Each hit from the same enemy makes that enemy's later hits on it deal 10% less (max 50%). | **Sword of Extermination:** 400% ATK true damage to the frontline enemy, and stuns it for 1 turn. |
+| God | World Cutter [Sukuna] | DPS / Skirmisher | 5 | 190 / 600 | **Trait: Dismantle.** Every basic attack also slashes the next enemy in line for 50% ATK. | **Malevolent Shrine:** 600% ATK true damage to every enemy, and permanently cuts 10% off their Max HP. |
+| God | The Honored One [Gojo] | DPS / Skirmisher | 5 | 170 / 660 | **Trait: Infinity.** The first hit Gojo takes each round deals no damage. | **Hollow Purple:** 500% ATK to every enemy, and stuns them all for 1 turn. |
+| Legendary | The Cursed Vessel [Itadori] | DPS / Duelist | 2 | 130 / 440 | **Trait: Divergent Fist.** The first attack each turn strikes twice. The second swing deals the first swing's damage + 0.8% of the target's current HP. Both swings give mana. | **Black Flash:** hits for Itadori's last two swings combined + 5% of the target's missing HP (lands as-is, no second defense reduction; shields still absorb). **Chain:** after each Black Flash, roll to fire another (35%, then 20%, 10%, 5%; max 5). Each new one = the previous two hits combined + the missing-HP bonus (BF2 = swing 2 + BF1, BF3 = BF1 + BF2). The chain resets every cast; repeats cost and give no mana. |
+| Legendary | Rika's Beloved [Yuta] | DPS / Skirmisher | 4 | 120 / 420 | **Trait: Queen of Curses.** The first time Yuta would die, he survives at 1 HP and gains a shield worth 30% of his Max HP. | **Pure Love:** 350% ATK to every enemy. |
+| Epic | The Sorcerer Killer [Toji] | DPS / Duelist | 3 | 120 / 300 | **Trait: Heavenly Restriction.** Can't be stunned, ignores enemy ATK debuffs, +10% crit chance. | **Inverted Spear:** 300% ATK to the lowest-HP enemy, ignoring shields. |
+| Epic | The Stitched-Brow Schemer [Kenjaku] | Support / Hexer | 4 | 50 / 480 | **Trait: Thousand-Year Plan.** Gains 1 mana whenever an enemy casts an ability. | **Maximum Uzumaki:** 150% ATK to every enemy, and shreds 5% of their defense (stacking to 20%). |
+| Epic | The Curse Collector [Geto] | Support / Enchanter | 4 | 50 / 460 | **Trait: Cursed Spirit Manipulation.** All allies start the battle with 1 mana. | **Spirit Swarm:** gives every other ally 1 mana and +6% ATK (stacking to 18%). |
+| Rare | The Soul Sculptor [Mahito] | DPS / Skirmisher | 4 | 80 / 280 | Executioner | **Idle Transfiguration:** 120% ATK true damage to every enemy. |
+| Rare | Volcano Head [Jogo] | DPS / Skirmisher | 4 | 90 / 250 | Rage | **Maximum: Meteor:** 160% ATK to every enemy. |
+| Rare | The Cursed-Tool Prodigy [Maki] | DPS / Duelist | 3 | 100 / 290 | Rage | **Split Soul Katana:** 250% ATK to the frontline enemy. |
+| Rare | The Boogie-Woogie Brother [Todo] | Tank / Juggernaut | 3 | 50 / 620 | Drain | **Boogie Woogie:** 120% ATK to the frontline enemy, and stuns it for 1 turn. |
+| Rare | The Overtime Salaryman [Nanami] | Tank / Vanguard | 3 | 40 / 720 | Drain | **Ratio 7:3:** 150% ATK guaranteed crit on the frontline enemy, then shields every ally for 10% of their Max HP. |
+| Uncommon | The Star-Mass Wanderer [Yuki] | DPS / Duelist | 4 | 90 / 220 | Rage | **Bonbaye:** 280% ATK to the frontline enemy. |
+| Uncommon | The Jackpot Gambler [Hakari] | DPS / Duelist | 3 | 80 / 250 | Rage | **Idle Death Gamble:** 120% ATK hit. A 1-in-3 jackpot fully heals Hakari and gives him +10% ATK permanently. |
+| Uncommon | The Projection Sprinter [Naoya] | DPS / Duelist | 2 | 80 / 210 | Executioner | **24 Frames:** 140% ATK to the frontline enemy, and freezes (stuns) it for 1 turn. |
+| Uncommon | The Cursed Corpse Bear [Panda] | Tank / Juggernaut | 3 | 40 / 540 | **Trait: Three Cores.** Odd rounds: Tank form (-20% damage taken, counts as Tank for counters). Even rounds: Gorilla form (+25% ATK, counts as DPS for counters). | **Drumming Beat:** 150% ATK to the frontline enemy, and stuns it for 1 turn. |
+| Uncommon | The Reverse-Cursed Medic [Shoko] | Support / Enchanter | 3 | 30 / 310 | Medic | **Reverse Cursed Technique:** heals every ally for 14% of their Max HP. |
+| Uncommon | The Onigiri Speaker [Inumaki] | Support / Hexer | 3 | 40 / 300 | Battery | **Cursed Speech: Don't Move:** stuns the frontline enemy for 1 turn, and cuts enemy ATK by 4% (stacking to 12%). |
+| Common | The Straw Doll Striker [Nobara] | DPS / Duelist | 3 | 70 / 180 | Executioner | **Resonance:** 150% ATK true damage to the frontline enemy. |
+| Common | The Shadow Summoner [Megumi] | DPS / Skirmisher | 3 | 50 / 210 | Rage | **Divine Dogs:** 70% ATK to every enemy. |
+| Common | The Blood Brother [Choso] | DPS / Skirmisher | 3 | 50 / 210 | Rage | **Supernova:** 60% ATK to every enemy, and shreds 3% of their defense (stacking to 12%). |
+| Common | The Revolver Heiress [Mai] | DPS / Duelist | 2 | 70 / 160 | Executioner | **Final Bullet:** 160% ATK to the lowest-HP enemy. |
+| Common | The Puppet Pilot [Mechamaru] | Tank / Vanguard | 3 | 30 / 500 | Drain | **Absolute Guard:** shields every ally for 8% of their Max HP. |
+| Common | The Solo Songstress [Utahime] | Support / Enchanter | 3 | 30 / 260 | Medic | **Solo Forbidden Area:** every ally gains +4% ATK (stacking to 16%). |
+| Common | The Courtroom Judge [Higuruma] | Support / Hexer | 3 | 30 / 260 | Battery | **Confiscation:** drains 2 mana from the frontline enemy. |
 
 Role totals: 15 DPS / 5 Tank (Panda counted as Tank) / 6 Support. Gojo (id 46) and Sukuna (id 49) are reworked in place; the other 24 get new ids. The 48 remaining placeholder cards stay as they are, with `mp` converted to 3-5 mana.
 
 **Synergies:** §9's two factions ship as designed, minus the Executioner-threshold tweak (no current member uses Executioner). **Best Friends** (Itadori + Todo) @2: +18% ATK. **First Years** (Itadori + Nobara + Megumi) @2: +8% ATK/HP; @3: +12% ATK/HP, and the first member to drop below 30% HP gets a one-time shield worth 20% of their Max HP. The other 21 JJK cards have no faction yet; that's still open.
 
-**Balance flags for playtesting:** Itadori casts Black Flash every turn by design (2 swings × 1 mana = cost 2), so his ATK sits at the low end of the Legendary band to compensate. The 0.8%-of-current-HP bonus is implemented as specified but is small (about 20-60 damage). It's one number in `CombatConfig.Traits` if it should be 8%.
+**Balance flags for playtesting:** Itadori casts Black Flash every turn by design (2 swings × 1 mana = cost 2), so his ATK modifier is slightly below average (0.95) to compensate. The 0.8%-of-current-HP bonus on the second swing is implemented as specified but is small. It's one number in `CombatConfig.Traits` if it should be 8%.
+
+### 11.8 Stat scale (decided 2026-09-25)
+
+The first set uses small numbers on purpose: large base stats inflate every later set. Stats are no longer hand-typed. They come from one formula in `CombatConfig.CardStats`, so the whole scale can be tuned in one place:
+
+**ATK / HP = role base × rarity multiplier × subrole modifier × the card's own modifier** (`stat = { atk, hp }`, about 0.85-1.15)
+
+| Role base (Common) | ATK | HP | Identity |
+|---|---|---|---|
+| DPS | 60 | 200 | Pure damage, fragile |
+| Tank | 30 | 450 | Over 2x a DPS's HP; takes a beating |
+| Support | 30 | 260 | Weak hits; their power is in %-based heals, buffs and debuffs, which don't depend on stat size |
+
+| Rarity | Common | Uncommon | Rare | Epic | Legendary | Mythic | God | Secret |
+|---|---|---|---|---|---|---|---|---|
+| Multiplier | 1.00 | 1.20 | 1.45 | 1.75 | 2.10 | 2.50 | 3.00 | 3.50 |
+
+**Every final ATK and HP rounds to the nearest 10** (`RoundTo`). Each rarity step is about 20% stronger, so a Legendary has roughly 2x a Common's stats and a God 3x: a clear jump at every rarity, while Commons stay playable (level-ups and items scale everyone by the same %).
+
+Subrole modifiers: Duelist +10% ATK / -5% HP; Skirmisher -10% ATK (their area hits make up for it); Vanguard +10% HP / -10% ATK; Juggernaut +20% ATK / -5% HP; Enchanter and Hexer unchanged.
+
+The top-to-bottom gap is now 3x (God vs Common) instead of ~25x. Rarity power comes mainly from abilities and Traits, not raw stats. Every combat effect (heals, shields, buffs, level-ups, items, enemy scaling) is %-based, so rescaling doesn't break anything. The 48 placeholder cards moved to the same scale, keeping their relative strengths as modifiers. **Exception:** The Nameless One is an **admin-only card** (`adminOnly = true`): it keeps its fixed 9999/9999 stats, resolves by id for admins who hold it, and never enters packs, enemy teams, reveal animations or `GetAll()`.
+
+### 11.9 Fusion (decided 2026-09-27, not built yet)
+
+Spare cards level up the cards you play. Optimized for the PvE dopamine loop: no pull is wasted, and every level is a visible win.
+
+- **Levels +0 to +10.** Every card starts at +0 when pulled.
+- **Reaching +N costs N cards of the same rarity** (+8 → +9 costs 9 cards; 55 cards to max).
+- **An extra copy of the same card counts double**, so pulling a real duplicate still feels special.
+- **+5 and +10 need at least one real copy** of that card, so the milestones stay tied to the character.
+- **Each level adds 5% of the card's base ATK and HP** (+50% at +10), still rounded to 10. A maxed Common (e.g. Nobara 110 ATK) stays below a fresh Epic (Toji 120), so rarity always matters.
+- **Players choose when to fuse**, from a Fuse button in the inventory, with a level-up burst animation.
+- **Engagement hooks:** a red dot on cards that can level up; the card frame upgrades to **silver foil at +5** and **animated gold foil at +10**.
+
+Why same-rarity fodder: with duplicates only, maxing even a Common would take about 2,600 pulls (and more as the roster grows). With fodder, a Common maxes in about 120 pulls and a Legendary becomes a long-term goal instead of an impossible one.
+
+Migration note: the existing `awakening` counter (+1 per duplicate pulled, max 10, no stat effect today) should convert into fusion material rather than levels, since it was earned from exact duplicates only.
+
+Showcase: an interactive page demoing the Itadori card, sparring math, chain odds and this fusion ladder was published as an artifact (The Cursed Vessel).
+
