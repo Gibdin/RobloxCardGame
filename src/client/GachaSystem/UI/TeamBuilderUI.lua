@@ -716,6 +716,15 @@ local function buildPanel(gui)
 	teamCountLbl = L(topbar, "0 / 5", PW / 2 - 30, 0, 60, TOPBAR_H, 13, Color3.fromRGB(120, 130, 170), Enum.Font.Gotham, Enum.TextXAlignment.Center, Enum.TextYAlignment.Center)
 	teamCountLbl.ZIndex = 22
 	local closeBtn = B(topbar, "×", PW - 46, 6, 32, 32, Color3.fromRGB(70, 22, 22), Color3.new(1, 1, 1))
+
+	-- One tap: the strongest lineup (a Tank in front, best cards after).
+	local bestBtn = B(topbar, "★ BEST TEAM", PW - 190, 6, 132, 32, Color3.fromRGB(150, 60, 215), Color3.new(1, 1, 1))
+	bestBtn.Name = "BestTeamBtn"; bestBtn.TextSize = 14; bestBtn.ZIndex = 22
+	bestBtn.MouseButton1Click:Connect(function()
+		local rf = game:GetService("ReplicatedStorage"):WaitForChild("GachaRemotes"):WaitForChild("AutoBuildTeam")
+		local ok, res = pcall(function() return rf:InvokeServer() end)
+		if ok and res and res.team then globalTeamBar:LoadTeam(res.team) end
+	end)
 	closeBtn.TextSize = 18; closeBtn.ZIndex = 22
 	closeBtn.MouseButton1Click:Connect(function() panel.Visible = false end)
 

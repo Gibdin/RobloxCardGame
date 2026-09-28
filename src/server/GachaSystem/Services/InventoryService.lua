@@ -11,6 +11,7 @@ local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem")
 local PvPConfig          = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("PvPConfig"))
 local CardDatabase       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CardDatabase"))
 local FusionConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("FusionConfig"))
+local RarityConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("RarityConfig"))
 
 local InventoryService = {}
 
@@ -575,6 +576,91 @@ function InventoryService:SetTeam(userId, teamTable)
 		end
 	end
 	d.team = validated
+end
+
+-- ── Team building (first-session helpers; AnimeRosterPlan.md §11.12) ─────────
+
+-- Set by Main to push server-side team changes to the player's client.
+InventoryService.OnTeamChanged = nil
+
+-- Strength of a card for team building: rarity first, then fused stats.
+local function cardScore(userId, self, card)
+	local fused = FusionConfig.StatMult(self:GetFusionLevel(userId, card.id))
+	return RarityConfig:GetOrder(card.rarity) * 100000 + (card.attack * 4 + card.hp / 2) * fused
+end
+
+-- Builds a lineup from owned cards. keepExisting = true only fills EMPTY
+-- slots (never replaces what the player chose); false rebuilds all 5.
+-- Slot 1 (the frontline) prefers a Tank; the last pick prefers a Support
+-- when the team has none. Returns the team and whether it changed.
+function InventoryService:BuildBestTeam(userId, keepExisting)
+	local d = get(userId)
+	local team = {}
+	for i = 1, 5 do team[i] = keepExisting and (d.team[i] or false) or false end
+
+	local used, pool = {}, {}
+	for i = 1, 5 do if team[i] then used[team[i]] = true end end
+	for key in pairs(d.cards) do
+		local card = CardDatabase:GetById(tonumber(key))
+		if card and not used[card.id] then table.insert(pool, card) end
+	end
+	table.sort(pool, function(a, b) return cardScore(userId, self, a) > cardScore(userId, self, b) end)
+
+	local placed = {}  -- cards added by this call
+	local function take(filter)
+		for i, card in ipairs(pool) do
+			if not filter or filter(card) then
+				table.remove(pool, i)
+				placed[card.id] = true
+				return card.id
+			end
+		end
+		return nil
+	end
+	local function hasRole(role)
+		for i = 1, 5 do
+			local c = team[i] and CardDatabase:GetById(team[i])
+			if c and c.role == role then return true end
+		end
+		return false
+	end
+
+	if not team[1] then
+		team[1] = take(function(c) return c.role == "Tank" end) or take() or false
+	end
+	local empty = {}
+	for i = 2, 5 do if not team[i] then table.insert(empty, i) end end
+	for n, i in ipairs(empty) do
+		local isLast = n == #empty
+		team[i] = (isLast and not hasRole("Support") and take(function(c) return c.role == "Support" end))
+			or take() or false
+	end
+
+	-- Cards arrive one at a time early on, so the first pull (often a DPS)
+	-- lands in the frontline. When this call adds a Tank, move it to the
+	-- front instead (a swap: nothing leaves the team).
+	local front = team[1] and CardDatabase:GetById(team[1])
+	if front and front.role ~= "Tank" then
+		for i = 2, 5 do
+			local c = team[i] and placed[team[i]] and CardDatabase:GetById(team[i])
+			if c and c.role == "Tank" then
+				team[1], team[i] = team[i], team[1]
+				break
+			end
+		end
+	end
+
+	local changed = false
+	for i = 1, 5 do if team[i] ~= d.team[i] then changed = true end end
+	d.team = team
+	if changed and self.OnTeamChanged then self.OnTeamChanged(userId, team) end
+	return team, changed
+end
+
+-- Fills empty team slots only. Returns whether anything changed.
+function InventoryService:AutoFillTeam(userId)
+	local _, changed = self:BuildBestTeam(userId, true)
+	return changed
 end
 
 -- One-off read of ANOTHER player's team (PvP opponent lookup) — deliberately

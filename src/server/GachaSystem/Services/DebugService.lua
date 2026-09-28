@@ -95,6 +95,7 @@ function DebugService:OnPlayerLoaded(userId)
 		for _, card in ipairs(CardDatabase.Cards) do
 			InventoryService:AddSpare(userId, card.id, self.STUDIO_SPARES_PER_CARD)
 		end
+		InventoryService:AutoFillTeam(userId)
 	end
 end
 

@@ -179,6 +179,8 @@ function TowerService:Start(userId)
 		return { success = false, error = "A " .. blocking .. " run is already active." }
 	end
 
+	-- Fill empty slots from owned cards instead of refusing an empty team.
+	InventoryService:AutoFillTeam(userId)
 	local team = InventoryService:GetTeam(userId)
 	local hasCard = false
 	for _, id in ipairs(team) do
@@ -186,7 +188,7 @@ function TowerService:Start(userId)
 	end
 	if not hasCard then
 		RunLock.Release(userId)
-		return { success = false, error = "Your team is empty — add cards first." }
+		return { success = false, error = "You don't have any cards yet. Open a pack first!" }
 	end
 
 	local cards = {}

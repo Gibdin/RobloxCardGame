@@ -108,6 +108,12 @@ local rfDungeonAbandon     = RF("Dungeon_Abandon")
 local rfDebugQuickSetup = RF("Debug_QuickSetup")
 local rfDebugGrantAll   = RF("Debug_GrantAllCards")
 local rfFuseCard        = RF("FuseCard")
+local rfAutoBuildTeam   = RF("AutoBuildTeam")
+local reTeamUpdated     = RE("TeamUpdated")
+InventoryService.OnTeamChanged = function(userId, team)
+	local player = Players:GetPlayerByUserId(userId)
+	if player then reTeamUpdated:FireClient(player, team) end
+end
 
 local rfGetMonetizationInfo  = RF("GetMonetizationInfo")
 local rfPromptGemPurchase    = RF("PromptGemPurchase")
@@ -281,6 +287,11 @@ end
 
 rfDebugGrantAll.OnServerInvoke = function(player)
 	return DebugService:GrantAllCards(player.UserId)
+end
+
+rfAutoBuildTeam.OnServerInvoke = function(player)
+	local team = InventoryService:BuildBestTeam(player.UserId, false)
+	return { success = true, team = team }
 end
 
 rfFuseCard.OnServerInvoke = function(player, cardId)

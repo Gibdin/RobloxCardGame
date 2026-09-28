@@ -61,6 +61,7 @@ local function rollAndGrant(userId, packType, bannerId)
 		spareCount = InventoryService:AddSpare(userId, card.id, 1)
 	else
 		InventoryService:AddCard(userId, card.id)
+		InventoryService:AutoFillTeam(userId)  -- first session: new cards fill empty team slots
 	end
 
 	QuestService:RecordProgress(userId, "pack_open", 1)

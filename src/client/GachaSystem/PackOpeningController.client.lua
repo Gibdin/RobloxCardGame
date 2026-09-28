@@ -153,6 +153,17 @@ CardReveal:Init(screenGui, RarityConfig, VFXConfig, SoundManager)
 GlobalTeamBar:Init(screenGui, CardDatabase, rfSetTeam, RoleConfig)
 InventoryUI:Init(screenGui, CardDatabase, RarityConfig, RoleConfig, rfGetInventory, GlobalTeamBar)
 TeamBuilderUI:Init(screenGui, CardDatabase, RarityConfig, RoleConfig, rfGetInventory, rfGetTeam, rfSetTeam, GlobalTeamBar)
+-- The server fills empty slots when new cards arrive (first session) and
+-- pushes the new team here.
+remotes:WaitForChild("TeamUpdated").OnClientEvent:Connect(function(team)
+	GlobalTeamBar:LoadTeam(team)
+end)
+
+-- Next-step banner: always tells a new player what to do next.
+local ObjectiveBanner = require(uiFolder.ObjectiveBanner)
+ObjectiveBanner:Init(screenGui, rfGetInventory)
+GlobalTeamBar:AddChangedListener(function() ObjectiveBanner:Refresh() end)
+
 -- Show the saved team in the team bar right away, not only after the
 -- Inventory is first opened.
 task.spawn(function()

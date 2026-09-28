@@ -466,6 +466,9 @@ function GlobalTeamBar:Init(gui, db, rfST, rc)
 end
 function GlobalTeamBar:LoadTeam(teamData)
 	if teamData then
+		-- The server's team is authoritative at this moment: drop any pending
+		-- debounced save of an older client copy so it can't overwrite it.
+		if saveDebounce then task.cancel(saveDebounce); saveDebounce=nil end
 		loaded=true
 		for i=1,5 do local v=teamData[i]; team[i]=(type(v)=="number" and v>0) and v or false end
 	end
