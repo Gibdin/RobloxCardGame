@@ -150,7 +150,13 @@ FlashSequence:Init(screenGui, RarityConfig, CardDatabase, VFXConfig, SoundManage
 CardReveal:Init(screenGui, RarityConfig, VFXConfig, SoundManager)
 GlobalTeamBar:Init(screenGui, CardDatabase, rfSetTeam, RoleConfig)
 InventoryUI:Init(screenGui, CardDatabase, RarityConfig, RoleConfig, rfGetInventory, GlobalTeamBar)
-TeamBuilderUI:Init(screenGui, CardDatabase, RarityConfig, RoleConfig, rfGetInventory, rfGetTeam, rfSetTeam)
+TeamBuilderUI:Init(screenGui, CardDatabase, RarityConfig, RoleConfig, rfGetInventory, rfGetTeam, rfSetTeam, GlobalTeamBar)
+-- Show the saved team in the team bar right away, not only after the
+-- Inventory is first opened.
+task.spawn(function()
+	local ok, teamData = pcall(function() return rfGetTeam:InvokeServer() end)
+	if ok and teamData and not GlobalTeamBar:IsLoaded() then GlobalTeamBar:LoadTeam(teamData) end
+end)
 GlobalTeamBar:SetOnSynergyHover(function(synName)
 	if synName then InventoryUI:HighlightSynergy(synName)
 	else InventoryUI:ClearHighlight() end

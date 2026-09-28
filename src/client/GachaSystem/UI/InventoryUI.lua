@@ -683,7 +683,8 @@ local function loadData()
 		local card=cardDb:GetById(id); if card and not seen[id] then add(card) end
 	end
 	capLbl.Text=ownedCount.." / "..MAX_CAP
-	globalTeamBar:LoadTeam(data.team)
+	-- Seed the shared team once; later the client copy is newer than the server (saves are debounced).
+	if not globalTeamBar:IsLoaded() then globalTeamBar:LoadTeam(data.team) end
 	applyFilter()
 end
 

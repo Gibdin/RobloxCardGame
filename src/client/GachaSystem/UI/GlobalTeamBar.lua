@@ -34,6 +34,11 @@ local team = {false,false,false,false,false}
 local teamSlotFrames = {}
 local saveDebounce = nil
 local onChangedCb = nil
+-- Extra change listeners (TeamBuilderUI). The team bar owns the client's only
+-- copy of the team; every screen reads and edits it through this module so
+-- two copies can never drift apart or overwrite each other's saves.
+local changeListeners = {}
+local loaded = false
 local onSlotClickedCb = nil
 local onSynergyHoverCb = nil
 local onSynergyClickCb = nil
@@ -270,6 +275,7 @@ end
 local function notifyChanged()
 	updateSynergies()
 	if onChangedCb then onChangedCb() end
+	for _, cb in ipairs(changeListeners) do task.spawn(cb) end
 end
 
 local function updateBar()
@@ -460,11 +466,14 @@ function GlobalTeamBar:Init(gui, db, rfST, rc)
 end
 function GlobalTeamBar:LoadTeam(teamData)
 	if teamData then
+		loaded=true
 		for i=1,5 do local v=teamData[i]; team[i]=(type(v)=="number" and v>0) and v or false end
 	end
 	updateBar()
-	updateSynergies()
+	notifyChanged()
 end
+function GlobalTeamBar:IsLoaded() return loaded end
+function GlobalTeamBar:AddChangedListener(cb) table.insert(changeListeners, cb) end
 function GlobalTeamBar:GetTeam() return team end
 function GlobalTeamBar:IsInTeam(cardId) return isInTeamLocal(cardId) end
 function GlobalTeamBar:EquipToSlot(slotIdx, card)

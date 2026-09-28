@@ -70,7 +70,9 @@ local rfGetInventory, rfGetTeam, rfSetTeam
 
 local allCards     = {}
 -- false = empty slot; avoids nil holes in the array across RemoteFunctions
+-- Shared with GlobalTeamBar (same table): see TeamBuilderUI:Init.
 local team         = { false, false, false, false, false }
+local globalTeamBar
 local selectedCard = nil
 
 -- ── UI refs ───────────────────────────────────────────────────────────────────
@@ -383,22 +385,11 @@ local function selectCard(card)
 end
 
 -- ── Equip / remove ────────────────────────────────────────────────────────────
-local function scheduleSave()
-	if saveDebounce then task.cancel(saveDebounce) end
-	saveDebounce = task.delay(1.5, function()
-		pcall(function() rfSetTeam:InvokeServer(team) end)
-	end)
-end
-
+-- Edits go through GlobalTeamBar, which saves (debounced) and notifies every
+-- screen; the change listener registered in Init redraws this panel.
 local function equipToSlot(slotIdx)
 	if not selectedCard then return end
-	local cardId = selectedCard.id
-	for i = 1, 5 do if team[i] == cardId then team[i] = false end end
-	team[slotIdx] = cardId
-	refreshTeamSlots()
-	refreshSynergies()
-	refreshTileIndicators()
-	scheduleSave()
+	globalTeamBar:EquipToSlot(slotIdx, selectedCard)
 	local sf = slotFrames[slotIdx]
 	if sf then
 		sf.BackgroundColor3 = Color3.fromRGB(28, 48, 30)
@@ -408,11 +399,7 @@ local function equipToSlot(slotIdx)
 end
 
 local function removeFromSlot(slotIdx)
-	team[slotIdx] = false
-	refreshTeamSlots()
-	refreshSynergies()
-	refreshTileIndicators()
-	scheduleSave()
+	globalTeamBar:RemoveFromSlot(slotIdx)
 end
 
 -- ── Build: team slot frame ────────────────────────────────────────────────────
@@ -801,11 +788,10 @@ local function loadData()
 		rebuildInventoryGrid()
 	end
 
-	if ok2 and teamData then
-		for i = 1, 5 do
-			local v = teamData[i]
-			team[i] = (type(v) == "number" and v > 0) and v or false
-		end
+	-- The shared team is only seeded from the server once; after that the
+	-- client copy is newer (edits save on a delay), so never overwrite it.
+	if ok2 and teamData and not globalTeamBar:IsLoaded() then
+		globalTeamBar:LoadTeam(teamData)
 	end
 
 	refreshTeamSlots()
@@ -814,7 +800,16 @@ local function loadData()
 end
 
 -- ── Public API ────────────────────────────────────────────────────────────────
-function TeamBuilderUI:Init(gui, db, rc, roleC, rfInv, rfGT, rfST)
+function TeamBuilderUI:Init(gui, db, rc, roleC, rfInv, rfGT, rfST, gtb)
+	globalTeamBar  = gtb
+	team           = gtb:GetTeam()  -- same table: reads always see the latest team
+	gtb:AddChangedListener(function()
+		if panel and panel.Visible then
+			refreshTeamSlots()
+			refreshSynergies()
+			refreshTileIndicators()
+		end
+	end)
 	cardDb         = db
 	rarityConf     = rc
 	roleConf       = roleC
