@@ -1,6 +1,7 @@
 local TweenService = game:GetService("TweenService")
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
+local CombatConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("GachaSystem"):WaitForChild("CombatConfig"))
 local InventoryUI  = {}
 
 local PW,PH=860,600; local TOPBAR_H=48; local BODY_Y=TOPBAR_H+1; local BODY_H=PH-BODY_Y-1
@@ -14,7 +15,17 @@ local ROLE_COLOR={Tank=Color3.fromRGB(60,130,220),DPS=Color3.fromRGB(220,60,60),
 local ROLE_SHORT={Tank="TANK",DPS="DPS",Support="SUP"}
 local PASSIVE_COLOR={Drain=Color3.fromRGB(60,130,220),Rage=Color3.fromRGB(220,60,60),Executioner=Color3.fromRGB(220,130,40),Medic=Color3.fromRGB(60,200,120),Battery=Color3.fromRGB(60,180,200),Trait=Color3.fromRGB(230,180,60)}
 local PASSIVE_DESC_COLOR={Drain=Color3.fromRGB(120,170,255),Rage=Color3.fromRGB(255,130,130),Executioner=Color3.fromRGB(255,190,110),Medic=Color3.fromRGB(120,240,160),Battery=Color3.fromRGB(100,230,245),Trait=Color3.fromRGB(250,215,130)}
-local ACTIVE_DESC_COLOR=Color3.fromRGB(195,160,255)
+local ACTIVE_DESC_COLOR=Color3.fromRGB(205,180,255)
+-- Plain-language rules for the standard role passives, built from the live
+-- combat numbers so the text can never drift from what the engine does.
+local PSV=CombatConfig.Passives
+local PASSIVE_RULE={
+	Drain=("Heals %d%% of all damage this card takes."):format(PSV.Drain.healPctOfDamageTaken*100),
+	Rage=("+%d%% ATK for every attack it lands, up to %d stacks."):format(PSV.Rage.atkPerStack*100,PSV.Rage.maxStacks),
+	Executioner=("+%d%% damage to targets below %d%% HP."):format(PSV.Executioner.bonusDamage*100,PSV.Executioner.hpThreshold*100),
+	Medic=("At the end of every round, heals the lowest-HP ally for %d%% of their Max HP."):format(PSV.Medic.healPctLowestAlly*100),
+	Battery=("Whenever any unit dies, every ally gains %d mana."):format(PSV.Battery.manaRestore),
+}
 local RARITY_CYCLE={"All","Common","Uncommon","Rare","Epic","Legendary","Mythic","God","Secret"}
 local SORT_CYCLE={"Rarity","Name","Awakening"}
 local ROLE_CYCLE={"All","Tank","DPS","Support"}
@@ -25,6 +36,8 @@ local filterRarity,filterIdx="All",1
 local filterRole,roleIdx="All",1
 local sortMode,sortIdx="Rarity",1
 local searchText=""
+local showAll=false      -- false: owned cards only; true: every obtainable card
+local ownedIds={}
 local selectedCard=nil
 local highlightedSyn=nil
 local synRefScroll=nil
@@ -34,13 +47,14 @@ local dragCard,dragGhost,dragStartPos=nil,nil,nil
 local mouse
 
 local panel,gridScroll,detailArea
-local capLbl,filterBtn,sortBtn,roleFilterBtn,searchBox
+local capLbl,filterBtn,sortBtn,roleFilterBtn,searchBox,ownBtn
 local detailEmpty,detailContent,detailScroll
 local dArtBg,dName,dRarity,dRoleBadge
 local dATK,dHP
 local dMPPips={}
 local dPassiveChip,dCardPassiveName,dCardPassiveDesc
-local dActiveName,dActiveDesc
+local dActiveName,dActiveDesc,dActiveCost
+local dRoleLine,dRoleDesc,dPassiveHdr,dPassiveRule
 local dSynContainer
 local equBtn
 local synergyTooltip,synergyTooltipInner
@@ -111,10 +125,11 @@ local function applyFilter()
 	filteredCards={}
 	local ls=searchText:lower()
 	for _,c in ipairs(allCards) do
-		local nameOk=ls=="" or c.name:lower():find(ls,1,true)
+		local nameOk=ls=="" or c.name:lower():find(ls,1,true) or (c.subrole and c.subrole:lower():find(ls,1,true))
+		local ownOk=showAll or c.owned
 		local rarOk=filterRarity=="All" or c.rarity==filterRarity
 		local roleOk=filterRole=="All" or c.role==filterRole
-		if nameOk and rarOk and roleOk then table.insert(filteredCards,c) end
+		if nameOk and rarOk and roleOk and ownOk then table.insert(filteredCards,c) end
 	end
 	if sortMode=="Name" then table.sort(filteredCards,function(a,b) return a.name<b.name end)
 	elseif sortMode=="Awakening" then table.sort(filteredCards,function(a,b) if a.awakening~=b.awakening then return a.awakening>b.awakening end;return a.name<b.name end)
@@ -257,21 +272,49 @@ showCard=function(c)
 		end
 	end
 
+	-- Role + subrole in words, plus where it sits in the counter cycle.
+	local roleText=full.role or "?"
+	if full.subrole then roleText=roleText.." · "..full.subrole end
+	dRoleLine.Text=roleText; dRoleLine.TextColor3=rc
+	local roleParts={}
+	local sub=full.subrole and roleConf.Subroles and roleConf.Subroles[full.subrole]
+	if sub then table.insert(roleParts,sub.desc) end
+	local strong,weak
+	for _,ctr in ipairs(roleConf.Counters or {}) do
+		if ctr.from==full.role then strong=ctr.to end
+		if ctr.to==full.role then weak=ctr.from end
+	end
+	if strong then table.insert(roleParts,"Strong vs "..strong..".") end
+	if weak then table.insert(roleParts,"Weak vs "..weak..".") end
+	dRoleDesc.Text=table.concat(roleParts," ")
+
+	local isTrait=full.passive=="Trait"
 	local ptColor=PASSIVE_COLOR[full.passive] or Color3.fromRGB(100,100,180)
 	local pdColor=PASSIVE_DESC_COLOR[full.passive] or Color3.fromRGB(180,180,210)
+	dPassiveHdr.Text=isTrait and "UNIQUE TRAIT" or "PASSIVE"
 	if dPassiveChip then dPassiveChip.BackgroundColor3=ptColor; local lbl=dPassiveChip:FindFirstChild("Lbl"); if lbl then lbl.Text=(full.passive or "—"):upper() end end
 	if dCardPassiveName then dCardPassiveName.Text=full.passive_name or "—" end
 	if dCardPassiveDesc then dCardPassiveDesc.Text=full.passive_desc or ""; dCardPassiveDesc.TextColor3=pdColor end
+	local rule=not isTrait and PASSIVE_RULE[full.passive]
+	dPassiveRule.Text=rule and (full.passive..": "..rule) or ""
+	dPassiveRule.Visible=rule~=nil and rule~=false
 
 	local act=full.active or {}
 	if dActiveName then dActiveName.Text=act.name or "—" end
 	if dActiveDesc then dActiveDesc.Text=act.desc or ""; dActiveDesc.TextColor3=ACTIVE_DESC_COLOR end
+	if dActiveCost then dActiveCost.Text="COSTS "..tostring(full.mp or "?").." MANA" end
 
 	local sn=globalTeamBar:IsInTeam(c.id)
-	equBtn.Text=sn and ("Remove (S"..sn..")") or "Equip"
-	equBtn.BackgroundColor3=sn and Color3.fromRGB(72,18,18) or Color3.fromRGB(28,68,36)
 	for _,ch in ipairs(equBtn:GetChildren()) do if ch:IsA("UIStroke") then ch:Destroy() end end
-	S(equBtn,sn and Color3.fromRGB(120,30,30) or Color3.fromRGB(40,100,52),1)
+	if not c.owned then
+		equBtn.Text="Not owned: pull it from packs"
+		equBtn.BackgroundColor3=Color3.fromRGB(34,32,46)
+		S(equBtn,Color3.fromRGB(50,48,66),1)
+	else
+		equBtn.Text=sn and ("Remove (S"..sn..")") or "Equip"
+		equBtn.BackgroundColor3=sn and Color3.fromRGB(72,18,18) or Color3.fromRGB(28,68,36)
+		S(equBtn,sn and Color3.fromRGB(120,30,30) or Color3.fromRGB(40,100,52),1)
+	end
 
 	if dSynContainer then
 		for _,ch in ipairs(dSynContainer:GetChildren()) do if ch:IsA("Frame") or ch:IsA("TextLabel") then ch:Destroy() end end
@@ -351,14 +394,18 @@ local function buildTile(card,order)
 	local rbLbl=Instance.new("TextLabel");rbLbl.Size=UDim2.new(1,0,1,0);rbLbl.BackgroundTransparency=1;rbLbl.Text=ROLE_SHORT[card.role] or "?";rbLbl.TextColor3=Color3.new(1,1,1);rbLbl.TextScaled=false;rbLbl.TextSize=7;rbLbl.Font=Enum.Font.GothamBold;rbLbl.ZIndex=26;rbLbl.Parent=rBadge
 	local rdot=Instance.new("Frame");rdot.Size=UDim2.new(0,7,0,7);rdot.Position=UDim2.new(1,-10,0,5);rdot.BackgroundColor3=bc;rdot.BorderSizePixel=0;rdot.ZIndex=24;rdot.Parent=t;local rdc=Instance.new("UICorner");rdc.CornerRadius=UDim.new(1,0);rdc.Parent=rdot
 	local roleStrip=Instance.new("Frame");roleStrip.Size=UDim2.new(1,0,0,4);roleStrip.Position=UDim2.new(0,0,1,-4);roleStrip.BackgroundColor3=rc;roleStrip.BorderSizePixel=0;roleStrip.ZIndex=25;roleStrip.Parent=t
-	local nameBar=Instance.new("Frame");nameBar.Size=UDim2.new(1,0,0,22);nameBar.Position=UDim2.new(0,0,1,-26);nameBar.BackgroundColor3=Color3.fromRGB(0,0,0);nameBar.BackgroundTransparency=0.35;nameBar.BorderSizePixel=0;nameBar.ZIndex=23;nameBar.Parent=t;C(nameBar,8)
-	local nl=Instance.new("TextLabel");nl.Size=UDim2.new(1,-4,1,0);nl.Position=UDim2.new(0,2,0,0);nl.BackgroundTransparency=1;nl.Text=card.name;nl.TextColor3=Color3.fromRGB(225,225,242);nl.TextScaled=false;nl.TextSize=9;nl.TextTruncate=Enum.TextTruncate.AtEnd;nl.Font=Enum.Font.GothamBold;nl.TextXAlignment=Enum.TextXAlignment.Center;nl.ZIndex=24;nl.Parent=nameBar
+	local nameBar=Instance.new("Frame");nameBar.Size=UDim2.new(1,0,0,28);nameBar.Position=UDim2.new(0,0,1,-32);nameBar.BackgroundColor3=Color3.fromRGB(0,0,0);nameBar.BackgroundTransparency=0.35;nameBar.BorderSizePixel=0;nameBar.ZIndex=23;nameBar.Parent=t;C(nameBar,8)
+	local nl=Instance.new("TextLabel");nl.Size=UDim2.new(1,-4,1,0);nl.Position=UDim2.new(0,2,0,0);nl.BackgroundTransparency=1;nl.Text=card.name;nl.TextColor3=Color3.fromRGB(225,225,242);nl.TextScaled=false;nl.TextSize=9;nl.TextWrapped=true;nl.Font=Enum.Font.GothamBold;nl.TextXAlignment=Enum.TextXAlignment.Center;nl.ZIndex=24;nl.Parent=nameBar
 	local ind=Instance.new("Frame");ind.Name="TmInd";ind.Size=UDim2.new(1,0,1,0);ind.BackgroundColor3=Color3.fromRGB(14,46,14);ind.BackgroundTransparency=0.5;ind.BorderSizePixel=0;ind.ZIndex=24;ind.Visible=false;ind.Parent=t;C(ind,8)
 	local indLbl=Instance.new("TextLabel");indLbl.Name="Lbl";indLbl.Size=UDim2.new(1,0,1,-22);indLbl.BackgroundTransparency=1;indLbl.Text="S1";indLbl.TextColor3=Color3.fromRGB(90,255,140);indLbl.TextScaled=false;indLbl.TextSize=13;indLbl.Font=Enum.Font.GothamBold;indLbl.TextXAlignment=Enum.TextXAlignment.Center;indLbl.ZIndex=25;indLbl.Parent=ind
 	local chk=Instance.new("TextLabel");chk.Size=UDim2.new(0,16,0,16);chk.Position=UDim2.new(0,4,0,4);chk.BackgroundTransparency=1;chk.Text="\226\156\147";chk.TextColor3=Color3.fromRGB(90,255,140);chk.TextScaled=true;chk.Font=Enum.Font.GothamBold;chk.ZIndex=25;chk.Parent=ind
 	local sn=globalTeamBar:IsInTeam(card.id);ind.Visible=sn~=nil; if sn then indLbl.Text="S"..sn end
+	if not card.owned then
+		local dim=Instance.new("Frame");dim.Size=UDim2.new(1,0,1,0);dim.BackgroundColor3=Color3.new(0,0,0);dim.BackgroundTransparency=0.45;dim.BorderSizePixel=0;dim.ZIndex=26;dim.Parent=t;C(dim,8)
+		local nol=Instance.new("TextLabel");nol.Size=UDim2.new(1,0,0,14);nol.Position=UDim2.new(0,0,0.32,0);nol.BackgroundTransparency=1;nol.Text="NOT OWNED";nol.TextColor3=Color3.fromRGB(170,170,190);nol.TextScaled=false;nol.TextSize=8;nol.Font=Enum.Font.GothamBold;nol.ZIndex=27;nol.Parent=t
+	end
 	t.MouseButton1Click:Connect(function() if isDragging then return end; if selStroke then selStroke.Thickness=2;selStroke.Color=selOrigCol end; selStroke=ts;selOrigCol=bc;ts.Thickness=3;ts.Color=Color3.new(1,1,1);showCard(card) end)
-	t.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 then dragCard=card;dragStartPos=Vector2.new(mouse.X,mouse.Y) end end)
+	t.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 and card.owned then dragCard=card;dragStartPos=Vector2.new(mouse.X,mouse.Y) end end)
 	t.MouseEnter:Connect(function() TweenService:Create(t,TweenInfo.new(0.1),{BackgroundColor3=Color3.new(math.min(ab.R+0.05,1),math.min(ab.G+0.05,1),math.min(ab.B+0.05,1))}):Play() end)
 	t.MouseLeave:Connect(function() TweenService:Create(t,TweenInfo.new(0.1),{BackgroundColor3=ab}):Play() end)
 end
@@ -367,7 +414,7 @@ rebuildGrid=function()
 	for _,ch in ipairs(gridScroll:GetChildren()) do if ch:IsA("TextButton") or ch.Name=="EmptyMsg" then ch:Destroy() end end
 	selStroke=nil
 	if #filteredCards==0 then
-		local msg=Instance.new("TextLabel");msg.Name="EmptyMsg";msg.Size=UDim2.new(1,-16,0,40);msg.BackgroundTransparency=1;msg.Text=#allCards==0 and "Open packs to start your collection!" or "No cards match your filter.";msg.TextColor3=Color3.fromRGB(65,65,95);msg.TextScaled=true;msg.Font=Enum.Font.Gotham;msg.ZIndex=22;msg.Parent=gridScroll;showEmpty();return
+		local msg=Instance.new("TextLabel");msg.Name="EmptyMsg";msg.Size=UDim2.new(1,-16,0,40);msg.BackgroundTransparency=1;msg.Text=(not showAll and next(ownedIds)==nil) and "Open packs to start your collection! (Tip: Show: All cards lists every card.)" or "No cards match your filter.";msg.TextColor3=Color3.fromRGB(65,65,95);msg.TextScaled=true;msg.Font=Enum.Font.Gotham;msg.ZIndex=22;msg.Parent=gridScroll;showEmpty();return
 	end
 	for i,card in ipairs(filteredCards) do buildTile(card,i) end
 end
@@ -390,6 +437,9 @@ local function buildTopBar()
 	sortBtn=B(tb,"Sort: Rarity",UDim2.new(0,72,0,26),UDim2.new(0,FBASE+148,0,11),Color3.fromRGB(18,14,36));S(sortBtn,Color3.fromRGB(36,28,58),1);sortBtn.Font=Enum.Font.Gotham;sortBtn.TextSize=10;sortBtn.TextScaled=false;sortBtn.MouseButton1Click:Connect(cycleSort)
 	hoverBtn(sortBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
 	capLbl=L(tb,"0/"..MAX_CAP,UDim2.new(0,56,0,26),UDim2.new(0,FBASE+224,0,11),Color3.fromRGB(70,65,105),Enum.Font.Gotham,Enum.TextXAlignment.Left,22);capLbl.TextScaled=false;capLbl.TextSize=11
+	ownBtn=B(tb,"Show: Owned",UDim2.new(0,96,0,26),UDim2.new(0,FBASE+284,0,11),Color3.fromRGB(18,14,36));ownBtn.Name="OwnedToggle";S(ownBtn,Color3.fromRGB(36,28,58),1);ownBtn.Font=Enum.Font.Gotham;ownBtn.TextSize=10;ownBtn.TextScaled=false
+	hoverBtn(ownBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
+	ownBtn.MouseButton1Click:Connect(function() showAll=not showAll;ownBtn.Text=showAll and "Show: All cards" or "Show: Owned";applyFilter() end)
 	local close=B(tb,"\195\151",UDim2.new(0,28,0,28),UDim2.new(1,-38,0,10),Color3.fromRGB(55,18,18),23);close.TextSize=13;close.TextScaled=false;hoverBtn(close,Color3.fromRGB(55,18,18),Color3.fromRGB(88,26,26));close.MouseButton1Click:Connect(function() InventoryUI:Hide() end)
 	F(panel,UDim2.new(1,0,0,1),UDim2.new(0,0,0,TOPBAR_H),Color3.fromRGB(28,18,52),21)
 end
@@ -412,9 +462,9 @@ local function buildDetailPane(parent)
 
 	local P=12; local IW=DET_W-P*2; local y=P
 
-	-- Art (180px tall)
-	dArtBg=Instance.new("Frame");dArtBg.Name="Art";dArtBg.Size=UDim2.new(0,IW,0,180);dArtBg.Position=UDim2.new(0,P,0,y);dArtBg.BackgroundColor3=Color3.fromRGB(20,18,30);dArtBg.BorderSizePixel=0;dArtBg.ZIndex=23;dArtBg.Parent=detailScroll;C(dArtBg,10);S(dArtBg,Color3.fromRGB(40,36,64),2)
-	y=y+188
+	-- Art (110px tall until card art ships)
+	dArtBg=Instance.new("Frame");dArtBg.Name="Art";dArtBg.Size=UDim2.new(0,IW,0,110);dArtBg.Position=UDim2.new(0,P,0,y);dArtBg.BackgroundColor3=Color3.fromRGB(20,18,30);dArtBg.BorderSizePixel=0;dArtBg.ZIndex=23;dArtBg.Parent=detailScroll;C(dArtBg,10);S(dArtBg,Color3.fromRGB(40,36,64),2)
+	y=y+118
 
 	-- Role badge + Name + Rarity
 	dRoleBadge=Instance.new("Frame");dRoleBadge.Size=UDim2.new(0,46,0,20);dRoleBadge.Position=UDim2.new(0,P,0,y);dRoleBadge.BackgroundColor3=Color3.fromRGB(60,130,220);dRoleBadge.BorderSizePixel=0;dRoleBadge.ZIndex=23;dRoleBadge.Parent=detailScroll;C(dRoleBadge,4)
@@ -427,7 +477,7 @@ local function buildDetailPane(parent)
 
 	-- Stats (ATK, HP colored large; MP pips)
 	local SW=math.floor(IW/3)
-	local statDefs={{label="ATK",bg=Color3.fromRGB(32,12,10),valCol=Color3.fromRGB(255,130,80)},{label="HP",bg=Color3.fromRGB(10,28,14),valCol=Color3.fromRGB(90,230,120)},{label="MP",bg=Color3.fromRGB(18,10,32),valCol=nil}}
+	local statDefs={{label="ATK",bg=Color3.fromRGB(32,12,10),valCol=Color3.fromRGB(255,130,80)},{label="HP",bg=Color3.fromRGB(10,28,14),valCol=Color3.fromRGB(90,230,120)},{label="MANA COST",bg=Color3.fromRGB(18,10,32),valCol=nil}}
 	for i,sd in ipairs(statDefs) do
 		local cx=P+(i-1)*SW
 		local box=Instance.new("Frame");box.Size=UDim2.new(0,SW-4,0,46);box.Position=UDim2.new(0,cx,0,y);box.BackgroundColor3=sd.bg;box.BorderSizePixel=0;box.ZIndex=23;box.Parent=detailScroll;C(box,6)
@@ -451,37 +501,56 @@ local function buildDetailPane(parent)
 	-- Equip
 	equBtn=B(detailScroll,"Equip",UDim2.new(0,IW,0,28),UDim2.new(0,P,0,y),Color3.fromRGB(28,68,36),23);equBtn.TextScaled=false;equBtn.TextSize=12;equBtn.Font=Enum.Font.GothamBold;S(equBtn,Color3.fromRGB(40,100,52),1);hoverBtn(equBtn,Color3.fromRGB(28,68,36),Color3.fromRGB(38,88,48))
 	equBtn.MouseButton1Click:Connect(function()
-		if not selectedCard then return end
+		if not selectedCard or not selectedCard.owned then return end
 		local sn=globalTeamBar:IsInTeam(selectedCard.id)
 		if sn then globalTeamBar:RemoveFromSlot(sn) else local target=1;local t=globalTeamBar:GetTeam();for i=1,5 do if not t[i] or t[i]==false then target=i;break end end;globalTeamBar:EquipToSlot(target,selectedCard) end
 		showCard(selectedCard)
 	end)
 	y=y+36
 
-	-- PASSIVE
-	local sd1=Instance.new("Frame");sd1.Size=UDim2.new(0,IW,0,1);sd1.Position=UDim2.new(0,P,0,y);sd1.BackgroundColor3=Color3.fromRGB(30,26,50);sd1.BorderSizePixel=0;sd1.ZIndex=22;sd1.Parent=detailScroll; y=y+9
-	local pasHdr=Instance.new("TextLabel");pasHdr.Size=UDim2.new(0,50,0,11);pasHdr.Position=UDim2.new(0,P,0,y);pasHdr.BackgroundTransparency=1;pasHdr.Text="PASSIVE";pasHdr.TextColor3=Color3.fromRGB(80,80,110);pasHdr.TextScaled=false;pasHdr.TextSize=9;pasHdr.Font=Enum.Font.GothamBold;pasHdr.ZIndex=23;pasHdr.Parent=detailScroll
-	dPassiveChip=Instance.new("Frame");dPassiveChip.Size=UDim2.new(0,64,0,14);dPassiveChip.Position=UDim2.new(0,P+54,0,y-1);dPassiveChip.BackgroundColor3=Color3.fromRGB(100,100,180);dPassiveChip.BorderSizePixel=0;dPassiveChip.ZIndex=23;dPassiveChip.Parent=detailScroll;C(dPassiveChip,3)
-	local chipLbl=Instance.new("TextLabel");chipLbl.Name="Lbl";chipLbl.Size=UDim2.new(1,0,1,0);chipLbl.BackgroundTransparency=1;chipLbl.Text="—";chipLbl.TextColor3=Color3.new(1,1,1);chipLbl.TextScaled=false;chipLbl.TextSize=8;chipLbl.Font=Enum.Font.GothamBold;chipLbl.ZIndex=24;chipLbl.Parent=dPassiveChip
-	dCardPassiveName=Instance.new("TextLabel");dCardPassiveName.Size=UDim2.new(0,IW-54-68,0,14);dCardPassiveName.Position=UDim2.new(0,P+122,0,y);dCardPassiveName.BackgroundTransparency=1;dCardPassiveName.Text="";dCardPassiveName.TextColor3=Color3.fromRGB(220,200,100);dCardPassiveName.TextScaled=false;dCardPassiveName.TextSize=10;dCardPassiveName.Font=Enum.Font.GothamBold;dCardPassiveName.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveName.ZIndex=23;dCardPassiveName.Parent=detailScroll
-	y=y+18
-	dCardPassiveDesc=Instance.new("TextLabel");dCardPassiveDesc.Size=UDim2.new(0,IW,0,34);dCardPassiveDesc.Position=UDim2.new(0,P,0,y);dCardPassiveDesc.BackgroundTransparency=1;dCardPassiveDesc.Text="";dCardPassiveDesc.TextColor3=Color3.fromRGB(155,160,185);dCardPassiveDesc.TextScaled=false;dCardPassiveDesc.TextSize=12;dCardPassiveDesc.Font=Enum.Font.Gotham;dCardPassiveDesc.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveDesc.TextYAlignment=Enum.TextYAlignment.Top;dCardPassiveDesc.TextWrapped=true;dCardPassiveDesc.ZIndex=23;dCardPassiveDesc.Parent=detailScroll
-	y=y+40
+	-- Sections below grow with their text (a UIListLayout stack), so long
+	-- ability descriptions never overlap the next section.
+	local stack=Instance.new("Frame");stack.Name="Sections";stack.Size=UDim2.new(0,IW,0,0);stack.Position=UDim2.new(0,P,0,y);stack.AutomaticSize=Enum.AutomaticSize.Y;stack.BackgroundTransparency=1;stack.BorderSizePixel=0;stack.ZIndex=22;stack.Parent=detailScroll
+	local stackList=Instance.new("UIListLayout");stackList.Padding=UDim.new(0,6);stackList.SortOrder=Enum.SortOrder.LayoutOrder;stackList.Parent=stack
+	local stackPad=Instance.new("UIPadding");stackPad.PaddingBottom=UDim.new(0,14);stackPad.Parent=stack
+	local order=0
+	local function nextOrder() order=order+1; return order end
+	local function divider() local d=Instance.new("Frame");d.Size=UDim2.new(1,0,0,1);d.BackgroundColor3=Color3.fromRGB(30,26,50);d.BorderSizePixel=0;d.LayoutOrder=nextOrder();d.ZIndex=22;d.Parent=stack end
+	local function header(text)
+		local h=Instance.new("TextLabel");h.Size=UDim2.new(1,0,0,14);h.BackgroundTransparency=1;h.Text=text;h.TextColor3=Color3.fromRGB(110,105,145);h.TextScaled=false;h.TextSize=10;h.Font=Enum.Font.GothamBold;h.TextXAlignment=Enum.TextXAlignment.Left;h.LayoutOrder=nextOrder();h.ZIndex=23;h.Parent=stack
+		return h
+	end
+	local function line(size,font,color)
+		local l=Instance.new("TextLabel");l.Size=UDim2.new(1,0,0,0);l.AutomaticSize=Enum.AutomaticSize.Y;l.BackgroundTransparency=1;l.Text="";l.TextColor3=color;l.TextScaled=false;l.TextSize=size;l.Font=font;l.TextXAlignment=Enum.TextXAlignment.Left;l.TextYAlignment=Enum.TextYAlignment.Top;l.TextWrapped=true;l.LayoutOrder=nextOrder();l.ZIndex=23;l.Parent=stack
+		return l
+	end
 
-	-- ACTIVE
-	local sd2=Instance.new("Frame");sd2.Size=UDim2.new(0,IW,0,1);sd2.Position=UDim2.new(0,P,0,y);sd2.BackgroundColor3=Color3.fromRGB(30,26,50);sd2.BorderSizePixel=0;sd2.ZIndex=22;sd2.Parent=detailScroll; y=y+9
-	local actHdr=Instance.new("TextLabel");actHdr.Size=UDim2.new(0,40,0,11);actHdr.Position=UDim2.new(0,P,0,y);actHdr.BackgroundTransparency=1;actHdr.Text="ACTIVE";actHdr.TextColor3=Color3.fromRGB(80,80,110);actHdr.TextScaled=false;actHdr.TextSize=9;actHdr.Font=Enum.Font.GothamBold;actHdr.ZIndex=23;actHdr.Parent=detailScroll
-	local actBadge=Instance.new("Frame");actBadge.Size=UDim2.new(0,36,0,14);actBadge.Position=UDim2.new(0,P+44,0,y-1);actBadge.BackgroundColor3=Color3.fromRGB(60,40,100);actBadge.BorderSizePixel=0;actBadge.ZIndex=23;actBadge.Parent=detailScroll;C(actBadge,3)
-	local actBadgeLbl=Instance.new("TextLabel");actBadgeLbl.Size=UDim2.new(1,0,1,0);actBadgeLbl.BackgroundTransparency=1;actBadgeLbl.Text="SKILL";actBadgeLbl.TextColor3=Color3.fromRGB(180,140,255);actBadgeLbl.TextScaled=false;actBadgeLbl.TextSize=8;actBadgeLbl.Font=Enum.Font.GothamBold;actBadgeLbl.ZIndex=24;actBadgeLbl.Parent=actBadge
-	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(0,IW-44-40,0,14);dActiveName.Position=UDim2.new(0,P+84,0,y);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(190,150,255);dActiveName.TextScaled=false;dActiveName.TextSize=10;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.ZIndex=23;dActiveName.Parent=detailScroll
-	y=y+18
-	dActiveDesc=Instance.new("TextLabel");dActiveDesc.Size=UDim2.new(0,IW,0,34);dActiveDesc.Position=UDim2.new(0,P,0,y);dActiveDesc.BackgroundTransparency=1;dActiveDesc.Text="";dActiveDesc.TextColor3=ACTIVE_DESC_COLOR;dActiveDesc.TextScaled=false;dActiveDesc.TextSize=12;dActiveDesc.Font=Enum.Font.Gotham;dActiveDesc.TextXAlignment=Enum.TextXAlignment.Left;dActiveDesc.TextYAlignment=Enum.TextYAlignment.Top;dActiveDesc.TextWrapped=true;dActiveDesc.ZIndex=23;dActiveDesc.Parent=detailScroll
-	y=y+40
+	-- ROLE
+	divider(); header("ROLE")
+	dRoleLine=line(14,Enum.Font.GothamBold,Color3.fromRGB(230,230,245))
+	dRoleDesc=line(12,Enum.Font.Gotham,Color3.fromRGB(160,160,190))
+
+	-- PASSIVE / TRAIT
+	divider(); dPassiveHdr=header("PASSIVE")
+	local pRow=Instance.new("Frame");pRow.Size=UDim2.new(1,0,0,18);pRow.BackgroundTransparency=1;pRow.BorderSizePixel=0;pRow.LayoutOrder=nextOrder();pRow.ZIndex=23;pRow.Parent=stack
+	dPassiveChip=Instance.new("Frame");dPassiveChip.Size=UDim2.new(0,78,0,16);dPassiveChip.Position=UDim2.new(0,0,0,1);dPassiveChip.BackgroundColor3=Color3.fromRGB(100,100,180);dPassiveChip.BorderSizePixel=0;dPassiveChip.ZIndex=23;dPassiveChip.Parent=pRow;C(dPassiveChip,3)
+	local chipLbl=Instance.new("TextLabel");chipLbl.Name="Lbl";chipLbl.Size=UDim2.new(1,0,1,0);chipLbl.BackgroundTransparency=1;chipLbl.Text="—";chipLbl.TextColor3=Color3.new(1,1,1);chipLbl.TextScaled=false;chipLbl.TextSize=9;chipLbl.Font=Enum.Font.GothamBold;chipLbl.ZIndex=24;chipLbl.Parent=dPassiveChip
+	dCardPassiveName=Instance.new("TextLabel");dCardPassiveName.Size=UDim2.new(1,-86,1,0);dCardPassiveName.Position=UDim2.new(0,86,0,0);dCardPassiveName.BackgroundTransparency=1;dCardPassiveName.Text="";dCardPassiveName.TextColor3=Color3.fromRGB(230,205,110);dCardPassiveName.TextScaled=false;dCardPassiveName.TextSize=13;dCardPassiveName.Font=Enum.Font.GothamBold;dCardPassiveName.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveName.TextTruncate=Enum.TextTruncate.AtEnd;dCardPassiveName.ZIndex=23;dCardPassiveName.Parent=pRow
+	dCardPassiveDesc=line(13,Enum.Font.Gotham,Color3.fromRGB(175,178,200))
+	dPassiveRule=line(12,Enum.Font.GothamBold,Color3.fromRGB(150,150,185))
+
+	-- ABILITY
+	divider(); header("ABILITY")
+	local aRow=Instance.new("Frame");aRow.Size=UDim2.new(1,0,0,18);aRow.BackgroundTransparency=1;aRow.BorderSizePixel=0;aRow.LayoutOrder=nextOrder();aRow.ZIndex=23;aRow.Parent=stack
+	local costChip=Instance.new("Frame");costChip.Size=UDim2.new(0,78,0,16);costChip.Position=UDim2.new(0,0,0,1);costChip.BackgroundColor3=Color3.fromRGB(70,45,120);costChip.BorderSizePixel=0;costChip.ZIndex=23;costChip.Parent=aRow;C(costChip,3)
+	dActiveCost=Instance.new("TextLabel");dActiveCost.Size=UDim2.new(1,0,1,0);dActiveCost.BackgroundTransparency=1;dActiveCost.Text="";dActiveCost.TextColor3=Color3.fromRGB(215,190,255);dActiveCost.TextScaled=false;dActiveCost.TextSize=9;dActiveCost.Font=Enum.Font.GothamBold;dActiveCost.ZIndex=24;dActiveCost.Parent=costChip
+	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(1,-86,1,0);dActiveName.Position=UDim2.new(0,86,0,0);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(200,165,255);dActiveName.TextScaled=false;dActiveName.TextSize=13;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.TextTruncate=Enum.TextTruncate.AtEnd;dActiveName.ZIndex=23;dActiveName.Parent=aRow
+	dActiveDesc=line(13,Enum.Font.Gotham,ACTIVE_DESC_COLOR)
+	line(11,Enum.Font.Gotham,Color3.fromRGB(110,105,145)).Text="Fires automatically when mana is full. Cards gain +1 mana per hit they land."
 
 	-- SYNERGIES
-	local sd3=Instance.new("Frame");sd3.Size=UDim2.new(0,IW,0,1);sd3.Position=UDim2.new(0,P,0,y);sd3.BackgroundColor3=Color3.fromRGB(30,26,50);sd3.BorderSizePixel=0;sd3.ZIndex=22;sd3.Parent=detailScroll; y=y+9
-	local synHdr=Instance.new("TextLabel");synHdr.Size=UDim2.new(0,IW,0,11);synHdr.Position=UDim2.new(0,P,0,y);synHdr.BackgroundTransparency=1;synHdr.Text="SYNERGIES";synHdr.TextColor3=Color3.fromRGB(80,80,110);synHdr.TextScaled=false;synHdr.TextSize=9;synHdr.Font=Enum.Font.GothamBold;synHdr.TextXAlignment=Enum.TextXAlignment.Left;synHdr.ZIndex=23;synHdr.Parent=detailScroll; y=y+15
-	dSynContainer=Instance.new("Frame");dSynContainer.Name="SynContainer";dSynContainer.Size=UDim2.new(0,IW,0,0);dSynContainer.Position=UDim2.new(0,P,0,y);dSynContainer.BackgroundTransparency=1;dSynContainer.AutomaticSize=Enum.AutomaticSize.Y;dSynContainer.BorderSizePixel=0;dSynContainer.ZIndex=23;dSynContainer.Parent=detailScroll
+	divider(); header("SYNERGIES")
+	dSynContainer=Instance.new("Frame");dSynContainer.Name="SynContainer";dSynContainer.Size=UDim2.new(1,0,0,0);dSynContainer.BackgroundTransparency=1;dSynContainer.AutomaticSize=Enum.AutomaticSize.Y;dSynContainer.BorderSizePixel=0;dSynContainer.LayoutOrder=nextOrder();dSynContainer.ZIndex=23;dSynContainer.Parent=stack
 	local synList=Instance.new("UIListLayout");synList.Parent=dSynContainer;synList.Padding=UDim.new(0,5);synList.SortOrder=Enum.SortOrder.LayoutOrder
 
 	-- Synergy tooltip (parented to panel, floats over grid area)
@@ -578,7 +647,7 @@ local function switchTab(tab)
 	end)
 	TweenService:Create(tabUnitsBtn, TweenInfo.new(0.10), {BackgroundColor3=isUnits and Color3.fromRGB(50,36,90) or Color3.fromRGB(22,16,44)}):Play()
 	TweenService:Create(tabSynBtn,   TweenInfo.new(0.10), {BackgroundColor3=isUnits and Color3.fromRGB(22,16,44) or Color3.fromRGB(50,36,90)}):Play()
-	searchBox.Visible=isUnits;filterBtn.Visible=isUnits;roleFilterBtn.Visible=isUnits;sortBtn.Visible=isUnits;capLbl.Visible=isUnits
+	searchBox.Visible=isUnits;filterBtn.Visible=isUnits;roleFilterBtn.Visible=isUnits;sortBtn.Visible=isUnits;capLbl.Visible=isUnits;ownBtn.Visible=isUnits
 	if not isUnits then hideSynergyTooltip() end
 end
 
@@ -601,14 +670,22 @@ end
 local function loadData()
 	local ok,data=pcall(function() return rfGetInventory:InvokeServer() end)
 	if not ok or not data then return end
-	allCards={}
-	for _,id in ipairs(data.cardIds or {}) do
-		local card=cardDb:GetById(id); if card then
-			local awk=(data.awakening or {})[tostring(id)] or 0
-			table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,subrole=card.subrole,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},awakening=awk})
-		end
+	allCards={}; ownedIds={}
+	local ownedCount=0
+	for _,id in ipairs(data.cardIds or {}) do ownedIds[id]=true end
+	local function add(card)
+		local awk=(data.awakening or {})[tostring(card.id)] or 0
+		table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,subrole=card.subrole,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},awakening=awk,owned=ownedIds[card.id]==true})
 	end
-	capLbl.Text=#allCards.." / "..MAX_CAP
+	-- Every obtainable card (GetAll skips admin-only cards), plus any owned card
+	-- outside that pool so nothing a player holds ever disappears.
+	local seen={}
+	for _,card in ipairs(cardDb:GetAll()) do add(card); seen[card.id]=true end
+	for id in pairs(ownedIds) do
+		ownedCount=ownedCount+1
+		local card=cardDb:GetById(id); if card and not seen[id] then add(card) end
+	end
+	capLbl.Text=ownedCount.." / "..MAX_CAP
 	globalTeamBar:LoadTeam(data.team)
 	applyFilter()
 end
