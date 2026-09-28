@@ -22,6 +22,8 @@ local DebugService = {}
 -- every card, for reviewing the roster in the cards menu. Set it to false to
 -- test the fresh-player flow. Has no effect outside Studio.
 DebugService.GRANT_ALL_CARDS_IN_STUDIO = true
+-- Spare copies of every card granted alongside, so fusion can be tried.
+DebugService.STUDIO_SPARES_PER_CARD = 3
 
 local PREFERRED_RARITIES = { Rare = true, Epic = true }
 
@@ -90,6 +92,9 @@ end
 function DebugService:OnPlayerLoaded(userId)
 	if RunService:IsStudio() and self.GRANT_ALL_CARDS_IN_STUDIO then
 		self:GrantAllCards(userId)
+		for _, card in ipairs(CardDatabase.Cards) do
+			InventoryService:AddSpare(userId, card.id, self.STUDIO_SPARES_PER_CARD)
+		end
 	end
 end
 

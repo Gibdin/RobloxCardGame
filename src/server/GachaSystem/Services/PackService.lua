@@ -53,11 +53,12 @@ local function rollAndGrant(userId, packType, bannerId)
 	-- player actually got, not the roll that was overridden.
 	local displayRarity = forcedFeature and card.rarity or rarity
 
-	local isDuplicate    = InventoryService:OwnsCard(userId, card.id)
-	local awakeningLevel = nil
+	local isDuplicate = InventoryService:OwnsCard(userId, card.id)
+	local spareCount  = nil
 
 	if isDuplicate then
-		awakeningLevel = InventoryService:AddAwakening(userId, card.id, 1)
+		-- Duplicates are fusion fuel (FusionConfig).
+		spareCount = InventoryService:AddSpare(userId, card.id, 1)
 	else
 		InventoryService:AddCard(userId, card.id)
 	end
@@ -70,7 +71,7 @@ local function rollAndGrant(userId, packType, bannerId)
 		rarity         = displayRarity,
 		packType       = packType,
 		isDuplicate    = isDuplicate,
-		awakeningLevel = awakeningLevel,
+		spareCount     = spareCount,
 		pityInfo       = PityService:GetInfo(userId),
 	}, nil
 end

@@ -107,6 +107,7 @@ local rfDungeonAbandon     = RF("Dungeon_Abandon")
 
 local rfDebugQuickSetup = RF("Debug_QuickSetup")
 local rfDebugGrantAll   = RF("Debug_GrantAllCards")
+local rfFuseCard        = RF("FuseCard")
 
 local rfGetMonetizationInfo  = RF("GetMonetizationInfo")
 local rfPromptGemPurchase    = RF("PromptGemPurchase")
@@ -280,6 +281,11 @@ end
 
 rfDebugGrantAll.OnServerInvoke = function(player)
 	return DebugService:GrantAllCards(player.UserId)
+end
+
+rfFuseCard.OnServerInvoke = function(player, cardId)
+	if type(cardId) ~= "number" then return { success = false, error = "Invalid card." } end
+	return InventoryService:Fuse(player.UserId, cardId)
 end
 
 -- ── Monetization ──────────────────────────────────────────────────────────────

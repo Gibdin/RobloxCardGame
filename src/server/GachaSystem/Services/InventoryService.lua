@@ -10,6 +10,7 @@ local LeaderboardService = require(script.Parent.LeaderboardService)
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local PvPConfig          = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("PvPConfig"))
 local CardDatabase       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CardDatabase"))
+local FusionConfig       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("FusionConfig"))
 
 local InventoryService = {}
 
@@ -44,7 +45,9 @@ end
 local function blank()
 	return {
 		cards     = {},
-		awakening = {},
+		awakening = {},   -- legacy (pre-fusion); converted into spares on load
+		spares    = {},   -- [cardIdString] = spare copies (fusion fuel)
+		fusion    = {},   -- [cardIdString] = fusion level 0-10
 		packs     = { StandardPack = 3 },   -- starter packs for new players
 		pity      = { totalRolls = 0 },
 		team      = {},
@@ -102,13 +105,25 @@ function InventoryService:Load(userId)
 	-- Ensure all sub-tables exist for older save formats.
 	d.cards     = d.cards     or {}
 	d.awakening = d.awakening or {}
+	d.spares    = d.spares    or {}
+	d.fusion    = d.fusion    or {}
+	-- Old saves: every awakening point was one duplicate pulled, so it
+	-- becomes one spare copy (fusion fuel). Nothing the player pulled is lost.
+	for key, n in pairs(d.awakening) do
+		if n > 0 then d.spares[key] = (d.spares[key] or 0) + n end
+		d.awakening[key] = nil
+	end
 	-- Drop cards that no longer exist (the placeholder roster was removed
 	-- 2026-09-28) so no screen or battle ever sees an unknown id.
 	for key in pairs(d.cards) do
 		if not CardDatabase:GetById(tonumber(key)) then
 			d.cards[key] = nil
 			d.awakening[key] = nil
+			d.fusion[key] = nil
 		end
+	end
+	for key in pairs(d.spares) do
+		if not CardDatabase:GetById(tonumber(key)) then d.spares[key] = nil end
 	end
 	d.packs     = d.packs     or { StandardPack = 3 }
 	d.pity      = d.pity      or { totalRolls = 0 }
@@ -194,6 +209,7 @@ function InventoryService:RemoveCard(userId, cardId)
 	local key = tostring(cardId)
 	d.cards[key] = nil
 	d.awakening[key] = nil
+	d.fusion[key] = nil
 	for i, id in ipairs(d.team) do
 		if id == cardId then d.team[i] = false end
 	end
@@ -205,6 +221,54 @@ function InventoryService:GetCardIds(userId)
 		table.insert(ids, tonumber(k))
 	end
 	return ids
+end
+
+-- ── Fusion (spare copies level up cards; rules in FusionConfig) ─────────────────
+
+-- A duplicate pull becomes a spare copy. Returns the new spare count.
+function InventoryService:AddSpare(userId, cardId, amount)
+	local d = get(userId)
+	local key = tostring(cardId)
+	d.spares[key] = (d.spares[key] or 0) + (amount or 1)
+	return d.spares[key]
+end
+
+function InventoryService:GetFusionLevel(userId, cardId)
+	return get(userId).fusion[tostring(cardId)] or 0
+end
+
+-- Folds a card's fusion bonus into a BattleEngine.BuildUnit mods table.
+function InventoryService:ApplyFusion(mods, userId, cardId)
+	local mult = FusionConfig.StatMult(self:GetFusionLevel(userId, cardId))
+	if mult ~= 1 then
+		mods.atkMult = (mods.atkMult or 1) * mult
+		mods.hpMult  = (mods.hpMult or 1) * mult
+	end
+	return mods
+end
+
+-- Levels up an owned card by one, spending the fuel FusionConfig.Plan picks.
+-- Returns { success, level, copies, others } or { success = false, error }.
+function InventoryService:Fuse(userId, cardId)
+	local d = get(userId)
+	local card = CardDatabase:GetById(cardId)
+	local key = tostring(cardId)
+	if not card or not d.cards[key] then
+		return { success = false, error = "You don't own that card." }
+	end
+	local plan, reason = FusionConfig.Plan(card, d.fusion[key] or 0, d.spares, CardDatabase)
+	if not plan then
+		return { success = false, error = reason }
+	end
+	d.spares[key] = (d.spares[key] or 0) - plan.copies
+	for otherKey, n in pairs(plan.others) do
+		d.spares[otherKey] = d.spares[otherKey] - n
+	end
+	for k, n in pairs(d.spares) do
+		if n <= 0 then d.spares[k] = nil end
+	end
+	d.fusion[key] = plan.nextLevel
+	return { success = true, level = plan.nextLevel, copies = plan.copies, others = plan.others, spares = d.spares }
 end
 
 -- ── Awakening ────────────────────────────────────────────────────────────────
@@ -472,6 +536,8 @@ function InventoryService:GetFullData(userId)
 	return {
 		cardIds   = self:GetCardIds(userId),
 		awakening = get(userId).awakening,
+		spares = get(userId).spares,
+		fusion = get(userId).fusion,
 		packs     = get(userId).packs,
 		team      = self:GetTeam(userId),
 		tower     = get(userId).tower,

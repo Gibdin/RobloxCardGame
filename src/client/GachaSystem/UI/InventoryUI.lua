@@ -1,6 +1,9 @@
 local TweenService = game:GetService("TweenService")
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local FusionConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("FusionConfig"))
+local FxUtil       = require(script.Parent:WaitForChild("FxUtil"))
 local InventoryUI  = {}
 
 local PW,PH=860,600; local TOPBAR_H=48; local BODY_Y=TOPBAR_H+1; local BODY_H=PH-BODY_Y-1
@@ -25,7 +28,7 @@ local PASSIVE_RULE={
 	Battery="Gives the team mana whenever anyone is knocked out.",
 }
 local RARITY_CYCLE={"All","Common","Uncommon","Rare","Epic","Legendary","Mythic","God","Secret"}
-local SORT_CYCLE={"Rarity","Name","Awakening"}
+local SORT_CYCLE={"Rarity","Name","Level"}
 local ROLE_CYCLE={"All","Tank","DPS","Support"}
 
 local cardDb,rarityConf,roleConf,rfGetInventory,globalTeamBar
@@ -36,6 +39,10 @@ local sortMode,sortIdx="Rarity",1
 local searchText=""
 local showAll=false      -- false: owned cards only; true: every obtainable card
 local ownedIds={}
+local spares,fusion={},{}   -- from GetInventory: spare copies (fusion fuel) and fusion levels
+local rfFuse
+local SILVER=Color3.fromRGB(215,225,240)
+local GOLDF=Color3.fromRGB(255,205,80)
 local selectedCard=nil
 local highlightedSyn=nil
 local synRefScroll=nil
@@ -52,6 +59,7 @@ local dATK,dHP
 local dMPPips={}
 local dPassiveChip,dCardPassiveName,dCardPassiveDesc
 local dActiveName,dActiveDesc
+local fuseBtn,fuseInfo,dLevelBadge
 local dRoleLine,dRoleDesc,dPassiveHdr
 local dSynContainer
 local equBtn
@@ -67,6 +75,11 @@ local function S(p,col,t) local s=Instance.new("UIStroke");s.Color=col or Color3
 local function hoverBtn(b,norm,hot) b.MouseEnter:Connect(function() TweenService:Create(b,TweenInfo.new(0.08),{BackgroundColor3=hot}):Play() end);b.MouseLeave:Connect(function() TweenService:Create(b,TweenInfo.new(0.08),{BackgroundColor3=norm}):Play() end) end
 
 local rebuildGrid
+local function fusePlan(c)
+	if not c.owned then return nil, "Pull this card first." end
+	local full=cardDb:GetById(c.id); if not full then return nil, "" end
+	return FusionConfig.Plan(full, c.level or 0, spares, cardDb)
+end
 local function updateGridEquippedIndicators()
 	if not gridScroll then return end
 	for _,ch in ipairs(gridScroll:GetChildren()) do
@@ -130,7 +143,7 @@ local function applyFilter()
 		if nameOk and rarOk and roleOk and ownOk then table.insert(filteredCards,c) end
 	end
 	if sortMode=="Name" then table.sort(filteredCards,function(a,b) return a.name<b.name end)
-	elseif sortMode=="Awakening" then table.sort(filteredCards,function(a,b) if a.awakening~=b.awakening then return a.awakening>b.awakening end;return a.name<b.name end)
+	elseif sortMode=="Level" then table.sort(filteredCards,function(a,b) if a.level~=b.level then return a.level>b.level end;return a.name<b.name end)
 	else table.sort(filteredCards,function(a,b) local ao=rarityConf:GetOrder(a.rarity);local bo=rarityConf:GetOrder(b.rarity);if ao~=bo then return ao>bo end;return a.name<b.name end) end
 	rebuildGrid()
 end
@@ -258,7 +271,24 @@ showCard=function(c)
 	dName.Text=c.name; dName.TextColor3=Color3.fromRGB(215,215,240)
 	dRarity.Text=c.rarity; dRarity.TextColor3=tc; dRarity.BackgroundColor3=Color3.new(bc.R*0.2,bc.G*0.2,bc.B*0.2)
 
-	dATK.Text=tostring(c.attack); dHP.Text=tostring(c.hp)
+	dATK.Text=tostring(FusionConfig.FusedStat(c.attack,c.level)); dHP.Text=tostring(FusionConfig.FusedStat(c.hp,c.level))
+	dLevelBadge.Text=(c.level or 0)>0 and ("+"..c.level) or ""
+	dLevelBadge.TextColor3=(c.level or 0)>=10 and GOLDF or ((c.level or 0)>=5 and SILVER or Color3.fromRGB(255,225,140))
+	-- Fuse row: what the next level costs, or why it isn't possible yet.
+	local plan,reason=fusePlan(c)
+	local copies=spares[tostring(c.id)] or 0
+	if not c.owned then
+		fuseBtn.Visible=false; fuseInfo.Text="Pull this card to start fusing it."
+	elseif (c.level or 0)>=FusionConfig.MaxLevel then
+		fuseBtn.Visible=false; fuseInfo.Text="MAX LEVEL! Gold foil unlocked."
+	else
+		fuseBtn.Visible=true
+		fuseBtn.Text=plan and ("FUSE  ▶  +"..((c.level or 0)+1)) or ("+"..((c.level or 0)+1).." locked")
+		fuseBtn.BackgroundColor3=plan and Color3.fromRGB(150,60,215) or Color3.fromRGB(40,34,56)
+		fuseBtn.TextColor3=plan and Color3.new(1,1,1) or Color3.fromRGB(150,145,175)
+		local copyText=copies>0 and (copies.." spare cop"..(copies==1 and "y" or "ies").." of this card. ") or ""
+		fuseInfo.Text=plan and (copyText.."Ready to fuse!") or (copyText..(reason or ""))
+	end
 
 	-- MP pips
 	local mpCost=math.max(1,math.min(5,c.mp or 2))
@@ -400,6 +430,20 @@ local function buildTile(card,order)
 	local indLbl=Instance.new("TextLabel");indLbl.Name="Lbl";indLbl.Size=UDim2.new(1,0,1,-22);indLbl.BackgroundTransparency=1;indLbl.Text="S1";indLbl.TextColor3=Color3.fromRGB(90,255,140);indLbl.TextScaled=false;indLbl.TextSize=13;indLbl.Font=Enum.Font.GothamBold;indLbl.TextXAlignment=Enum.TextXAlignment.Center;indLbl.ZIndex=25;indLbl.Parent=ind
 	local chk=Instance.new("TextLabel");chk.Size=UDim2.new(0,16,0,16);chk.Position=UDim2.new(0,4,0,4);chk.BackgroundTransparency=1;chk.Text="\226\156\147";chk.TextColor3=Color3.fromRGB(90,255,140);chk.TextScaled=true;chk.Font=Enum.Font.GothamBold;chk.ZIndex=25;chk.Parent=ind
 	local sn=globalTeamBar:IsInTeam(card.id);ind.Visible=sn~=nil; if sn then indLbl.Text="S"..sn end
+	-- Fusion: level badge, foil border at +5/+10, red dot when it can fuse right now.
+	local lvl=card.level or 0
+	if lvl>0 then
+		local lb=Instance.new("TextLabel");lb.Name="Lvl";lb.Size=UDim2.new(0,30,0,16);lb.Position=UDim2.new(1,-52,0,3);lb.BackgroundColor3=Color3.fromRGB(20,14,30);lb.BackgroundTransparency=0.15;lb.BorderSizePixel=0
+		lb.Text="+"..lvl;lb.TextColor3=lvl>=10 and GOLDF or (lvl>=5 and SILVER or Color3.fromRGB(255,225,140));lb.TextScaled=false;lb.TextSize=11;lb.Font=Enum.Font.GothamBlack;lb.ZIndex=27;lb.Parent=t;C(lb,4)
+		rdot.Visible=false
+	end
+	if lvl>=10 then ts.Color=GOLDF;ts.Thickness=3 elseif lvl>=5 then ts.Color=SILVER;ts.Thickness=3 end
+	if card.owned and fusePlan(card) then
+		local dot=Instance.new("TextLabel");dot.Name="CanFuse";dot.Size=UDim2.new(0,16,0,16);dot.Position=UDim2.new(1,-19,0,3);dot.BackgroundColor3=Color3.fromRGB(235,55,70);dot.BorderSizePixel=0
+		dot.Text="!";dot.TextColor3=Color3.new(1,1,1);dot.TextSize=11;dot.Font=Enum.Font.GothamBlack;dot.ZIndex=30;dot.Parent=t
+		local dc=Instance.new("UICorner");dc.CornerRadius=UDim.new(1,0);dc.Parent=dot
+		TweenService:Create(dot,TweenInfo.new(0.6,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),{BackgroundColor3=Color3.fromRGB(255,120,120)}):Play()
+	end
 	if not card.owned then
 		local dim=Instance.new("Frame");dim.Size=UDim2.new(1,0,1,0);dim.BackgroundColor3=Color3.new(0,0,0);dim.BackgroundTransparency=0.45;dim.BorderSizePixel=0;dim.ZIndex=26;dim.Parent=t;C(dim,8)
 		local nol=Instance.new("TextLabel");nol.Size=UDim2.new(1,0,0,14);nol.Position=UDim2.new(0,0,0.32,0);nol.BackgroundTransparency=1;nol.Text="NOT OWNED";nol.TextColor3=Color3.fromRGB(200,200,220);nol.TextScaled=false;nol.TextSize=10;nol.Font=Enum.Font.GothamBold;nol.ZIndex=27;nol.Parent=t
@@ -469,7 +513,8 @@ local function buildDetailPane(parent)
 	-- Role badge + Name + Rarity
 	dRoleBadge=Instance.new("Frame");dRoleBadge.Size=UDim2.new(0,46,0,20);dRoleBadge.Position=UDim2.new(0,P,0,y);dRoleBadge.BackgroundColor3=Color3.fromRGB(60,130,220);dRoleBadge.BorderSizePixel=0;dRoleBadge.ZIndex=23;dRoleBadge.Parent=detailScroll;C(dRoleBadge,4)
 	local rbL=Instance.new("TextLabel");rbL.Name="Lbl";rbL.Size=UDim2.new(1,0,1,0);rbL.BackgroundTransparency=1;rbL.Text="TANK";rbL.TextColor3=Color3.new(1,1,1);rbL.TextScaled=false;rbL.TextSize=11;rbL.Font=Enum.Font.GothamBold;rbL.ZIndex=24;rbL.Parent=dRoleBadge
-	dName=Instance.new("TextLabel");dName.Size=UDim2.new(0,IW-46-78-8,0,20);dName.Position=UDim2.new(0,P+50,0,y);dName.BackgroundTransparency=1;dName.Text="";dName.TextColor3=Color3.fromRGB(215,215,240);dName.TextScaled=false;dName.TextSize=16;dName.TextTruncate=Enum.TextTruncate.AtEnd;dName.Font=Enum.Font.GothamBold;dName.TextXAlignment=Enum.TextXAlignment.Left;dName.ZIndex=23;dName.Parent=detailScroll
+	dLevelBadge=Instance.new("TextLabel");dLevelBadge.Size=UDim2.new(0,34,0,20);dLevelBadge.Position=UDim2.new(1,-P-74-40,0,y);dLevelBadge.BackgroundTransparency=1;dLevelBadge.Text="";dLevelBadge.TextSize=16;dLevelBadge.Font=Enum.Font.GothamBlack;dLevelBadge.TextXAlignment=Enum.TextXAlignment.Right;dLevelBadge.ZIndex=24;dLevelBadge.Parent=detailScroll
+	dName=Instance.new("TextLabel");dName.Size=UDim2.new(0,IW-46-78-8-40,0,20);dName.Position=UDim2.new(0,P+50,0,y);dName.BackgroundTransparency=1;dName.Text="";dName.TextColor3=Color3.fromRGB(215,215,240);dName.TextScaled=false;dName.TextSize=16;dName.TextTruncate=Enum.TextTruncate.AtEnd;dName.Font=Enum.Font.GothamBold;dName.TextXAlignment=Enum.TextXAlignment.Left;dName.ZIndex=23;dName.Parent=detailScroll
 	dRarity=Instance.new("TextLabel");dRarity.Size=UDim2.new(0,74,0,20);dRarity.Position=UDim2.new(1,-P-74,0,y);dRarity.BackgroundColor3=Color3.fromRGB(18,10,28);dRarity.BorderSizePixel=0;dRarity.Text="—";dRarity.TextColor3=Color3.fromRGB(180,180,200);dRarity.TextScaled=false;dRarity.TextSize=12;dRarity.Font=Enum.Font.GothamBold;dRarity.TextXAlignment=Enum.TextXAlignment.Center;dRarity.ZIndex=23;dRarity.Parent=detailScroll;C(dRarity,4)
 	y=y+28
 
@@ -507,6 +552,35 @@ local function buildDetailPane(parent)
 		showCard(selectedCard)
 	end)
 	y=y+36
+
+	-- Fuse row (FusionConfig): button + one plain line of status.
+	fuseBtn=B(detailScroll,"FUSE",UDim2.new(0,150,0,32),UDim2.new(0,P,0,y),Color3.fromRGB(150,60,215),23)
+	fuseBtn.Name="FuseBtn";fuseBtn.TextScaled=false;fuseBtn.TextSize=14;fuseBtn.Font=Enum.Font.GothamBlack
+	fuseInfo=Instance.new("TextLabel");fuseInfo.Size=UDim2.new(0,IW-160,0,32);fuseInfo.Position=UDim2.new(0,P+158,0,y);fuseInfo.BackgroundTransparency=1;fuseInfo.Text=""
+	fuseInfo.TextColor3=Color3.fromRGB(205,195,235);fuseInfo.TextScaled=false;fuseInfo.TextSize=12;fuseInfo.Font=Enum.Font.GothamMedium;fuseInfo.TextWrapped=true;fuseInfo.TextXAlignment=Enum.TextXAlignment.Left;fuseInfo.ZIndex=23;fuseInfo.Parent=detailScroll
+	fuseBtn.MouseButton1Click:Connect(function()
+		if not selectedCard or not fusePlan(selectedCard) then return end
+		local ok,res=pcall(function() return rfFuse:InvokeServer(selectedCard.id) end)
+		if not ok or not res or not res.success then
+			fuseInfo.Text=(res and res.error) or "Couldn't fuse right now."
+			return
+		end
+		spares=res.spares or spares; fusion[tostring(selectedCard.id)]=res.level
+		for _,card in ipairs(allCards) do card.level=fusion[tostring(card.id)] or 0 end
+		-- Level-up burst: flash the art, pop the new level, shake, sound.
+		local lvl=res.level
+		local col=lvl>=10 and GOLDF or (lvl>=5 and SILVER or Color3.fromRGB(255,225,140))
+		dArtBg.BackgroundColor3=col
+		TweenService:Create(dArtBg,TweenInfo.new(0.6,Enum.EasingStyle.Quad),{BackgroundColor3=RARTBG[selectedCard.rarity] or Color3.fromRGB(28,28,28)}):Play()
+		FxUtil.floatText(dArtBg,"+"..lvl.."!",col,{scale=2.4})
+		if lvl==5 or lvl==10 then FxUtil.floatText(dArtBg,lvl==10 and "GOLD FOIL!" or "SILVER FOIL!",col,{scale=1.6,yStart=0.2}) end
+		FxUtil.shake(panel,lvl>=5 and 10 or 5,0.3)
+		pcall(function() require(script.Parent.Parent:WaitForChild("VFX"):WaitForChild("SoundManager")):Play("level_up") end)
+		local keep=selectedCard
+		applyFilter()
+		for _,card in ipairs(allCards) do if card.id==keep.id then showCard(card) break end end
+	end)
+	y=y+42
 
 	-- Sections below grow with their text (a UIListLayout stack), so long
 	-- ability descriptions never overlap the next section.
@@ -668,11 +742,12 @@ local function loadData()
 	local ok,data=pcall(function() return rfGetInventory:InvokeServer() end)
 	if not ok or not data then return end
 	allCards={}; ownedIds={}
+	spares=data.spares or {}; fusion=data.fusion or {}
 	local ownedCount=0
 	for _,id in ipairs(data.cardIds or {}) do ownedIds[id]=true end
 	local function add(card)
-		local awk=(data.awakening or {})[tostring(card.id)] or 0
-		table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,subrole=card.subrole,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},awakening=awk,owned=ownedIds[card.id]==true})
+		local lvl=fusion[tostring(card.id)] or 0
+		table.insert(allCards,{id=card.id,name=card.name,rarity=card.rarity,attack=card.attack,hp=card.hp,mp=card.mp,subrole=card.subrole,passive=card.passive,passive_name=card.passive_name,passive_desc=card.passive_desc,active=card.active,role=card.role,series=card.series or {},level=lvl,owned=ownedIds[card.id]==true})
 	end
 	-- Every obtainable card (GetAll skips admin-only cards), plus any owned card
 	-- outside that pool so nothing a player holds ever disappears.
@@ -691,6 +766,7 @@ end
 -- ── public API ────────────────────────────────────────────────────────────────
 function InventoryUI:Init(gui,db,rc,roleC,rfInv,gtb)
 	cardDb=db;rarityConf=rc;roleConf=roleC;rfGetInventory=rfInv;globalTeamBar=gtb
+	rfFuse=ReplicatedStorage:WaitForChild("GachaRemotes"):WaitForChild("FuseCard")
 	gtb:SetOnChanged(function() updateGridEquippedIndicators(); if selectedCard then showCard(selectedCard) end; refreshSynergyPips() end)
 	gtb:SetOnSlotClicked(function(slotIdx)
 		if not panel.Visible then InventoryUI:Show() end

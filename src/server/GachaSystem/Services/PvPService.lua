@@ -52,7 +52,10 @@ function PvPService:BuildUnitsForTeam(teamIds, userId)
 		if id then
 			local card = CardDatabase:GetById(id)
 			if card then
-				table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, mods))
+				-- Per-card copy so each card gets its own fusion bonus.
+				local cardMods = table.clone(mods)
+				if userId then InventoryService:ApplyFusion(cardMods, userId, id) end
+				table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, cardMods))
 			end
 		end
 	end

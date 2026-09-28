@@ -75,6 +75,7 @@ local function buildUI(gui)
 	newLbl.Text = "NEW!"; newLbl.TextColor3 = Color3.new(1,1,1)
 	newLbl.Font = Enum.Font.GothamBlack; newLbl.TextScaled = true
 	newLbl.ZIndex = 47; newLbl.Parent = badge
+	newLbl.Name = "Lbl"
 
 	-- Large art frame (takes most of the card height)
 	local art = Instance.new("Frame"); art.Name = "ArtFrame"
@@ -414,7 +415,12 @@ function CardReveal:Show(result)
 	task.delay(0.14, function()
 		TweenService:Create(panel.CardName, TweenInfo.new(0.22), {TextTransparency = 0}):Play()
 	end)
-	if not result.isDuplicate then
+	-- NEW! for a first copy; a duplicate is fusion fuel, so it gets its own
+	-- purple "+1 FUEL" badge instead of feeling like a dud.
+	local lbl = panel.NewBadge:FindFirstChild("Lbl")
+	if lbl then lbl.Text = result.isDuplicate and "+1 FUEL" or "NEW!" end
+	panel.NewBadge.BackgroundColor3 = result.isDuplicate and Color3.fromRGB(150, 60, 215) or Color3.fromRGB(45, 210, 75)
+	do
 		task.delay(0.28, function()
 			panel.NewBadge.Visible = true
 			TweenService:Create(panel.NewBadge,

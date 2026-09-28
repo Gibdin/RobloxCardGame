@@ -51,6 +51,7 @@ local function buildPlayerUnits(run, userId)
 			local card = CardDatabase:GetById(id)
 			local mods = RunModifiers.Compute(run.cards[id])
 			AccountService:ApplyStatMods(mods, userId, prestigeMult)
+			InventoryService:ApplyFusion(mods, userId, id)
 			table.insert(units, BattleEngine.BuildUnit(card, slot, ctx, mods))
 		end
 	end
