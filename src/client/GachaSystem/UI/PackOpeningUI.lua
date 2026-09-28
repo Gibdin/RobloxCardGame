@@ -488,8 +488,15 @@ end
 
 -- ── Public API ────────────────────────────────────────────────────────────────
 
-function PackOpeningUI:Init(gui, _rc, vfx, snd)
-	vfxConfig = vfx; soundMgr = snd
+local rarityConfig
+local PACK_ACCENT = {
+	StandardPack = Color3.fromRGB(120, 160, 230),
+	RarePack     = Color3.fromRGB(80, 130, 255),
+	EventPack    = Color3.fromRGB(255, 200, 70),
+}
+
+function PackOpeningUI:Init(gui, rc, vfx, snd)
+	vfxConfig = vfx; soundMgr = snd; rarityConfig = rc
 	buildPacksDropdown(gui)
 	buildPackRip(gui)
 	buildUtilityPanel(gui)
@@ -512,10 +519,24 @@ function PackOpeningUI:UpdatePackList(packs)
 			row.MouseLeave:Connect(function()
 				TweenService:Create(row, TweenInfo.new(0.12), {BackgroundColor3=Color3.fromRGB(32,32,48)}):Play()
 			end)
-			label(row, packType,   UDim2.new(1,-104,0,28), UDim2.new(0,10,0,6))
-			label(row, "x"..count, UDim2.new(0,60,0,22),   UDim2.new(0,10,0,36), Color3.fromRGB(200,200,80))
-			local openBtn = button(row, "Open",
-				UDim2.new(0,84,0,38), UDim2.new(1,-94,0.5,-19), Color3.fromRGB(60,140,70))
+			-- Player-facing pack name, a colour accent per pack, and a count.
+			local def = rarityConfig and rarityConfig.PackTypes and rarityConfig.PackTypes[packType]
+			local accent = PACK_ACCENT[packType] or Color3.fromRGB(150, 150, 190)
+			local strip = Instance.new("Frame")
+			strip.Size = UDim2.new(0, 5, 1, -12); strip.Position = UDim2.new(0, 4, 0, 6)
+			strip.BackgroundColor3 = accent; strip.BorderSizePixel = 0; strip.ZIndex = row.ZIndex + 1; strip.Parent = row
+			local nameLbl = label(row, (def and def.displayName) or packType, UDim2.new(1,-120,0,24), UDim2.new(0,16,0,8), accent)
+			nameLbl.TextScaled = false; nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+			local countLbl = label(row, "x"..count, UDim2.new(0,60,0,22), UDim2.new(0,16,0,36), Color3.fromRGB(255,215,90))
+			countLbl.TextScaled = false; countLbl.TextSize = 16; countLbl.TextXAlignment = Enum.TextXAlignment.Left
+			local openBtn = button(row, "OPEN!",
+				UDim2.new(0,92,0,40), UDim2.new(1,-100,0.5,-20), Color3.fromRGB(60,140,70))
+			openBtn.TextScaled = false; openBtn.TextSize = 17
+			-- Gentle "open me" pulse on the button.
+			local glow = Instance.new("UIStroke"); glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border  -- outline the button, not its text
+			glow.Color = Color3.fromRGB(160, 255, 170); glow.Thickness = 1.5; glow.Parent = openBtn
+			TweenService:Create(glow, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Thickness = 4, Transparency = 0.5 }):Play()
 			openBtn.MouseEnter:Connect(function()
 				TweenService:Create(openBtn, TweenInfo.new(0.12), {BackgroundColor3=Color3.fromRGB(80,170,90)}):Play()
 			end)

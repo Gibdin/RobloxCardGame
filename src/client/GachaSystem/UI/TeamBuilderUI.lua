@@ -423,9 +423,10 @@ local function buildSlotFrame(slotIdx, parent)
 
 	-- FRONTLINE tag (slot 1 only)
 	if slotIdx == 1 then
-		local ftag = F(sf, "FrontlineTag", Color3.fromRGB(35, 90, 55), 8, 38, 68, 16, 12)
+		-- Bottom-left corner, clear of the name/role text in both empty and filled states.
+		local ftag = F(sf, "FrontlineTag", Color3.fromRGB(35, 90, 55), 8, SLOT_H - 24, 76, 18, 12)
 		corner(ftag, 4)
-		local ftl = L(ftag, "FRONTLINE", 0, 0, 68, 16, 9, Color3.fromRGB(120, 240, 160), Enum.Font.GothamBold, Enum.TextXAlignment.Center)
+		local ftl = L(ftag, "FRONTLINE", 0, 0, 76, 18, 11, Color3.fromRGB(120, 240, 160), Enum.Font.GothamBold, Enum.TextXAlignment.Center)
 		ftl.ZIndex = 13
 	end
 

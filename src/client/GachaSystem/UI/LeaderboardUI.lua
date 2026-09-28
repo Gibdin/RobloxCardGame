@@ -62,7 +62,7 @@ local function buildTopBar(gui)
 	label(tb, "RANKINGS", UDim2.new(0, 160, 0, 28), UDim2.new(0, 16, 0, 8),
 		Color3.fromRGB(255, 210, 90), Enum.Font.GothamBlack)
 
-	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 8), Color3.fromRGB(80, 30, 30))
+	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -40, 0, 8), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() LeaderboardUI:Hide() end)
 
 	local TAB_W, TAB_GAP = 110, 6

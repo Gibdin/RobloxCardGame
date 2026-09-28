@@ -390,6 +390,7 @@ function DungeonMapUI:Render(run)
 			-- Selection highlight ring (toggled by showTooltip).
 			local sel = Instance.new("UIStroke")
 			sel.Name = "SelStroke"
+			sel.ApplyStrokeMode = Enum.ApplyStrokeMode.Border  -- ring the node, not its glyph
 			sel.Color = Color3.fromRGB(255, 255, 160)
 			sel.Thickness = 3
 			sel.Enabled = false
@@ -418,6 +419,7 @@ function DungeonMapUI:Render(run)
 				btn.AutoButtonColor = true
 				-- "Pick me" pulse: a breathing glow ring on every node you can choose.
 				local glow = Instance.new("UIStroke")
+				glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				glow.Color = Color3.fromRGB(255, 230, 150)
 				glow.Thickness = 2
 				glow.Parent = btn
@@ -437,6 +439,7 @@ function DungeonMapUI:Render(run)
 
 			if node.id == run.position then
 				local hi = Instance.new("UIStroke")
+				hi.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				hi.Color = Color3.fromRGB(255, 255, 255)
 				hi.Thickness = 3
 				hi.Parent = btn

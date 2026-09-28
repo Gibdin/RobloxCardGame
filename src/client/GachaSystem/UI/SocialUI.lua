@@ -79,7 +79,7 @@ local function buildTopBar(gui)
 	label(tb, "SOCIAL", UDim2.new(0, 140, 0, 28), UDim2.new(0, 16, 0, 8),
 		Color3.fromRGB(100, 200, 220), Enum.Font.GothamBlack)
 
-	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 8), Color3.fromRGB(80, 30, 30))
+	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -40, 0, 8), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() SocialUI:Hide() end)
 
 	local tabNames = { { id = "guild", label = "GUILD" }, { id = "trade", label = "TRADE" }, { id = "friends", label = "FRIENDS" } }
@@ -87,7 +87,7 @@ local function buildTopBar(gui)
 	for i, t in ipairs(tabNames) do
 		local b = button(tb, t.label, UDim2.new(0, TAB_W, 0, 26), UDim2.new(0, 8 + (i - 1) * (TAB_W + TAB_GAP), 0, 36),
 			Color3.fromRGB(18, 26, 30))
-		b.TextSize = 12
+		b.TextScaled = false; b.TextSize = 14  -- fixed size: scaled tab labels ballooned
 		tabButtons[t.id] = b
 		b.MouseButton1Click:Connect(function() SocialUI:ShowTab(t.id) end)
 	end
@@ -109,8 +109,10 @@ local function buildGuildTab(gui)
 	panel.noGuildFrame = noGuild
 
 	local nameBox = textbox(noGuild, "Guild name...", UDim2.new(0, 260, 0, 34), UDim2.new(0, 8, 0, 6))
+	nameBox.TextScaled = false; nameBox.TextSize = 15
 	panel.guildNameBox = nameBox
 	local createBtn = button(noGuild, "CREATE", UDim2.new(0, 100, 0, 34), UDim2.new(0, 276, 0, 6), Color3.fromRGB(50, 130, 60))
+	createBtn.TextScaled = false; createBtn.TextSize = 15
 	createBtn.MouseButton1Click:Connect(function()
 		if callbacks.onCreateGuild then callbacks.onCreateGuild(nameBox.Text) end
 	end)
@@ -148,6 +150,7 @@ local function buildGuildTab(gui)
 	panel.guildListEmptyLbl = label(scroll, "No guilds exist yet — be the first to create one!",
 		UDim2.new(1, -16, 0, 30), UDim2.new(0, 4, 0, 4), Color3.fromRGB(140, 150, 160), Enum.Font.Gotham)
 	panel.guildListEmptyLbl.TextWrapped = true
+	panel.guildListEmptyLbl.TextScaled = false; panel.guildListEmptyLbl.TextSize = 15
 	panel.guildListEmptyLbl.Visible = false
 
 	-- "In guild" sub-view: dashboard + chat.

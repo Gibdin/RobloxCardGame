@@ -77,8 +77,10 @@ local function makeButton(parent, def, order)
 	lbl.Position         = UDim2.new(0, STRIP_W + 8, 0, 5)
 	lbl.BackgroundTransparency = 1
 	lbl.Text             = def.label
-	lbl.TextColor3       = Color3.fromRGB(195, 195, 215)
-	lbl.TextScaled       = true
+	lbl.TextColor3       = Color3.fromRGB(215, 215, 235)
+	-- One fixed size for every label: scaled text made longer words smaller.
+	lbl.TextScaled       = false
+	lbl.TextSize         = 14
 	lbl.TextWrapped      = false
 	lbl.Font             = Enum.Font.GothamBold
 	lbl.TextXAlignment   = Enum.TextXAlignment.Left

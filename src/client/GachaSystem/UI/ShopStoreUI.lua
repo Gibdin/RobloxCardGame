@@ -123,15 +123,16 @@ local function buildTopBar(gui)
 	label(tb, "STORE", UDim2.new(0, 120, 0, 30), UDim2.new(0, 16, 0, 10),
 		Color3.fromRGB(255, 210, 90), Enum.Font.GothamBlack)
 
-	local gemsLbl = label(tb, "0", UDim2.new(0, 100, 0, 30), UDim2.new(1, -220, 0, 10),
+	local gemsLbl = label(tb, "0", UDim2.new(0, 130, 0, 24), UDim2.new(1, -290, 0, 13),
 		Color3.fromRGB(120, 220, 255), Enum.Font.GothamBold)
 	gemsLbl.TextXAlignment = Enum.TextXAlignment.Right
 	panel.gemsLbl = gemsLbl
 
-	local oddsBtn = button(tb, "View Odds", UDim2.new(0, 90, 0, 28), UDim2.new(1, -120, 0, 11), Color3.fromRGB(40, 40, 60))
+	local oddsBtn = button(tb, "View Odds", UDim2.new(0, 96, 0, 28), UDim2.new(1, -148, 0, 11), Color3.fromRGB(40, 40, 60))
+	oddsBtn.TextScaled = false; oddsBtn.TextSize = 13
 	oddsBtn.MouseButton1Click:Connect(function() oddsPanel.Visible = true end)
 
-	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 11), Color3.fromRGB(80, 30, 30))
+	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -40, 0, 11), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() ShopStoreUI:Hide() end)
 
 	-- Tabs get their own row underneath so 5 tabs fit without crowding the
@@ -143,7 +144,7 @@ local function buildTopBar(gui)
 	for i, t in ipairs(tabNames) do
 		local b = button(tb, t.label, UDim2.new(0, TAB_W, 0, 30), UDim2.new(0, 8 + (i - 1) * (TAB_W + TAB_GAP), 0, 46),
 			Color3.fromRGB(30, 24, 14))
-		b.TextSize = 12
+		b.TextScaled = false; b.TextSize = 13  -- same size on every tab
 		tabButtons[t.id] = b
 		b.MouseButton1Click:Connect(function() ShopStoreUI:ShowTab(t.id) end)
 	end
@@ -165,9 +166,15 @@ local function buildGemsTab(gui)
 		row.ZIndex = 22; row.Parent = f
 		corner(row, 8)
 
-		local amountText = tostring(product.gems) .. (product.bonus > 0 and (" +" .. product.bonus .. " bonus") or "")
-		label(row, amountText, UDim2.new(0.55, 0, 1, 0), UDim2.new(0, 14, 0, 0),
-			Color3.fromRGB(120, 220, 255), Enum.Font.GothamBold)
+		-- "💎 550 Gems" big, with the bonus as a highlighted second line.
+		local amount = label(row, "💎 " .. product.gems .. " Gems", UDim2.new(0.6, 0, 0, 30), UDim2.new(0, 14, 0, product.bonus > 0 and 6 or 17),
+			Color3.fromRGB(120, 220, 255), Enum.Font.GothamBlack)
+		amount.TextXAlignment = Enum.TextXAlignment.Left
+		if product.bonus > 0 then
+			local bonus = label(row, "+" .. product.bonus .. " BONUS GEMS", UDim2.new(0.6, 0, 0, 18), UDim2.new(0, 14, 0, 38),
+				Color3.fromRGB(255, 215, 90), Enum.Font.GothamBold)
+			bonus.TextXAlignment = Enum.TextXAlignment.Left
+		end
 
 		local buyBtn = button(row, "R$ " .. product.priceRobux, UDim2.new(0, 110, 0, 40),
 			UDim2.new(1, -124, 0.5, -20), Color3.fromRGB(50, 130, 60))
@@ -175,7 +182,8 @@ local function buildGemsTab(gui)
 			if callbacks.onBuyGems then callbacks.onBuyGems(product.id) end
 		end)
 		if product.productId == 0 then
-			buyBtn.Text = "Soon"
+			buyBtn.Text = "Coming soon"
+			buyBtn.TextScaled = false; buyBtn.TextSize = 14
 			buyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 		end
 	end
@@ -405,7 +413,7 @@ end
 -- Pushes fresh server data (gems/vip/battlePass/banner) into the panel.
 function ShopStoreUI:Refresh(newInfo)
 	info = newInfo or info
-	panel.gemsLbl.Text = tostring(info.gems or 0)
+	panel.gemsLbl.Text = "💎 " .. tostring(info.gems or 0)
 
 	if info.vip then
 		panel.vipBuyBtn.Text = "OWNED"

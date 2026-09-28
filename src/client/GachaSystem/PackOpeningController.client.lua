@@ -140,6 +140,8 @@ screenGui.ResetOnSpawn    = false
 screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset  = true
 screenGui.Parent          = playerGui
+-- Game-wide text legibility floor (min size, min brightness) for every screen.
+require(uiFolder.Readability):Attach(screenGui)
 
 -- Init VFX
 SoundManager:Init(VFXConfig)

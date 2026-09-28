@@ -72,12 +72,12 @@ local function buildTopBar(gui)
 	label(tb, "QUESTS", UDim2.new(0, 120, 0, 28), UDim2.new(0, 16, 0, 8),
 		Color3.fromRGB(120, 220, 160), Enum.Font.GothamBlack)
 
-	local passLbl = label(tb, "Battle Pass Tier 0", UDim2.new(0, 220, 0, 24), UDim2.new(1, -236, 0, 10),
+	local passLbl = label(tb, "Battle Pass Tier 0", UDim2.new(0, 200, 0, 20), UDim2.new(1, -250, 0, 12),
 		Color3.fromRGB(200, 160, 255), Enum.Font.GothamBold)
 	passLbl.TextXAlignment = Enum.TextXAlignment.Right
 	panel.passLbl = passLbl
 
-	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 8), Color3.fromRGB(80, 30, 30))
+	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -40, 0, 8), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() QuestUI:Hide() end)
 
 	local tabNames = { { id = "daily", label = "DAILY" }, { id = "weekly", label = "WEEKLY" }, { id = "streak", label = "STREAK" }, { id = "progress", label = "PROGRESS" } }
@@ -85,7 +85,7 @@ local function buildTopBar(gui)
 	for i, t in ipairs(tabNames) do
 		local b = button(tb, t.label, UDim2.new(0, TAB_W, 0, 26), UDim2.new(0, 8 + (i - 1) * (TAB_W + TAB_GAP), 0, 36),
 			Color3.fromRGB(24, 30, 24))
-		b.TextSize = 12
+		b.TextScaled = false; b.TextSize = 14  -- fixed size: scaled tab labels ballooned
 		tabButtons[t.id] = b
 		b.MouseButton1Click:Connect(function() QuestUI:ShowTab(t.id) end)
 	end

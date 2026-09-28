@@ -57,12 +57,12 @@ local function buildTopBar(gui)
 	label(tb, "ARENA", UDim2.new(0, 140, 0, 28), UDim2.new(0, 16, 0, 8),
 		Color3.fromRGB(255, 120, 120), Enum.Font.GothamBlack)
 
-	local ratingLbl = label(tb, "Rating: 1000", UDim2.new(0, 200, 0, 24), UDim2.new(1, -216, 0, 10),
+	local ratingLbl = label(tb, "Rating: 1000", UDim2.new(0, 180, 0, 22), UDim2.new(1, -230, 0, 11),
 		Color3.fromRGB(255, 210, 90), Enum.Font.GothamBold)
 	ratingLbl.TextXAlignment = Enum.TextXAlignment.Right
 	panel.ratingLbl = ratingLbl
 
-	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -22, 0, 8), Color3.fromRGB(80, 30, 30))
+	local closeBtn = button(tb, "X", UDim2.new(0, 28, 0, 28), UDim2.new(1, -40, 0, 8), Color3.fromRGB(80, 30, 30))
 	closeBtn.MouseButton1Click:Connect(function() ArenaUI:Hide() end)
 
 	local tabNames = { { id = "async", label = "ASYNC" }, { id = "duel", label = "LIVE DUEL" }, { id = "spectate", label = "SPECTATE" } }
@@ -70,7 +70,7 @@ local function buildTopBar(gui)
 	for i, t in ipairs(tabNames) do
 		local b = button(tb, t.label, UDim2.new(0, TAB_W, 0, 26), UDim2.new(0, 8 + (i - 1) * (TAB_W + TAB_GAP), 0, 46),
 			Color3.fromRGB(30, 18, 18))
-		b.TextSize = 12
+		b.TextScaled = false; b.TextSize = 14  -- fixed size: scaled tab labels ballooned
 		tabButtons[t.id] = b
 		b.MouseButton1Click:Connect(function() ArenaUI:ShowTab(t.id) end)
 	end

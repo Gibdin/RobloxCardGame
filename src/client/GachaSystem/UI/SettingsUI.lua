@@ -31,19 +31,19 @@ local function stepperRow(parent, y, label, initialText, onDec, onInc)
 	lbl.Size = UDim2.new(0.5, 0, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
 	lbl.BackgroundTransparency = 1; lbl.Text = label
 	lbl.TextColor3 = Color3.fromRGB(200, 200, 225); lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.TextScaled = true; lbl.Font = Enum.Font.Gotham; lbl.ZIndex = 22; lbl.Parent = row
+	lbl.TextScaled = false; lbl.TextSize = 17; lbl.Font = Enum.Font.GothamMedium; lbl.ZIndex = 22; lbl.Parent = row
 
 	local dec = Instance.new("TextButton")
-	dec.Size = UDim2.new(0, 28, 0, 28); dec.Position = UDim2.new(1, -108, 0.5, -14)
+	dec.Size = UDim2.new(0, 28, 0, 28); dec.Position = UDim2.new(1, -124, 0.5, -14)
 	dec.BackgroundColor3 = Color3.fromRGB(40, 40, 60); dec.BorderSizePixel = 0
 	dec.Text = "-"; dec.TextColor3 = Color3.new(1, 1, 1); dec.TextScaled = true
 	dec.Font = Enum.Font.GothamBold; dec.ZIndex = 22; dec.Parent = row
 	corner(dec, 6)
 
 	local valueLbl = Instance.new("TextLabel")
-	valueLbl.Size = UDim2.new(0, 44, 1, 0); valueLbl.Position = UDim2.new(1, -74, 0, 0)
+	valueLbl.Size = UDim2.new(0, 54, 1, 0); valueLbl.Position = UDim2.new(1, -94, 0, 0)
 	valueLbl.BackgroundTransparency = 1; valueLbl.Text = initialText
-	valueLbl.TextColor3 = Color3.fromRGB(255, 210, 90); valueLbl.TextScaled = true
+	valueLbl.TextColor3 = Color3.fromRGB(255, 210, 90); valueLbl.TextScaled = false; valueLbl.TextSize = 16
 	valueLbl.Font = Enum.Font.GothamBold; valueLbl.ZIndex = 22; valueLbl.Parent = row
 
 	local inc = Instance.new("TextButton")
@@ -70,17 +70,18 @@ local function toggleRow(parent, y, label, initialOn, onToggle)
 	lbl.Size = UDim2.new(0.6, 0, 1, 0); lbl.Position = UDim2.new(0, 12, 0, 0)
 	lbl.BackgroundTransparency = 1; lbl.Text = label
 	lbl.TextColor3 = Color3.fromRGB(200, 200, 225); lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.TextScaled = true; lbl.Font = Enum.Font.Gotham; lbl.ZIndex = 22; lbl.Parent = row
+	lbl.TextScaled = false; lbl.TextSize = 17; lbl.Font = Enum.Font.GothamMedium; lbl.ZIndex = 22; lbl.Parent = row
 
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 78, 0, 28); btn.Position = UDim2.new(1, -90, 0.5, -14)
-	btn.BorderSizePixel = 0; btn.TextScaled = true
+	btn.BorderSizePixel = 0; btn.TextScaled = false; btn.TextSize = 16; btn.Font = Enum.Font.GothamBlack
 	btn.Font = Enum.Font.GothamBold; btn.ZIndex = 22; btn.Parent = row
 	corner(btn, 6)
 
 	local on = initialOn
 	local function refresh()
 		btn.Text = on and "ON" or "OFF"
+		btn.TextColor3 = Color3.new(1, 1, 1)
 		btn.BackgroundColor3 = on and Color3.fromRGB(60, 160, 90) or Color3.fromRGB(70, 40, 40)
 	end
 	refresh()
