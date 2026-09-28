@@ -30,8 +30,8 @@ function RunTeamPanel:Init(gui, cardDb, rarityConf, roleConf, dungeonConf, sound
 
 	panel = Instance.new("Frame")
 	panel.Name = "RunTeamPanel"
-	panel.Size = UDim2.new(0, 470, 0, 62)
-	panel.Position = UDim2.new(0.5, -235, 1, -200)
+	panel.Size = UDim2.new(0, 572, 0, 76)
+	panel.Position = UDim2.new(0.5, -286, 1, -214)
 	panel.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
 	panel.BackgroundTransparency = 0.12
 	panel.BorderSizePixel = 0
@@ -63,7 +63,7 @@ function RunTeamPanel:Update(run)
 			local roleDef = card and RoleConfig and RoleConfig.Roles[card.role]
 
 			local f = Instance.new("Frame")
-			f.Size = UDim2.new(0, 86, 0, 52)
+			f.Size = UDim2.new(0, 104, 0, 66)
 			f.BackgroundColor3 = Color3.fromRGB(24, 24, 42)
 			f.BackgroundTransparency = 0.1
 			f.BorderSizePixel = 0
@@ -96,11 +96,14 @@ function RunTeamPanel:Update(run)
 			glyph.ZIndex = 25; glyph.Parent = f
 
 			local name = Instance.new("TextLabel")
-			name.Size = UDim2.new(1, -44, 0, 14); name.Position = UDim2.new(0, 17, 0, 2)
+			-- Own two-line row: beside the glyph/level it only had ~42px and
+			-- every name collapsed to its first word ("The").
+			name.Size = UDim2.new(1, -8, 0, 24); name.Position = UDim2.new(0, 4, 0, 19)
 			name.BackgroundTransparency = 1
 			name.Text = card and card.name or ("#" .. id)
 			name.TextColor3 = Color3.fromRGB(240, 240, 250)
-			name.TextScaled = true; name.Font = Enum.Font.GothamBold
+			name.TextScaled = false; name.TextSize = 10; name.TextWrapped = true; name.Font = Enum.Font.GothamBold
+			name.TextYAlignment = Enum.TextYAlignment.Top
 			name.TextXAlignment = Enum.TextXAlignment.Left
 			name.ZIndex = 25; name.Parent = f
 
@@ -115,7 +118,7 @@ function RunTeamPanel:Update(run)
 			corner(lvl, 4)
 
 			local hpHolder = Instance.new("Frame")
-			hpHolder.Size = UDim2.new(1, -8, 0, 8); hpHolder.Position = UDim2.new(0, 4, 0, 22)
+			hpHolder.Size = UDim2.new(1, -8, 0, 8); hpHolder.Position = UDim2.new(0, 4, 0, 46)
 			hpHolder.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
 			hpHolder.BorderSizePixel = 0
 			hpHolder.ZIndex = 24; hpHolder.Parent = f
@@ -130,7 +133,7 @@ function RunTeamPanel:Update(run)
 
 			-- XP progress toward the next level.
 			local xpHolder = Instance.new("Frame")
-			xpHolder.Size = UDim2.new(1, -8, 0, 4); xpHolder.Position = UDim2.new(0, 4, 0, 32)
+			xpHolder.Size = UDim2.new(1, -8, 0, 4); xpHolder.Position = UDim2.new(0, 4, 0, 57)
 			xpHolder.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
 			xpHolder.BorderSizePixel = 0
 			xpHolder.ZIndex = 24; xpHolder.Parent = f
@@ -149,7 +152,7 @@ function RunTeamPanel:Update(run)
 			corner(xpBar, 2)
 
 			local pips = Instance.new("TextLabel")
-			pips.Size = UDim2.new(1, -8, 0, 13); pips.Position = UDim2.new(0, 4, 0, 38)
+			pips.Size = UDim2.new(1, -50, 0, 14); pips.Position = UDim2.new(0, 18, 0, 2)
 			pips.BackgroundTransparency = 1
 			local nBuffs = #(cs.buffs or {})
 			local nItems = #(cs.items or {})
@@ -158,9 +161,9 @@ function RunTeamPanel:Update(run)
 			if nItems > 0 then table.insert(parts, "I" .. nItems) end
 			pips.Text = table.concat(parts, "  ")
 			pips.TextColor3 = Color3.fromRGB(255, 210, 110)
-			pips.TextScaled = true; pips.Font = Enum.Font.GothamBold
+			pips.TextScaled = false; pips.TextSize = 11; pips.Font = Enum.Font.GothamBold
 			pips.TextXAlignment = Enum.TextXAlignment.Left
-			pips.ZIndex = 24; pips.Parent = f
+			pips.ZIndex = 25; pips.Parent = f
 
 			chips[id] = { frame = f, hpBar = hpBar, xpBar = xpBar, lvlLabel = lvl, scale = scale }
 		end

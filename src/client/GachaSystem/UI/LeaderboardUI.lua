@@ -162,15 +162,27 @@ function LeaderboardUI:Refresh(boardId, data)
 	local rows = rowLabels[boardId]
 	if not rows then return end
 
+	-- Only filled ranks are shown (no walls of "—"); top 3 get medal colours.
+	local MEDAL = { Color3.fromRGB(255, 205, 70), Color3.fromRGB(215, 225, 240), Color3.fromRGB(215, 140, 80) }
+	local count = 0
 	for i, rowUI in ipairs(rows) do
 		local entry = data.top and data.top[i]
+		rowUI.row.Visible = entry ~= nil
 		if entry then
+			count = count + 1
+			rowUI.rankLbl.Text = "#" .. i
+			rowUI.rankLbl.TextColor3 = MEDAL[i] or Color3.fromRGB(150, 150, 180)
+			rowUI.nameLbl.Size = UDim2.new(0.5, 0, 1, 0)
 			rowUI.nameLbl.Text = entry.name
 			rowUI.scoreLbl.Text = tostring(entry.score)
-		else
-			rowUI.nameLbl.Text = "—"
-			rowUI.scoreLbl.Text = "—"
 		end
+	end
+	if count == 0 and rows[1] then
+		rows[1].row.Visible = true
+		rows[1].rankLbl.Text = ""
+		rows[1].nameLbl.Size = UDim2.new(1, -64, 1, 0)  -- full row width for the message
+		rows[1].nameLbl.Text = "No one's on this board yet. Be the first!"
+		rows[1].scoreLbl.Text = ""
 	end
 
 	local boardDef

@@ -155,8 +155,10 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 
 	panel = Instance.new("Frame")
 	panel.Name = "DungeonMapPanel"
-	panel.Size = UDim2.new(0, 440, 0, 560)
-	panel.Position = UDim2.new(0.5, -220, 0.5, -280)
+	-- Fills the space between the NEXT banner (top) and the run team strip
+	-- (RunTeamPanel, anchored 214px above the bottom) so neither is covered.
+	panel.Size = UDim2.new(0, 440, 1, -282)
+	panel.Position = UDim2.new(0.5, -220, 0, 60)
 	panel.BackgroundColor3 = CURSED_BG
 	panel.BackgroundTransparency = 0.08
 	panel.BorderSizePixel = 0
