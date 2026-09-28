@@ -10,29 +10,29 @@ RoleConfig.Roles = {
 		icon        = "🛡",
 		color       = Color3.fromRGB(60, 130, 220),
 		passive     = "Drain",
-		passiveDesc = "Heals for a percentage of all damage dealt to this card.",
+		passiveDesc = "Heals a little whenever it takes damage.",
 		bonusLabel  = "Max HP",
-		bonuses     = { "+5% Max HP", "+10% Max HP", "+15% Max HP", "+18% Max HP", "+20% Max HP" },
+		bonuses     = { "Max HP ★", "Max HP ★★", "Max HP ★★★", "Max HP ★★★★", "Max HP ★★★★★" },
 	},
 	DPS = {
 		icon     = "⚔",
 		color    = Color3.fromRGB(220, 60, 60),
 		passives = {
-			Rage        = "Gains cumulative ATK bonus after each successful attack this battle.",
-			Executioner = "Deals amplified damage to targets below 35% HP.",
+			Rage        = "Gets stronger with every hit it lands.",
+			Executioner = "Hits harder against enemies on low HP.",
 		},
 		bonusLabel = "ATK",
-		bonuses    = { "+5% ATK", "+10% ATK", "+15% ATK", "+18% ATK", "+20% ATK" },
+		bonuses    = { "ATK ★", "ATK ★★", "ATK ★★★", "ATK ★★★★", "ATK ★★★★★" },
 	},
 	Support = {
 		icon     = "✚",
 		color    = Color3.fromRGB(60, 200, 120),
 		passives = {
-			Medic   = "Heals the lowest HP ally after each round.",
-			Battery = "Restores 1 mana to allies whenever any unit on the field dies.",
+			Medic   = "Heals the weakest ally at the end of every round.",
+			Battery = "Gives the team mana whenever anyone is knocked out.",
 		},
 		bonusLabel = "Effectiveness",
-		bonuses    = { "+5% Ability Effectiveness", "+10% Ability Effectiveness", "+15% Ability Effectiveness", "+18% Ability Effectiveness", "+20% Ability Effectiveness" },
+		bonuses    = { "Ability power ★", "Ability power ★★", "Ability power ★★★", "Ability power ★★★★", "Ability power ★★★★★" },
 	},
 }
 
@@ -48,9 +48,9 @@ RoleConfig.Subroles = {
 
 -- ── Role counter cycle text (numbers in CombatConfig.Counters) ────────────────
 RoleConfig.Counters = {
-	{ from = "Tank",    to = "DPS",     text = "Tanks take 10% less damage from DPS" },
-	{ from = "DPS",     to = "Support", text = "DPS deal 10% more damage to Supports" },
-	{ from = "Support", to = "Tank",    text = "Supports deal 10% more to Tanks; their effects are 10% stronger vs a Tank frontline" },
+	{ from = "Tank",    to = "DPS",     text = "Tanks take less damage from DPS" },
+	{ from = "DPS",     to = "Support", text = "DPS deal extra damage to Supports" },
+	{ from = "Support", to = "Tank",    text = "Supports are stronger against Tanks" },
 }
 
 -- ── Synergy groups ────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ RoleConfig.Synergies = {
 		color      = Color3.fromRGB(240, 120, 60),
 		maxCount   = 2,
 		thresholds = {
-			{ count = 2, bonus = "+18% ATK for both members" },
+			{ count = 2, bonus = "Both members hit much harder." },
 		},
 	},
 	["First Years"] = {
@@ -72,8 +72,8 @@ RoleConfig.Synergies = {
 		color      = Color3.fromRGB(90, 110, 230),
 		maxCount   = 3,
 		thresholds = {
-			{ count = 2, bonus = "+8% ATK and +8% Max HP for members" },
-			{ count = 3, bonus = "+12% ATK and +12% Max HP; the first member to drop below 30% HP gets a 20% Max HP shield" },
+			{ count = 2, bonus = "Members get stronger and tougher." },
+			{ count = 3, bonus = "Even stronger and tougher, and the first member in danger gets a shield." },
 		},
 	},
 }

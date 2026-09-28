@@ -1,7 +1,6 @@
 local TweenService = game:GetService("TweenService")
 local UIS          = game:GetService("UserInputService")
 local Players      = game:GetService("Players")
-local CombatConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("GachaSystem"):WaitForChild("CombatConfig"))
 local InventoryUI  = {}
 
 local PW,PH=860,600; local TOPBAR_H=48; local BODY_Y=TOPBAR_H+1; local BODY_H=PH-BODY_Y-1
@@ -16,15 +15,14 @@ local ROLE_SHORT={Tank="TANK",DPS="DPS",Support="SUP"}
 local PASSIVE_COLOR={Drain=Color3.fromRGB(60,130,220),Rage=Color3.fromRGB(220,60,60),Executioner=Color3.fromRGB(220,130,40),Medic=Color3.fromRGB(60,200,120),Battery=Color3.fromRGB(60,180,200),Trait=Color3.fromRGB(230,180,60)}
 local PASSIVE_DESC_COLOR={Drain=Color3.fromRGB(120,170,255),Rage=Color3.fromRGB(255,130,130),Executioner=Color3.fromRGB(255,190,110),Medic=Color3.fromRGB(120,240,160),Battery=Color3.fromRGB(100,230,245),Trait=Color3.fromRGB(250,215,130)}
 local ACTIVE_DESC_COLOR=Color3.fromRGB(205,180,255)
--- Plain-language rules for the standard role passives, built from the live
--- combat numbers so the text can never drift from what the engine does.
-local PSV=CombatConfig.Passives
+-- Plain-language rules for the standard role passives. Exact numbers live in
+-- the Discord reference (docs/discord/card-reference.md), not in the game.
 local PASSIVE_RULE={
-	Drain=("Heals %d%% of all damage this card takes."):format(PSV.Drain.healPctOfDamageTaken*100),
-	Rage=("+%d%% ATK for every attack it lands, up to %d stacks."):format(PSV.Rage.atkPerStack*100,PSV.Rage.maxStacks),
-	Executioner=("+%d%% damage to targets below %d%% HP."):format(PSV.Executioner.bonusDamage*100,PSV.Executioner.hpThreshold*100),
-	Medic=("At the end of every round, heals the lowest-HP ally for %d%% of their Max HP."):format(PSV.Medic.healPctLowestAlly*100),
-	Battery=("Whenever any unit dies, every ally gains %d mana."):format(PSV.Battery.manaRestore),
+	Drain="Heals a little whenever it takes damage.",
+	Rage="Gets stronger with every hit it lands.",
+	Executioner="Hits harder against enemies on low HP.",
+	Medic="Heals the weakest ally at the end of every round.",
+	Battery="Gives the team mana whenever anyone is knocked out.",
 }
 local RARITY_CYCLE={"All","Common","Uncommon","Rare","Epic","Legendary","Mythic","God","Secret"}
 local SORT_CYCLE={"Rarity","Name","Awakening"}
@@ -37,7 +35,6 @@ local filterRole,roleIdx="All",1
 local sortMode,sortIdx="Rarity",1
 local searchText=""
 local showAll=false      -- false: owned cards only; true: every obtainable card
-local showDetails=false  -- "More info": exact numbers under the one-line summaries
 local ownedIds={}
 local selectedCard=nil
 local highlightedSyn=nil
@@ -54,8 +51,8 @@ local dArtBg,dName,dRarity,dRoleBadge
 local dATK,dHP
 local dMPPips={}
 local dPassiveChip,dCardPassiveName,dCardPassiveDesc
-local dActiveName,dActiveDesc,dActiveCost
-local dRoleLine,dRoleDesc,dPassiveHdr,dPassiveRule,dActiveDetail,detailsBtn
+local dActiveName,dActiveDesc
+local dRoleLine,dRoleDesc,dPassiveHdr
 local dSynContainer
 local equBtn
 local synergyTooltip,synergyTooltipInner
@@ -295,27 +292,17 @@ showCard=function(c)
 	dPassiveHdr.Text=isTrait and "UNIQUE TRAIT" or "PASSIVE"
 	if dPassiveChip then dPassiveChip.BackgroundColor3=ptColor; local lbl=dPassiveChip:FindFirstChild("Lbl"); if lbl then lbl.Text=(full.passive or "—"):upper() end end
 	if dCardPassiveName then dCardPassiveName.Text=full.passive_name or "—" end
-	-- Main line: a Trait's one-line summary, or a standard passive's rule.
-	-- The full Trait text (exact numbers) only shows under "More info".
+	-- One plain line: a Trait's summary, or a standard passive's rule.
 	if isTrait then
 		dCardPassiveDesc.Text=full.passive_short or full.passive_desc or ""
-		dPassiveRule.Text=full.passive_desc or ""
-		-- Skip the details when the full text barely differs from the summary.
-		local adds=full.passive_short~=nil and #(full.passive_desc or "")>#full.passive_short+25
-		dPassiveRule.Visible=showDetails and adds
 	else
 		dCardPassiveDesc.Text=PASSIVE_RULE[full.passive] or full.passive_desc or ""
-		dPassiveRule.Visible=false
 	end
 	dCardPassiveDesc.TextColor3=pdColor
 
 	local act=full.active or {}
 	if dActiveName then dActiveName.Text=act.name or "—" end
 	dActiveDesc.Text=act.short or act.desc or ""
-	dActiveDetail.Text=act.desc or ""
-	dActiveDetail.Visible=showDetails and act.short~=nil
-	detailsBtn.Text=showDetails and "Hide exact numbers" or "More info: exact numbers"
-	if dActiveCost then dActiveCost.Text="COSTS "..tostring(full.mp or "?").." MANA" end
 
 	local sn=globalTeamBar:IsInTeam(c.id)
 	for _,ch in ipairs(equBtn:GetChildren()) do if ch:IsA("UIStroke") then ch:Destroy() end end
@@ -550,21 +537,13 @@ local function buildDetailPane(parent)
 	local chipLbl=Instance.new("TextLabel");chipLbl.Name="Lbl";chipLbl.Size=UDim2.new(1,0,1,0);chipLbl.BackgroundTransparency=1;chipLbl.Text="—";chipLbl.TextColor3=Color3.new(1,1,1);chipLbl.TextScaled=false;chipLbl.TextSize=11;chipLbl.Font=Enum.Font.GothamBold;chipLbl.ZIndex=24;chipLbl.Parent=dPassiveChip
 	dCardPassiveName=Instance.new("TextLabel");dCardPassiveName.Size=UDim2.new(1,-100,1,0);dCardPassiveName.Position=UDim2.new(0,100,0,0);dCardPassiveName.BackgroundTransparency=1;dCardPassiveName.Text="";dCardPassiveName.TextColor3=Color3.fromRGB(230,205,110);dCardPassiveName.TextScaled=false;dCardPassiveName.TextSize=15;dCardPassiveName.Font=Enum.Font.GothamBold;dCardPassiveName.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveName.TextTruncate=Enum.TextTruncate.AtEnd;dCardPassiveName.ZIndex=23;dCardPassiveName.Parent=pRow
 	dCardPassiveDesc=line(15,Enum.Font.GothamMedium,Color3.fromRGB(215,215,235))
-	dPassiveRule=line(13,Enum.Font.Gotham,Color3.fromRGB(175,175,200))  -- full Trait text, under More info
 
 	-- ABILITY
 	divider(); header("ABILITY")
 	local aRow=Instance.new("Frame");aRow.Size=UDim2.new(1,0,0,22);aRow.BackgroundTransparency=1;aRow.BorderSizePixel=0;aRow.LayoutOrder=nextOrder();aRow.ZIndex=23;aRow.Parent=stack
-	local costChip=Instance.new("Frame");costChip.Size=UDim2.new(0,92,0,20);costChip.Position=UDim2.new(0,0,0,1);costChip.BackgroundColor3=Color3.fromRGB(70,45,120);costChip.BorderSizePixel=0;costChip.ZIndex=23;costChip.Parent=aRow;C(costChip,3)
-	dActiveCost=Instance.new("TextLabel");dActiveCost.Size=UDim2.new(1,0,1,0);dActiveCost.BackgroundTransparency=1;dActiveCost.Text="";dActiveCost.TextColor3=Color3.fromRGB(215,190,255);dActiveCost.TextScaled=false;dActiveCost.TextSize=11;dActiveCost.Font=Enum.Font.GothamBold;dActiveCost.ZIndex=24;dActiveCost.Parent=costChip
-	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(1,-100,1,0);dActiveName.Position=UDim2.new(0,100,0,0);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(200,165,255);dActiveName.TextScaled=false;dActiveName.TextSize=15;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.TextTruncate=Enum.TextTruncate.AtEnd;dActiveName.ZIndex=23;dActiveName.Parent=aRow
+	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(1,0,1,0);dActiveName.Position=UDim2.new(0,0,0,0);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(200,165,255);dActiveName.TextScaled=false;dActiveName.TextSize=15;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.TextTruncate=Enum.TextTruncate.AtEnd;dActiveName.ZIndex=23;dActiveName.Parent=aRow
 	dActiveDesc=line(15,Enum.Font.GothamMedium,ACTIVE_DESC_COLOR)
-	dActiveDetail=line(13,Enum.Font.Gotham,Color3.fromRGB(175,175,200))  -- exact numbers, under More info
-	line(12,Enum.Font.Gotham,Color3.fromRGB(160,155,195)).Text="Fires on its own when mana is full. +1 mana for every hit."
-	detailsBtn=B(stack,"More info: exact numbers",UDim2.new(1,0,0,30),UDim2.new(0,0,0,0),Color3.fromRGB(30,26,52),23)
-	detailsBtn.Name="DetailsToggle";detailsBtn.TextScaled=false;detailsBtn.TextSize=13;detailsBtn.Font=Enum.Font.GothamBold;detailsBtn.TextColor3=Color3.fromRGB(215,205,255);detailsBtn.LayoutOrder=nextOrder();S(detailsBtn,Color3.fromRGB(70,55,120),1)
-	hoverBtn(detailsBtn,Color3.fromRGB(30,26,52),Color3.fromRGB(44,36,76))
-	detailsBtn.MouseButton1Click:Connect(function() showDetails=not showDetails; if selectedCard then showCard(selectedCard) end end)
+	line(12,Enum.Font.Gotham,Color3.fromRGB(160,155,195)).Text="Each hit it lands fills a mana pip. When the pips are full, this fires on its own."
 
 	-- SYNERGIES
 	divider(); header("SYNERGIES")

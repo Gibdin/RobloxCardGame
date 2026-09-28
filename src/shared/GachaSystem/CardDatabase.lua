@@ -77,7 +77,7 @@ CardDatabase.Cards = {
 		passive_desc = "Every basic attack also slashes the next enemy in line for 50% ATK.",
 		active = {
 			name = "Malevolent Shrine",
-			short = "Slashes every enemy, then keeps cutting them for 3 rounds.",
+			short = "Slashes every enemy, then keeps cutting them for a few rounds.",
 			desc = "300% ATK true damage to every enemy, then the Shrine keeps cleaving: 80% ATK true damage to every enemy at the start of each of the next 3 rounds.",
 			effects = {
 				{ op = "true_damage_all", mult = 3.0 },
@@ -189,7 +189,7 @@ CardDatabase.Cards = {
 		stat = { atk = 1.00, hp = 1.00 }, mp = 4,
 		role = "Support", subrole = "Enchanter", passive = "Trait", trait = "spirit_manipulation",
 		passive_name = "Cursed Spirit Manipulation",
-		passive_short = "The whole team starts the battle with 1 mana.",
+		passive_short = "The whole team starts the battle with a head start on mana.",
 		passive_desc = "All allies start the battle with 1 mana.",
 		active = {
 			name = "Curse Release",
@@ -234,7 +234,7 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Maximum: Meteor",
-			short = "Hits every enemy and sets them on fire for 3 rounds.",
+			short = "Hits every enemy and sets them on fire for a few rounds.",
 			desc = "110% ATK to every enemy and sets them ablaze: 30% ATK burn at the start of each of the next 3 rounds.",
 			effects = {
 				{ op = "aoe_damage", mult = 1.1 },
@@ -284,7 +284,7 @@ CardDatabase.Cards = {
 		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
 		active = {
 			name = "Ratio 7:3",
-			short = "A guaranteed crit plus team shields. Doubles after round 6.",
+			short = "A guaranteed crit plus team shields. Even stronger late in a fight.",
 			desc = "A guaranteed-crit 150% ATK strike on the frontline enemy, then shields every ally for 10% of their Max HP. Overtime: from round 6, both are doubled.",
 			effects = {
 				{ op = "single_damage", mult = 1.5, guaranteedCrit = true, overtimeRound = 6, overtimeMult = 2 },
@@ -319,7 +319,7 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Idle Death Gamble",
-			short = "Hits, and a 1-in-3 JACKPOT fully heals and casts again!",
+			short = "Hits, and sometimes hits the JACKPOT: a full heal and a free recast!",
 			desc = "120% ATK to the frontline enemy. 1-in-3 JACKPOT: fully heals, +10% ATK permanently, and Fever refills mana so it casts again right away.",
 			effects = {
 				{ op = "jackpot", mult = 1.2, chance = 1 / 3, atkPct = 0.10, refillMana = true },
@@ -335,7 +335,7 @@ CardDatabase.Cards = {
 		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
 		active = {
 			name = "24 Frames",
-			short = "Freezes the front enemy. Frozen enemies shatter for double damage.",
+			short = "Freezes the front enemy. Frozen enemies shatter for huge damage.",
 			desc = "140% ATK to the frontline enemy and freezes it for 1 turn. Hitting an already frozen or stunned target shatters it for +100% damage.",
 			effects = {
 				{ op = "single_damage", mult = 1.4, bonusVsStunned = 1.0, stunTurns = 1 },
@@ -513,7 +513,7 @@ CardDatabase.Cards = {
 		passive_desc = "Restores 1 mana to allies whenever any unit dies (standard Battery passive).",
 		active = {
 			name = "Judgeman: Confiscation",
-			short = "Takes the front enemy's mana and blocks it for 2 turns.",
+			short = "Takes the front enemy's mana and blocks it for a while.",
 			desc = "Confiscates the frontline enemy's technique: wipes all its mana, and it can't gain mana for 2 turns.",
 			effects = {
 				{ op = "silence", turns = 2 },
