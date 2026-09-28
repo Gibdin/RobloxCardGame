@@ -17,6 +17,12 @@ local InventoryService = require(script.Parent.InventoryService)
 
 local DebugService = {}
 
+-- Studio play sessions don't persist inventories, so every session starts
+-- empty. While this is true, anyone joining a Studio session gets one copy of
+-- every card, for reviewing the roster in the cards menu. Set it to false to
+-- test the fresh-player flow. Has no effect outside Studio.
+DebugService.GRANT_ALL_CARDS_IN_STUDIO = true
+
 local PREFERRED_RARITIES = { Rare = true, Epic = true }
 
 local function pickForRole(role, rng, excludeIds)
@@ -62,6 +68,29 @@ function DebugService:QuickSetup(userId)
 		table.insert(names, CardDatabase:GetById(id).name)
 	end
 	return { success = true, team = ids, names = names, gems = InventoryService:GetGems(userId) }
+end
+
+-- Studio-only: grants one copy of every card in the database (admin-only cards
+-- included) so a tester can browse the full roster in the cards menu.
+-- Cards already owned are skipped. Returns how many were newly added.
+function DebugService:GrantAllCards(userId)
+	if not RunService:IsStudio() then
+		return { success = false, error = "Debug tools are Studio-only." }
+	end
+	local added = 0
+	for _, card in ipairs(CardDatabase.Cards) do
+		if not InventoryService:OwnsCard(userId, card.id) then
+			InventoryService:AddCard(userId, card.id)
+			added += 1
+		end
+	end
+	return { success = true, added = added, total = #InventoryService:GetCardIds(userId) }
+end
+
+function DebugService:OnPlayerLoaded(userId)
+	if RunService:IsStudio() and self.GRANT_ALL_CARDS_IN_STUDIO then
+		self:GrantAllCards(userId)
+	end
 end
 
 -- ── Balancing/admin tooling (Phase 9) ─────────────────────────────────────────

@@ -38,6 +38,7 @@ local CosmeticConfig     = require(ReplicatedStorage:WaitForChild("GachaSystem")
 
 Players.PlayerAdded:Connect(function(player)
 	InventoryService:Load(player.UserId)
+	DebugService:OnPlayerLoaded(player.UserId)
 	MonetizationService:SyncVIPOwnership(player)
 	CosmeticService:WatchPlayer(player)
 	QuestService:EnsureFresh(player.UserId)
@@ -55,6 +56,7 @@ end)
 -- Handle players already in-game when this script starts (Studio play-test).
 for _, player in ipairs(Players:GetPlayers()) do
 	InventoryService:Load(player.UserId)
+	DebugService:OnPlayerLoaded(player.UserId)
 	MonetizationService:SyncVIPOwnership(player)
 	CosmeticService:WatchPlayer(player)
 	QuestService:EnsureFresh(player.UserId)
@@ -104,6 +106,7 @@ local rfDungeonReroll      = RF("Dungeon_RerollShop")
 local rfDungeonAbandon     = RF("Dungeon_Abandon")
 
 local rfDebugQuickSetup = RF("Debug_QuickSetup")
+local rfDebugGrantAll   = RF("Debug_GrantAllCards")
 
 local rfGetMonetizationInfo  = RF("GetMonetizationInfo")
 local rfPromptGemPurchase    = RF("PromptGemPurchase")
@@ -273,6 +276,10 @@ end
 
 rfDebugQuickSetup.OnServerInvoke = function(player)
 	return DebugService:QuickSetup(player.UserId)
+end
+
+rfDebugGrantAll.OnServerInvoke = function(player)
+	return DebugService:GrantAllCards(player.UserId)
 end
 
 -- ── Monetization ──────────────────────────────────────────────────────────────
