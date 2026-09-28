@@ -35,7 +35,9 @@ function RunTeamPanel:Init(gui, cardDb, rarityConf, roleConf, dungeonConf, sound
 	panel.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
 	panel.BackgroundTransparency = 0.12
 	panel.BorderSizePixel = 0
-	panel.ZIndex = 22
+	-- Below every menu panel (Inventory is 20): it stays up for the whole run,
+	-- so opening another screen mid-run must cover it, not the other way round.
+	panel.ZIndex = 4
 	panel.Visible = false
 	panel.Parent = gui
 	corner(panel, 10)

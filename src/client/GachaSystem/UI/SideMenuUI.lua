@@ -143,20 +143,35 @@ function SideMenuUI:Init(gui, callbacks)
 	panel.AutomaticCanvasSize = Enum.AutomaticSize.None
 	panel.Parent            = gui
 
+	-- Sized in the root UIScale's units (the UI scales down on small screens),
+	-- and starting below Roblox's own top-bar buttons: with IgnoreGuiInset the
+	-- first button used to sit under the Roblox menu icon and couldn't be tapped.
+	local GuiService = game:GetService("GuiService")
+	local function rootScale()
+		local sc = gui:FindFirstChildOfClass("UIScale")
+		return (sc and sc.Scale > 0) and sc.Scale or 1
+	end
 	local function fitToViewport()
-		local viewportH = Workspace.CurrentCamera.ViewportSize.Y
-		local margin = 20
+		local s = rootScale()
+		local viewportH = Workspace.CurrentCamera.ViewportSize.Y / s
+		local topInset = (GuiService:GetGuiInset().Y + 6) / s
+		local bottomMargin = 20
+		local avail = viewportH - topInset - bottomMargin
 		-- min/max instead of math.clamp: viewportH can legitimately be 0 or
-		-- tiny for a frame or two while the camera is still initializing,
-		-- which would make (viewportH - margin*2) negative and violate
-		-- clamp's min<=max requirement.
-		local visibleH = math.max(1, math.min(totalH, viewportH - margin * 2))
-		local topY = math.max(margin, math.floor(viewportH * 0.40 - visibleH / 2))
+		-- tiny for a frame or two while the camera is still initializing.
+		local visibleH = math.max(1, math.min(totalH, avail))
+		local topY = math.max(topInset, math.floor(topInset + (avail - visibleH) * 0.4))
 		panel.Size = UDim2.new(0, MENU_W, 0, visibleH)
 		panel.Position = UDim2.new(0, 14, 0, topY)
 	end
 	fitToViewport()
 	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitToViewport)
+	-- The root UIScale is created after this menu; refit whenever it changes.
+	local function watchScale(sc)
+		if sc:IsA("UIScale") then sc:GetPropertyChangedSignal("Scale"):Connect(fitToViewport); fitToViewport() end
+	end
+	for _, c in ipairs(gui:GetChildren()) do watchScale(c) end
+	gui.ChildAdded:Connect(watchScale)
 
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop    = UDim.new(0, PAD)

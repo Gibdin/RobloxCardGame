@@ -366,3 +366,19 @@ Walking the new-player path found a dead end: a new player opens their 3 free pa
 - **Best Team button** in the team builder: one tap builds the strongest lineup (a Tank in front, then the highest-rarity cards).
 - **Next-step banner:** a compact objective line at the top of the screen that always says what to do next (open your free packs → build your team → enter the Shibuya Incident → beat the Domain boss) and makes the matching side-menu button pulse. It disappears once the player has cleared the boss.
 
+### 11.13 Phone playtest (2026-09-28)
+
+The full first-session loop was played on an emulated phone screen (844x390 points, landscape: the whole game UI placed in a clipping frame of that size in Studio; touch controls and notches not emulated).
+
+**Found (before fixes):** the UI was built in fixed pixels for a desktop-sized screen with no scaling. On the phone, 6 of 11 side-menu buttons were cut off and the team bar covered the rest; the pack drawer and pack-opening screen overflowed (the Skip button fell off-screen); the dungeon map collapsed to ~108px with **no nodes visible, making a run unplayable**; and the Inventory's card-detail pane was entirely off-screen. Separately, on every device, the first side-menu button (My Packs) sat under Roblox's own top-left buttons and couldn't be tapped.
+
+**Fixed:**
+- **Automatic UI scale:** the root UIScale fits the design size (1280x720) to the screen, never below 62%, times the player's own UI Scale setting. A phone gets a ~1360x630 virtual canvas that the layouts fit.
+- **Side menu** starts below Roblox's top-bar buttons (from `GuiService:GetGuiInset()`) and sizes itself in scaled units.
+- **Run team strip** is layered under menu panels, so opening the Inventory mid-run covers it instead of the reverse.
+- **"Tap anywhere to continue"** instead of "Click" on touch devices.
+
+**Result:** the loop is completable on a phone: side menu reachable, packs open, the map shows tappable nodes, the Inventory detail pane and Fuse button are visible.
+
+**Known limitation:** at the 62% floor, the smallest text is about 7pt on a phone. A dedicated mobile layout (bigger phone type, hiding the team bar while a panel is open, full-height panels) is the proper next step. Roblox's touch jump button and thumbstick (bottom corners) were not emulated and may overlap the team bar's ends.
+

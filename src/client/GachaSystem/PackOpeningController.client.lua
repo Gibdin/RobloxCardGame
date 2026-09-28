@@ -337,12 +337,32 @@ end)
 local rootUIScale = Instance.new("UIScale")
 rootUIScale.Parent = screenGui
 
+-- Screen-size fit: the UI is laid out in fixed pixels for a desktop-sized
+-- screen (DESIGN_W x DESIGN_H). Smaller screens (phones: ~844x390 points)
+-- scale the whole UI down to fit, but never below MIN_AUTO_SCALE, so text
+-- stays readable; at the floor a phone gets a ~1360x630 virtual canvas.
+-- The player's own UI Scale setting multiplies on top.
+local DESIGN_W, DESIGN_H = 1280, 720
+local MIN_AUTO_SCALE = 0.62
+local userUIScale = 1
+local function autoUIScale()
+	local size = screenGui.AbsoluteSize
+	if size.X <= 0 or size.Y <= 0 then return 1 end
+	return math.clamp(math.min(size.X / DESIGN_W, size.Y / DESIGN_H), MIN_AUTO_SCALE, 1)
+end
+local function applyUIScale()
+	rootUIScale.Scale = userUIScale * autoUIScale()
+end
+screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyUIScale)
+applyUIScale()
+
 local settingsSaveDebounce = nil
 local function applySettings(s)
 	SoundManager:SetMasterVolume(s.masterVolume)
 	FxUtil.SetShakeEnabled(s.screenShake)
 	BattleUI:SetLowHpWarningEnabled(s.lowHpWarning)
-	rootUIScale.Scale = s.uiScale
+	userUIScale = s.uiScale
+	applyUIScale()
 end
 
 SettingsUI:Init(screenGui, {

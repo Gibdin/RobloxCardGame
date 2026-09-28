@@ -106,7 +106,8 @@ local function buildUI(gui)
 	prompt.Text = ""; prompt.ZIndex = 51; prompt.Visible = false; prompt.Parent = bg
 	local promptLbl = Instance.new("TextLabel")
 	promptLbl.Size = UDim2.new(0.46,0,0,36); promptLbl.Position = UDim2.new(0.27,0,1,-58)
-	promptLbl.BackgroundTransparency = 1; promptLbl.Text = "Click anywhere to continue"
+	promptLbl.BackgroundTransparency = 1
+	promptLbl.Text = game:GetService("UserInputService").TouchEnabled and "Tap anywhere to continue" or "Click anywhere to continue"
 	promptLbl.TextColor3 = Color3.fromRGB(170,170,200); promptLbl.Font = Enum.Font.GothamBold
 	promptLbl.TextScaled = true; promptLbl.ZIndex = 52; promptLbl.Parent = prompt
 	prompt.MouseButton1Click:Connect(function() dismissSignal:Fire() end)
