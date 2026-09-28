@@ -328,3 +328,5 @@ Standard role passives show only their one rule line (generated from `CombatConf
 
 **Cards menu readability pass:** minimum text size raised to about 11 px (body 13-14 px), low-contrast labels brightened, tile names and badges enlarged.
 
+**Update (same day): numbers move to Discord.** The in-game text is now number-free wherever possible: card summaries, standard passive rules and faction bonuses are plain words, team role bonuses show as stars, and the "More info" toggle is gone. Exact numbers (full `desc` text, stats formula, mana, counters, role bonuses, traits, factions) live in a generated Discord reference, `docs/discord/card-reference.md`, split into posts under Discord's 2,000-character limit. Numbers that stay in game: ATK/HP, mana pips, battle damage numbers, and shop pull odds (Roblox requires odds disclosure for paid random items).
+
