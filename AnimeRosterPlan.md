@@ -358,3 +358,11 @@ The dungeon run is now JJK-themed end to end, and it pays out the currency that 
 
 The intended loop: a starter team gets deep and earns Gems every run, the boss is a visible goal that better pulls unlock, and every run pays something even on a loss.
 
+### 11.12 First session (built 2026-09-28)
+
+Walking the new-player path found a dead end: a new player opens their 3 free packs and owns cards, but their team stays empty, so pressing Battle only shows "Your team is empty — add cards first." Fixes:
+
+- **Auto-fill:** whenever a player gets a card and has empty team slots, the server fills them (strongest first, a Tank preferred in the frontline slot). It only fills *empty* slots, never replacing cards the player placed. Starting a dungeon or tower run with an empty team also auto-fills instead of erroring.
+- **Best Team button** in the team builder: one tap builds the strongest lineup (a Tank in front, then the highest-rarity cards).
+- **Next-step banner:** a compact objective line at the top of the screen that always says what to do next (open your free packs → build your team → enter the Shibuya Incident → beat the Domain boss) and makes the matching side-menu button pulse. It disappears once the player has cleared the boss.
+
