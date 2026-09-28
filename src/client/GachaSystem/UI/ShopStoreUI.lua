@@ -83,6 +83,7 @@ local function buildOddsPanel(gui)
 	local y = 54
 	for _, name in ipairs(RarityConfig.RarityOrder) do
 		local rData = RarityConfig.Rarities[name]
+		if rData.weight <= 0 then continue end  -- rarities with no cards yet
 		local pct = (rData.weight / total) * 100
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, -32, 0, 30); row.Position = UDim2.new(0, 16, 0, y)

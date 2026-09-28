@@ -4,13 +4,14 @@
 local RarityConfig = {}
 
 -- order: lower = more common. Used for comparisons and pity enforcement.
+-- Mythic has weight 0 until a Mythic card exists (the JJK set has none).
 RarityConfig.Rarities = {
 	Common    = { weight = 45,   order = 1, color = Color3.fromRGB(180, 180, 180), glowColor = Color3.fromRGB(220, 220, 220) },
 	Uncommon  = { weight = 25,   order = 2, color = Color3.fromRGB(80,  200, 80),  glowColor = Color3.fromRGB(120, 240, 120) },
 	Rare      = { weight = 15,   order = 3, color = Color3.fromRGB(80,  130, 255), glowColor = Color3.fromRGB(130, 180, 255) },
 	Epic      = { weight = 8,    order = 4, color = Color3.fromRGB(160, 60,  220), glowColor = Color3.fromRGB(200, 100, 255) },
 	Legendary = { weight = 4,    order = 5, color = Color3.fromRGB(255, 165, 0),   glowColor = Color3.fromRGB(255, 215, 80)  },
-	Mythic    = { weight = 2,    order = 6, color = Color3.fromRGB(255, 50,  50),  glowColor = Color3.fromRGB(255, 120, 120) },
+	Mythic    = { weight = 0,    order = 6, color = Color3.fromRGB(255, 50,  50),  glowColor = Color3.fromRGB(255, 120, 120) },
 	God       = { weight = 0.8,  order = 7, color = Color3.fromRGB(255, 215, 0),   glowColor = Color3.fromRGB(255, 255, 160) },
 	Secret    = { weight = 0.2,  order = 8, color = Color3.fromRGB(0,   240, 255), glowColor = Color3.fromRGB(160, 255, 255) },
 }
@@ -27,7 +28,6 @@ RarityConfig.PityThresholds = {
 	{ rolls = 10,  minRarity = "Rare"      },
 	{ rolls = 30,  minRarity = "Epic"      },
 	{ rolls = 75,  minRarity = "Legendary" },
-	{ rolls = 150, minRarity = "Mythic"    },
 	{ rolls = 400, minRarity = "God"       },
 }
 

@@ -153,7 +153,7 @@ DungeonConfig.Enemies = {
 	EliteMult = 1.25,   -- times the mob multiplier for that row
 	-- Boss: one high-rarity centerpiece plus Legendary adds.
 	Boss = {
-		CenterpieceRarities = { "Mythic", "God" },
+		CenterpieceRarities = { "God", "God", "Secret" },  -- Sukuna/Gojo, or a rare Mahoraga
 		CenterpieceMult = 1.3,
 		AddRarity = "Legendary",
 		AddCount = 2,

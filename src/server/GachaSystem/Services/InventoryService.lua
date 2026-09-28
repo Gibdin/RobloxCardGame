@@ -9,6 +9,7 @@ local BannerService    = require(script.Parent.BannerService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local MonetizationConfig = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("MonetizationConfig"))
 local PvPConfig          = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("PvPConfig"))
+local CardDatabase       = require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("CardDatabase"))
 
 local InventoryService = {}
 
@@ -101,9 +102,20 @@ function InventoryService:Load(userId)
 	-- Ensure all sub-tables exist for older save formats.
 	d.cards     = d.cards     or {}
 	d.awakening = d.awakening or {}
+	-- Drop cards that no longer exist (the placeholder roster was removed
+	-- 2026-09-28) so no screen or battle ever sees an unknown id.
+	for key in pairs(d.cards) do
+		if not CardDatabase:GetById(tonumber(key)) then
+			d.cards[key] = nil
+			d.awakening[key] = nil
+		end
+	end
 	d.packs     = d.packs     or { StandardPack = 3 }
 	d.pity      = d.pity      or { totalRolls = 0 }
 	d.team      = d.team      or {}
+	for i, id in ipairs(d.team) do
+		if id and not CardDatabase:GetById(id) then d.team[i] = false end
+	end
 	d.tower     = d.tower     or { bestFloor = 0 }
 	d.dungeon   = d.dungeon   or { deepestRow = 0, runsCompleted = 0, bossKills = 0 }
 	d.settings  = d.settings  or blankSettings()

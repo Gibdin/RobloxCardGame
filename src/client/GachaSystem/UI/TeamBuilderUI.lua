@@ -358,7 +358,7 @@ local function selectCard(card)
 		local roleDef = roleConf.Roles[card.role]
 		local desc = ""
 		if card.passive == "Trait" then
-			desc = card.passive_desc or ""
+			desc = card.passive_short or card.passive_desc or ""
 		elseif roleDef then
 			if roleDef.passiveDesc then
 				desc = roleDef.passiveDesc

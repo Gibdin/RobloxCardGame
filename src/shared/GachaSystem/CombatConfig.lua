@@ -112,41 +112,12 @@ CombatConfig.Traits = {
 -- Keyed by series name, then by threshold count. A team gets the highest
 -- satisfied tier; effect tables are NOT cumulative — each tier restates its numbers.
 CombatConfig.Synergies = {
-	["Iron Legion"] = {
-		[2] = { hpPct = 0.10, damageReduction = 0.08 },
-		[4] = { hpPct = 0.10, damageReduction = 0.08, reflectPct = 0.12, bonusDamagePct = 0.08 },
-		[5] = { hpPct = 0.10, damageReduction = 0.08, reflectPct = 0.12, bonusDamagePct = 0.08, surviveLethal = true },
-	},
-	["Nature's Call"] = {
-		[2] = { healingBonus = 0.25 },
-		[4] = { healingBonus = 0.25, regenPct = 0.04 },
-	},
-	["Storm Riders"] = {
-		-- "attack speed / cannot miss" has no meaning in a round-based engine; reinterpreted as +ATK.
-		[2] = { atkPct = 0.10 },
-		[4] = { atkPct = 0.10, chainChance = 0.30, chainPct = 0.60 },
-		[5] = { atkPct = 0.25, chainChance = 0.30, chainPct = 1.00 },
-	},
-	["Shadow Covenant"] = {
-		[2] = { execBonusAdd = 0.20, killHealPct = 0.03 },
-		[4] = { execBonusAdd = 0.20, killHealPct = 0.03, markBonus = 0.18 },
-	},
-	["Abyssal Order"] = {
-		[2] = { lifestealPct = 0.12 },
-		[4] = { lifestealPct = 0.12, tidalAtkPct = 0.18, tidalHealPct = 0.06 },
-	},
-	["Divine Pantheon"] = {
-		[2] = { doubleSupportCast = true },
-		[4] = { doubleSupportCast = true, revivePct = 0.25 },  -- members revive once per battle at 25% HP
-	},
-	["Void Walkers"] = {
-		[2] = { manaCostReduction = 1 },
-		[4] = { manaCostReduction = 1, ignoreDRPct = 0.35 },
-	},
-	["Ancient Ones"] = {
-		[2] = { hpPct = 0.15 },
-		[4] = { hpPct = 0.15, noOneShotAboveHpPct = 0.30, drBelowHalf = 0.20 },
-	},
+	-- Effect keys the engine understands (reusable by future factions):
+	-- atkPct/hpPct (members), damageReduction, reflectPct, bonusDamagePct,
+	-- surviveLethal, healingBonus, regenPct, chainChance/chainPct,
+	-- execBonusAdd, killHealPct, markBonus, lifestealPct, doubleSupportCast,
+	-- revivePct, manaCostReduction, ignoreDRPct, noOneShotAboveHpPct,
+	-- drBelowHalf, lowHpShieldPct/lowHpShieldAt.
 	-- JJK factions (AnimeRosterPlan.md §9/§11.7).
 	["Best Friends"] = {
 		[2] = { atkPct = 0.18 },

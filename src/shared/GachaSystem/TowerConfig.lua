@@ -16,7 +16,7 @@ TowerConfig.Enemies = {
 		{ maxFloor = 6,  pool = { Common = 0.75, Uncommon = 0.25 } },
 		{ maxFloor = 13, pool = { Uncommon = 0.65, Rare = 0.30, Epic = 0.05 } },
 		{ maxFloor = 20, pool = { Rare = 0.45, Epic = 0.40, Legendary = 0.15 } },
-		{ maxFloor = math.huge, pool = { Epic = 0.40, Legendary = 0.45, Mythic = 0.15 } },
+		{ maxFloor = math.huge, pool = { Epic = 0.40, Legendary = 0.45, God = 0.15 } },
 	},
 	BossEvery = 5,        -- every Nth floor is a boss floor
 	BossMult  = 1.15,     -- extra stat multiplier on boss floors

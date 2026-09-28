@@ -59,80 +59,6 @@ RoleConfig.Counters = {
 -- color: used for synergy badge and pip fill color.
 
 RoleConfig.Synergies = {
-	["Iron Legion"] = {
-		desc       = "Armored warriors forged from iron and steel. The more the merrier — their unity is their armor.",
-		color      = Color3.fromRGB(160, 180, 210),
-		maxCount   = 5,
-		thresholds = {
-			{ count = 2, bonus = "+10% HP; take -8% damage from all sources" },
-			{ count = 4, bonus = "Reflect 12% of incoming damage; deal +8% to non-Iron Legion targets" },
-			{ count = 5, bonus = "Impenetrable: cannot be one-shot; first lethal hit is survived at 1 HP" },
-		},
-	},
-	["Nature's Call"] = {
-		desc       = "Guardians of the ancient forest. Their presence restores life to all who stand beside them.",
-		color      = Color3.fromRGB(70, 200, 100),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "All healing effects increased by +25%" },
-			{ count = 4, bonus = "Team regenerates 4% Max HP at the start of each round" },
-		},
-	},
-	["Storm Riders"] = {
-		desc       = "Beings born of wind and lightning. Speed is their weapon, and the sky is their domain.",
-		color      = Color3.fromRGB(100, 170, 255),
-		maxCount   = 5,
-		thresholds = {
-			{ count = 2, bonus = "+10% ATK" },
-			{ count = 4, bonus = "+10% ATK; 30% chance each attack chains to a second target for 60% damage" },
-			{ count = 5, bonus = "Storm Surge: chain damage = 100%; all Storm Riders gain +25% ATK" },
-		},
-	},
-	["Shadow Covenant"] = {
-		desc       = "Bound by shadow and blood oath. They hunt as one — and their prey never sees them coming.",
-		color      = Color3.fromRGB(160, 60, 200),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "Executioner bonus damage +20%; kills restore 3% Max HP to the killer" },
-			{ count = 4, bonus = "Shadow Mark: first attack each round marks the target — all allies deal +18% damage to marked targets" },
-		},
-	},
-	["Abyssal Order"] = {
-		desc       = "Dwellers of the crushing deep. They endure where others would break, and grow stronger as battles drag on.",
-		color      = Color3.fromRGB(40, 160, 200),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "+12% lifesteal on all attacks" },
-			{ count = 4, bonus = "Tidal Surge: when any member drops below 50% HP, all Abyssal gain +18% ATK and heal 6% Max HP" },
-		},
-	},
-	["Divine Pantheon"] = {
-		desc       = "Holy warriors of eternal light. Their faith shields the fallen and turns death into a second chance.",
-		color      = Color3.fromRGB(255, 215, 80),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "Support abilities trigger an additional time per cast" },
-			{ count = 4, bonus = "Celestial Shield: each member's first death is negated — they revive at 25% HP" },
-		},
-	},
-	["Void Walkers"] = {
-		desc       = "Torn from the fabric of reality. Their abilities bend the rules of engagement itself.",
-		color      = Color3.fromRGB(140, 60, 220),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "Abilities cost 1 less mana" },
-			{ count = 4, bonus = "Abilities cost 1 less mana and ignore 35% of enemy defenses" },
-		},
-	},
-	["Ancient Ones"] = {
-		desc       = "Titans who predate civilization. Their bodies are monuments; their will, unbreakable.",
-		color      = Color3.fromRGB(200, 140, 60),
-		maxCount   = 4,
-		thresholds = {
-			{ count = 2, bonus = "+15% Max HP for all Ancient Ones members" },
-			{ count = 4, bonus = "Titans' Will: cannot be one-shot above 30% HP; take -20% damage below 50% HP" },
-		},
-	},
 	["Best Friends"] = {
 		desc       = "Two sorcerers who share one very specific taste in people. Together, their fists hit harder.",
 		color      = Color3.fromRGB(240, 120, 60),
@@ -154,14 +80,6 @@ RoleConfig.Synergies = {
 
 -- Display order for synergy list panels.
 RoleConfig.SynergyOrder = {
-	"Iron Legion",
-	"Storm Riders",
-	"Shadow Covenant",
-	"Abyssal Order",
-	"Divine Pantheon",
-	"Void Walkers",
-	"Ancient Ones",
-	"Nature's Call",
 	"First Years",
 	"Best Friends",
 }

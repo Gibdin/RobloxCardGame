@@ -37,6 +37,7 @@ local filterRole,roleIdx="All",1
 local sortMode,sortIdx="Rarity",1
 local searchText=""
 local showAll=false      -- false: owned cards only; true: every obtainable card
+local showDetails=false  -- "More info": exact numbers under the one-line summaries
 local ownedIds={}
 local selectedCard=nil
 local highlightedSyn=nil
@@ -54,7 +55,7 @@ local dATK,dHP
 local dMPPips={}
 local dPassiveChip,dCardPassiveName,dCardPassiveDesc
 local dActiveName,dActiveDesc,dActiveCost
-local dRoleLine,dRoleDesc,dPassiveHdr,dPassiveRule
+local dRoleLine,dRoleDesc,dPassiveHdr,dPassiveRule,dActiveDetail,detailsBtn
 local dSynContainer
 local equBtn
 local synergyTooltip,synergyTooltipInner
@@ -294,14 +295,26 @@ showCard=function(c)
 	dPassiveHdr.Text=isTrait and "UNIQUE TRAIT" or "PASSIVE"
 	if dPassiveChip then dPassiveChip.BackgroundColor3=ptColor; local lbl=dPassiveChip:FindFirstChild("Lbl"); if lbl then lbl.Text=(full.passive or "—"):upper() end end
 	if dCardPassiveName then dCardPassiveName.Text=full.passive_name or "—" end
-	if dCardPassiveDesc then dCardPassiveDesc.Text=full.passive_desc or ""; dCardPassiveDesc.TextColor3=pdColor end
-	local rule=not isTrait and PASSIVE_RULE[full.passive]
-	dPassiveRule.Text=rule and (full.passive..": "..rule) or ""
-	dPassiveRule.Visible=rule~=nil and rule~=false
+	-- Main line: a Trait's one-line summary, or a standard passive's rule.
+	-- The full Trait text (exact numbers) only shows under "More info".
+	if isTrait then
+		dCardPassiveDesc.Text=full.passive_short or full.passive_desc or ""
+		dPassiveRule.Text=full.passive_desc or ""
+		-- Skip the details when the full text barely differs from the summary.
+		local adds=full.passive_short~=nil and #(full.passive_desc or "")>#full.passive_short+25
+		dPassiveRule.Visible=showDetails and adds
+	else
+		dCardPassiveDesc.Text=PASSIVE_RULE[full.passive] or full.passive_desc or ""
+		dPassiveRule.Visible=false
+	end
+	dCardPassiveDesc.TextColor3=pdColor
 
 	local act=full.active or {}
 	if dActiveName then dActiveName.Text=act.name or "—" end
-	if dActiveDesc then dActiveDesc.Text=act.desc or ""; dActiveDesc.TextColor3=ACTIVE_DESC_COLOR end
+	dActiveDesc.Text=act.short or act.desc or ""
+	dActiveDetail.Text=act.desc or ""
+	dActiveDetail.Visible=showDetails and act.short~=nil
+	detailsBtn.Text=showDetails and "Hide exact numbers" or "More info: exact numbers"
 	if dActiveCost then dActiveCost.Text="COSTS "..tostring(full.mp or "?").." MANA" end
 
 	local sn=globalTeamBar:IsInTeam(c.id)
@@ -321,7 +334,7 @@ showCard=function(c)
 		local synSeries=full.series or {}
 		if #synSeries==0 then
 			local none=Instance.new("TextLabel");none.Size=UDim2.new(1,0,0,16);none.BackgroundTransparency=1
-			none.Text="No synergy affiliation";none.TextColor3=Color3.fromRGB(50,50,70);none.TextScaled=false;none.TextSize=10;none.Font=Enum.Font.Gotham;none.TextXAlignment=Enum.TextXAlignment.Left;none.ZIndex=24;none.Parent=dSynContainer
+			none.Text="Not part of a team synergy yet";none.TextColor3=Color3.fromRGB(160,160,185);none.TextScaled=false;none.TextSize=13;none.Font=Enum.Font.Gotham;none.TextXAlignment=Enum.TextXAlignment.Left;none.ZIndex=24;none.Parent=dSynContainer
 		else
 			for si,synName in ipairs(synSeries) do
 				local synDef=roleConf and roleConf.Synergies[synName]; if not synDef then continue end
@@ -330,17 +343,17 @@ showCard=function(c)
 				S(row,Color3.new(synColor.R*0.3,synColor.G*0.3,synColor.B*0.3),1)
 				local strip=Instance.new("Frame");strip.Size=UDim2.new(0,4,1,0);strip.BackgroundColor3=synColor;strip.BorderSizePixel=0;strip.ZIndex=24;strip.Parent=row;C(strip,2)
 				local nameLbl=Instance.new("TextLabel");nameLbl.Size=UDim2.new(1,-80,0,14);nameLbl.Position=UDim2.new(0,10,0,4)
-				nameLbl.BackgroundTransparency=1;nameLbl.Text=synName;nameLbl.TextColor3=synColor;nameLbl.TextScaled=false;nameLbl.TextSize=11;nameLbl.Font=Enum.Font.GothamBold;nameLbl.TextXAlignment=Enum.TextXAlignment.Left;nameLbl.ZIndex=25;nameLbl.Parent=row
+				nameLbl.BackgroundTransparency=1;nameLbl.Text=synName;nameLbl.TextColor3=synColor;nameLbl.TextScaled=false;nameLbl.TextSize=13;nameLbl.Font=Enum.Font.GothamBold;nameLbl.TextXAlignment=Enum.TextXAlignment.Left;nameLbl.ZIndex=25;nameLbl.Parent=row
 				-- hover hint
 				local hint=Instance.new("TextLabel");hint.Size=UDim2.new(0,60,0,12);hint.Position=UDim2.new(1,-66,0,5)
-				hint.BackgroundTransparency=1;hint.Text="click for synergy";hint.TextColor3=Color3.fromRGB(60,60,90);hint.TextScaled=false;hint.TextSize=10;hint.Font=Enum.Font.Gotham;hint.TextXAlignment=Enum.TextXAlignment.Right;hint.ZIndex=25;hint.Parent=row
+				hint.BackgroundTransparency=1;hint.Text="tap for details";hint.TextColor3=Color3.fromRGB(150,150,185);hint.TextScaled=false;hint.TextSize=11;hint.Font=Enum.Font.Gotham;hint.TextXAlignment=Enum.TextXAlignment.Right;hint.ZIndex=25;hint.Parent=row
 				local pipX=10; local pipY=21
 				for _,thresh in ipairs(synDef.thresholds) do
 					local pip=Instance.new("Frame");pip.Size=UDim2.new(0,24,0,10);pip.Position=UDim2.new(0,pipX,0,pipY);pip.BackgroundColor3=Color3.fromRGB(24,24,38);pip.BorderSizePixel=0;pip.ZIndex=24;pip.Parent=row;C(pip,3);S(pip,Color3.fromRGB(40,40,60),1)
-					local pipLbl=Instance.new("TextLabel");pipLbl.Size=UDim2.new(1,0,1,0);pipLbl.BackgroundTransparency=1;pipLbl.Text=tostring(thresh.count);pipLbl.TextColor3=Color3.fromRGB(100,100,140);pipLbl.TextScaled=false;pipLbl.TextSize=8;pipLbl.Font=Enum.Font.GothamBold;pipLbl.ZIndex=25;pipLbl.Parent=pip
+					local pipLbl=Instance.new("TextLabel");pipLbl.Size=UDim2.new(1,0,1,0);pipLbl.BackgroundTransparency=1;pipLbl.Text=tostring(thresh.count);pipLbl.TextColor3=Color3.fromRGB(190,190,220);pipLbl.TextScaled=false;pipLbl.TextSize=10;pipLbl.Font=Enum.Font.GothamBold;pipLbl.ZIndex=25;pipLbl.Parent=pip
 					pip.Name="Pip_"..thresh.count; pipX=pipX+28
 				end
-				local maxLbl=Instance.new("TextLabel");maxLbl.Size=UDim2.new(0,40,0,10);maxLbl.Position=UDim2.new(1,-46,0,pipY);maxLbl.BackgroundTransparency=1;maxLbl.Text="max "..synDef.maxCount;maxLbl.TextColor3=Color3.fromRGB(40,40,55);maxLbl.TextScaled=false;maxLbl.TextSize=8;maxLbl.Font=Enum.Font.Gotham;maxLbl.TextXAlignment=Enum.TextXAlignment.Right;maxLbl.ZIndex=25;maxLbl.Parent=row
+				local maxLbl=Instance.new("TextLabel");maxLbl.Size=UDim2.new(0,40,0,10);maxLbl.Position=UDim2.new(1,-46,0,pipY);maxLbl.BackgroundTransparency=1;maxLbl.Text="max "..synDef.maxCount;maxLbl.TextColor3=Color3.fromRGB(150,150,180);maxLbl.TextScaled=false;maxLbl.TextSize=10;maxLbl.Font=Enum.Font.Gotham;maxLbl.TextXAlignment=Enum.TextXAlignment.Right;maxLbl.ZIndex=25;maxLbl.Parent=row
 				-- hover
 				local capturedSyn=synName; local capturedRow=row
 				row.MouseEnter:Connect(function()
@@ -390,19 +403,19 @@ local function buildTile(card,order)
 	local bc=RBORDER[card.rarity] or Color3.fromRGB(130,130,130); local ab=RARTBG[card.rarity] or Color3.fromRGB(28,28,28); local rc=ROLE_COLOR[card.role] or Color3.fromRGB(80,80,100)
 	local t=Instance.new("TextButton");t.Name="T"..card.id;t.Size=UDim2.new(0,TW,0,TH);t.BackgroundColor3=ab;t.BorderSizePixel=0;t.Text="";t.AutoButtonColor=false;t.LayoutOrder=order;t.ZIndex=22;t.Parent=gridScroll
 	C(t,8);local ts=S(t,bc,2)
-	local rBadge=Instance.new("Frame");rBadge.Size=UDim2.new(0,28,0,13);rBadge.Position=UDim2.new(0,4,0,4);rBadge.BackgroundColor3=rc;rBadge.BackgroundTransparency=0.1;rBadge.BorderSizePixel=0;rBadge.ZIndex=25;rBadge.Parent=t;C(rBadge,3)
-	local rbLbl=Instance.new("TextLabel");rbLbl.Size=UDim2.new(1,0,1,0);rbLbl.BackgroundTransparency=1;rbLbl.Text=ROLE_SHORT[card.role] or "?";rbLbl.TextColor3=Color3.new(1,1,1);rbLbl.TextScaled=false;rbLbl.TextSize=7;rbLbl.Font=Enum.Font.GothamBold;rbLbl.ZIndex=26;rbLbl.Parent=rBadge
+	local rBadge=Instance.new("Frame");rBadge.Size=UDim2.new(0,34,0,15);rBadge.Position=UDim2.new(0,4,0,4);rBadge.BackgroundColor3=rc;rBadge.BackgroundTransparency=0.1;rBadge.BorderSizePixel=0;rBadge.ZIndex=25;rBadge.Parent=t;C(rBadge,3)
+	local rbLbl=Instance.new("TextLabel");rbLbl.Size=UDim2.new(1,0,1,0);rbLbl.BackgroundTransparency=1;rbLbl.Text=ROLE_SHORT[card.role] or "?";rbLbl.TextColor3=Color3.new(1,1,1);rbLbl.TextScaled=false;rbLbl.TextSize=9;rbLbl.Font=Enum.Font.GothamBold;rbLbl.ZIndex=26;rbLbl.Parent=rBadge
 	local rdot=Instance.new("Frame");rdot.Size=UDim2.new(0,7,0,7);rdot.Position=UDim2.new(1,-10,0,5);rdot.BackgroundColor3=bc;rdot.BorderSizePixel=0;rdot.ZIndex=24;rdot.Parent=t;local rdc=Instance.new("UICorner");rdc.CornerRadius=UDim.new(1,0);rdc.Parent=rdot
 	local roleStrip=Instance.new("Frame");roleStrip.Size=UDim2.new(1,0,0,4);roleStrip.Position=UDim2.new(0,0,1,-4);roleStrip.BackgroundColor3=rc;roleStrip.BorderSizePixel=0;roleStrip.ZIndex=25;roleStrip.Parent=t
 	local nameBar=Instance.new("Frame");nameBar.Size=UDim2.new(1,0,0,28);nameBar.Position=UDim2.new(0,0,1,-32);nameBar.BackgroundColor3=Color3.fromRGB(0,0,0);nameBar.BackgroundTransparency=0.35;nameBar.BorderSizePixel=0;nameBar.ZIndex=23;nameBar.Parent=t;C(nameBar,8)
-	local nl=Instance.new("TextLabel");nl.Size=UDim2.new(1,-4,1,0);nl.Position=UDim2.new(0,2,0,0);nl.BackgroundTransparency=1;nl.Text=card.name;nl.TextColor3=Color3.fromRGB(225,225,242);nl.TextScaled=false;nl.TextSize=9;nl.TextWrapped=true;nl.Font=Enum.Font.GothamBold;nl.TextXAlignment=Enum.TextXAlignment.Center;nl.ZIndex=24;nl.Parent=nameBar
+	local nl=Instance.new("TextLabel");nl.Size=UDim2.new(1,-4,1,0);nl.Position=UDim2.new(0,2,0,0);nl.BackgroundTransparency=1;nl.Text=card.name;nl.TextColor3=Color3.fromRGB(235,235,250);nl.TextScaled=false;nl.TextSize=10;nl.TextWrapped=true;nl.Font=Enum.Font.GothamBold;nl.TextXAlignment=Enum.TextXAlignment.Center;nl.ZIndex=24;nl.Parent=nameBar
 	local ind=Instance.new("Frame");ind.Name="TmInd";ind.Size=UDim2.new(1,0,1,0);ind.BackgroundColor3=Color3.fromRGB(14,46,14);ind.BackgroundTransparency=0.5;ind.BorderSizePixel=0;ind.ZIndex=24;ind.Visible=false;ind.Parent=t;C(ind,8)
 	local indLbl=Instance.new("TextLabel");indLbl.Name="Lbl";indLbl.Size=UDim2.new(1,0,1,-22);indLbl.BackgroundTransparency=1;indLbl.Text="S1";indLbl.TextColor3=Color3.fromRGB(90,255,140);indLbl.TextScaled=false;indLbl.TextSize=13;indLbl.Font=Enum.Font.GothamBold;indLbl.TextXAlignment=Enum.TextXAlignment.Center;indLbl.ZIndex=25;indLbl.Parent=ind
 	local chk=Instance.new("TextLabel");chk.Size=UDim2.new(0,16,0,16);chk.Position=UDim2.new(0,4,0,4);chk.BackgroundTransparency=1;chk.Text="\226\156\147";chk.TextColor3=Color3.fromRGB(90,255,140);chk.TextScaled=true;chk.Font=Enum.Font.GothamBold;chk.ZIndex=25;chk.Parent=ind
 	local sn=globalTeamBar:IsInTeam(card.id);ind.Visible=sn~=nil; if sn then indLbl.Text="S"..sn end
 	if not card.owned then
 		local dim=Instance.new("Frame");dim.Size=UDim2.new(1,0,1,0);dim.BackgroundColor3=Color3.new(0,0,0);dim.BackgroundTransparency=0.45;dim.BorderSizePixel=0;dim.ZIndex=26;dim.Parent=t;C(dim,8)
-		local nol=Instance.new("TextLabel");nol.Size=UDim2.new(1,0,0,14);nol.Position=UDim2.new(0,0,0.32,0);nol.BackgroundTransparency=1;nol.Text="NOT OWNED";nol.TextColor3=Color3.fromRGB(170,170,190);nol.TextScaled=false;nol.TextSize=8;nol.Font=Enum.Font.GothamBold;nol.ZIndex=27;nol.Parent=t
+		local nol=Instance.new("TextLabel");nol.Size=UDim2.new(1,0,0,14);nol.Position=UDim2.new(0,0,0.32,0);nol.BackgroundTransparency=1;nol.Text="NOT OWNED";nol.TextColor3=Color3.fromRGB(200,200,220);nol.TextScaled=false;nol.TextSize=10;nol.Font=Enum.Font.GothamBold;nol.ZIndex=27;nol.Parent=t
 	end
 	t.MouseButton1Click:Connect(function() if isDragging then return end; if selStroke then selStroke.Thickness=2;selStroke.Color=selOrigCol end; selStroke=ts;selOrigCol=bc;ts.Thickness=3;ts.Color=Color3.new(1,1,1);showCard(card) end)
 	t.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 and card.owned then dragCard=card;dragStartPos=Vector2.new(mouse.X,mouse.Y) end end)
@@ -424,20 +437,20 @@ local function buildTopBar()
 	local tb=F(panel,UDim2.new(1,0,0,TOPBAR_H),UDim2.new(0,0,0,0),Color3.fromRGB(18,12,36),21)
 	local grad=Instance.new("UIGradient");grad.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(28,16,52)),ColorSequenceKeypoint.new(0.5,Color3.fromRGB(16,10,32)),ColorSequenceKeypoint.new(1,Color3.fromRGB(10,10,22))});grad.Parent=tb
 	local TAB_W=82
-	tabUnitsBtn=B(tb,"UNITS",UDim2.new(0,TAB_W,0,28),UDim2.new(0,10,0,10),Color3.fromRGB(36,26,68),22);tabUnitsBtn.TextSize=11;tabUnitsBtn.TextScaled=false
-	tabSynBtn=B(tb,"SYNERGIES",UDim2.new(0,TAB_W+12,0,28),UDim2.new(0,TAB_W+16,0,10),Color3.fromRGB(22,16,44),22);tabSynBtn.TextSize=11;tabSynBtn.TextScaled=false
-	searchBox=Instance.new("TextBox");searchBox.Size=UDim2.new(0,130,0,26);searchBox.Position=UDim2.new(0,TAB_W*2+24,0,11);searchBox.BackgroundColor3=Color3.fromRGB(16,12,30);searchBox.BorderSizePixel=0;searchBox.Text="";searchBox.PlaceholderText="Search...";searchBox.PlaceholderColor3=Color3.fromRGB(55,50,80);searchBox.TextColor3=Color3.fromRGB(200,200,230);searchBox.TextScaled=false;searchBox.TextSize=12;searchBox.Font=Enum.Font.Gotham;searchBox.ClearTextOnFocus=false;searchBox.ZIndex=22;searchBox.Parent=tb;C(searchBox,5);S(searchBox,Color3.fromRGB(36,28,58),1)
+	tabUnitsBtn=B(tb,"UNITS",UDim2.new(0,TAB_W,0,28),UDim2.new(0,10,0,10),Color3.fromRGB(36,26,68),22);tabUnitsBtn.TextSize=13;tabUnitsBtn.TextScaled=false
+	tabSynBtn=B(tb,"SYNERGIES",UDim2.new(0,TAB_W+12,0,28),UDim2.new(0,TAB_W+16,0,10),Color3.fromRGB(22,16,44),22);tabSynBtn.TextSize=13;tabSynBtn.TextScaled=false
+	searchBox=Instance.new("TextBox");searchBox.Size=UDim2.new(0,130,0,26);searchBox.Position=UDim2.new(0,TAB_W*2+24,0,11);searchBox.BackgroundColor3=Color3.fromRGB(16,12,30);searchBox.BorderSizePixel=0;searchBox.Text="";searchBox.PlaceholderText="Search name or role...";searchBox.PlaceholderColor3=Color3.fromRGB(130,125,165);searchBox.TextColor3=Color3.fromRGB(230,230,245);searchBox.TextScaled=false;searchBox.TextSize=13;searchBox.Font=Enum.Font.Gotham;searchBox.ClearTextOnFocus=false;searchBox.ZIndex=22;searchBox.Parent=tb;C(searchBox,5);S(searchBox,Color3.fromRGB(36,28,58),1)
 	local sp=Instance.new("UIPadding");sp.PaddingLeft=UDim.new(0,7);sp.PaddingRight=UDim.new(0,7);sp.Parent=searchBox
 	searchBox:GetPropertyChangedSignal("Text"):Connect(function() searchText=searchBox.Text;applyFilter() end)
 	local FBASE=TAB_W*2+162
-	filterBtn=B(tb,"Rarity: All",UDim2.new(0,72,0,26),UDim2.new(0,FBASE,0,11),Color3.fromRGB(18,14,36));S(filterBtn,Color3.fromRGB(36,28,58),1);filterBtn.Font=Enum.Font.Gotham;filterBtn.TextSize=10;filterBtn.TextScaled=false;filterBtn.MouseButton1Click:Connect(cycleFilter)
+	filterBtn=B(tb,"Rarity: All",UDim2.new(0,72,0,26),UDim2.new(0,FBASE,0,11),Color3.fromRGB(18,14,36));S(filterBtn,Color3.fromRGB(36,28,58),1);filterBtn.Font=Enum.Font.GothamMedium;filterBtn.TextSize=12;filterBtn.TextScaled=false;filterBtn.MouseButton1Click:Connect(cycleFilter)
 	hoverBtn(filterBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
-	roleFilterBtn=B(tb,"Role: All",UDim2.new(0,68,0,26),UDim2.new(0,FBASE+76,0,11),Color3.fromRGB(18,14,36));S(roleFilterBtn,Color3.fromRGB(36,28,58),1);roleFilterBtn.Font=Enum.Font.Gotham;roleFilterBtn.TextSize=10;roleFilterBtn.TextScaled=false;roleFilterBtn.MouseButton1Click:Connect(cycleRole)
+	roleFilterBtn=B(tb,"Role: All",UDim2.new(0,68,0,26),UDim2.new(0,FBASE+76,0,11),Color3.fromRGB(18,14,36));S(roleFilterBtn,Color3.fromRGB(36,28,58),1);roleFilterBtn.Font=Enum.Font.GothamMedium;roleFilterBtn.TextSize=12;roleFilterBtn.TextScaled=false;roleFilterBtn.MouseButton1Click:Connect(cycleRole)
 	hoverBtn(roleFilterBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
-	sortBtn=B(tb,"Sort: Rarity",UDim2.new(0,72,0,26),UDim2.new(0,FBASE+148,0,11),Color3.fromRGB(18,14,36));S(sortBtn,Color3.fromRGB(36,28,58),1);sortBtn.Font=Enum.Font.Gotham;sortBtn.TextSize=10;sortBtn.TextScaled=false;sortBtn.MouseButton1Click:Connect(cycleSort)
+	sortBtn=B(tb,"Sort: Rarity",UDim2.new(0,72,0,26),UDim2.new(0,FBASE+148,0,11),Color3.fromRGB(18,14,36));S(sortBtn,Color3.fromRGB(36,28,58),1);sortBtn.Font=Enum.Font.GothamMedium;sortBtn.TextSize=12;sortBtn.TextScaled=false;sortBtn.MouseButton1Click:Connect(cycleSort)
 	hoverBtn(sortBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
-	capLbl=L(tb,"0/"..MAX_CAP,UDim2.new(0,56,0,26),UDim2.new(0,FBASE+224,0,11),Color3.fromRGB(70,65,105),Enum.Font.Gotham,Enum.TextXAlignment.Left,22);capLbl.TextScaled=false;capLbl.TextSize=11
-	ownBtn=B(tb,"Show: Owned",UDim2.new(0,96,0,26),UDim2.new(0,FBASE+284,0,11),Color3.fromRGB(18,14,36));ownBtn.Name="OwnedToggle";S(ownBtn,Color3.fromRGB(36,28,58),1);ownBtn.Font=Enum.Font.Gotham;ownBtn.TextSize=10;ownBtn.TextScaled=false
+	capLbl=L(tb,"0/"..MAX_CAP,UDim2.new(0,56,0,26),UDim2.new(0,FBASE+224,0,11),Color3.fromRGB(165,160,200),Enum.Font.Gotham,Enum.TextXAlignment.Left,22);capLbl.TextScaled=false;capLbl.TextSize=12
+	ownBtn=B(tb,"Show: Owned",UDim2.new(0,96,0,26),UDim2.new(0,FBASE+284,0,11),Color3.fromRGB(18,14,36));ownBtn.Name="OwnedToggle";S(ownBtn,Color3.fromRGB(36,28,58),1);ownBtn.Font=Enum.Font.GothamMedium;ownBtn.TextSize=12;ownBtn.TextScaled=false
 	hoverBtn(ownBtn, Color3.fromRGB(18,14,36), Color3.fromRGB(30,24,52))
 	ownBtn.MouseButton1Click:Connect(function() showAll=not showAll;ownBtn.Text=showAll and "Show: All cards" or "Show: Owned";applyFilter() end)
 	local close=B(tb,"\195\151",UDim2.new(0,28,0,28),UDim2.new(1,-38,0,10),Color3.fromRGB(55,18,18),23);close.TextSize=13;close.TextScaled=false;hoverBtn(close,Color3.fromRGB(55,18,18),Color3.fromRGB(88,26,26));close.MouseButton1Click:Connect(function() InventoryUI:Hide() end)
@@ -456,7 +469,7 @@ end
 local function buildDetailPane(parent)
 	detailArea=Instance.new("Frame");detailArea.Name="DetailArea";detailArea.Size=UDim2.new(0,DET_W,1,0);detailArea.Position=UDim2.new(0,DET_X,0,0);detailArea.BackgroundColor3=Color3.fromRGB(10,10,20);detailArea.BorderSizePixel=0;detailArea.ZIndex=21;detailArea.Parent=parent
 	detailEmpty=Instance.new("Frame");detailEmpty.Size=UDim2.new(1,0,1,0);detailEmpty.BackgroundTransparency=1;detailEmpty.ZIndex=22;detailEmpty.Parent=detailArea
-	local el=Instance.new("TextLabel");el.Size=UDim2.new(0.8,0,0,22);el.Position=UDim2.new(0.1,0,0.44,-11);el.BackgroundTransparency=1;el.Text="Select a unit";el.TextColor3=Color3.fromRGB(38,38,62);el.TextScaled=false;el.TextSize=12;el.Font=Enum.Font.Gotham;el.TextXAlignment=Enum.TextXAlignment.Center;el.ZIndex=22;el.Parent=detailEmpty
+	local el=Instance.new("TextLabel");el.Size=UDim2.new(0.8,0,0,22);el.Position=UDim2.new(0.1,0,0.44,-11);el.BackgroundTransparency=1;el.Text="Select a card to read it";el.TextColor3=Color3.fromRGB(140,140,170);el.TextScaled=false;el.TextSize=15;el.Font=Enum.Font.Gotham;el.TextXAlignment=Enum.TextXAlignment.Center;el.ZIndex=22;el.Parent=detailEmpty
 	detailContent=Instance.new("Frame");detailContent.Name="DetailContent";detailContent.Size=UDim2.new(1,0,1,0);detailContent.BackgroundTransparency=1;detailContent.Visible=false;detailContent.ZIndex=22;detailContent.Parent=detailArea
 	detailScroll=Instance.new("ScrollingFrame");detailScroll.Name="DetailScroll";detailScroll.Size=UDim2.new(1,0,1,0);detailScroll.BackgroundTransparency=1;detailScroll.BorderSizePixel=0;detailScroll.CanvasSize=UDim2.new(0,0,0,0);detailScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y;detailScroll.ScrollBarThickness=3;detailScroll.ScrollBarImageColor3=Color3.fromRGB(50,50,80);detailScroll.ZIndex=22;detailScroll.Parent=detailContent
 
@@ -468,9 +481,9 @@ local function buildDetailPane(parent)
 
 	-- Role badge + Name + Rarity
 	dRoleBadge=Instance.new("Frame");dRoleBadge.Size=UDim2.new(0,46,0,20);dRoleBadge.Position=UDim2.new(0,P,0,y);dRoleBadge.BackgroundColor3=Color3.fromRGB(60,130,220);dRoleBadge.BorderSizePixel=0;dRoleBadge.ZIndex=23;dRoleBadge.Parent=detailScroll;C(dRoleBadge,4)
-	local rbL=Instance.new("TextLabel");rbL.Name="Lbl";rbL.Size=UDim2.new(1,0,1,0);rbL.BackgroundTransparency=1;rbL.Text="TANK";rbL.TextColor3=Color3.new(1,1,1);rbL.TextScaled=false;rbL.TextSize=9;rbL.Font=Enum.Font.GothamBold;rbL.ZIndex=24;rbL.Parent=dRoleBadge
-	dName=Instance.new("TextLabel");dName.Size=UDim2.new(0,IW-46-58-8,0,20);dName.Position=UDim2.new(0,P+50,0,y);dName.BackgroundTransparency=1;dName.Text="";dName.TextColor3=Color3.fromRGB(215,215,240);dName.TextScaled=false;dName.TextSize=13;dName.TextTruncate=Enum.TextTruncate.AtEnd;dName.Font=Enum.Font.GothamBold;dName.TextXAlignment=Enum.TextXAlignment.Left;dName.ZIndex=23;dName.Parent=detailScroll
-	dRarity=Instance.new("TextLabel");dRarity.Size=UDim2.new(0,54,0,18);dRarity.Position=UDim2.new(1,-P-54,0,y+1);dRarity.BackgroundColor3=Color3.fromRGB(18,10,28);dRarity.BorderSizePixel=0;dRarity.Text="—";dRarity.TextColor3=Color3.fromRGB(180,180,200);dRarity.TextScaled=false;dRarity.TextSize=9;dRarity.Font=Enum.Font.GothamBold;dRarity.TextXAlignment=Enum.TextXAlignment.Center;dRarity.ZIndex=23;dRarity.Parent=detailScroll;C(dRarity,4)
+	local rbL=Instance.new("TextLabel");rbL.Name="Lbl";rbL.Size=UDim2.new(1,0,1,0);rbL.BackgroundTransparency=1;rbL.Text="TANK";rbL.TextColor3=Color3.new(1,1,1);rbL.TextScaled=false;rbL.TextSize=11;rbL.Font=Enum.Font.GothamBold;rbL.ZIndex=24;rbL.Parent=dRoleBadge
+	dName=Instance.new("TextLabel");dName.Size=UDim2.new(0,IW-46-78-8,0,20);dName.Position=UDim2.new(0,P+50,0,y);dName.BackgroundTransparency=1;dName.Text="";dName.TextColor3=Color3.fromRGB(215,215,240);dName.TextScaled=false;dName.TextSize=16;dName.TextTruncate=Enum.TextTruncate.AtEnd;dName.Font=Enum.Font.GothamBold;dName.TextXAlignment=Enum.TextXAlignment.Left;dName.ZIndex=23;dName.Parent=detailScroll
+	dRarity=Instance.new("TextLabel");dRarity.Size=UDim2.new(0,74,0,20);dRarity.Position=UDim2.new(1,-P-74,0,y);dRarity.BackgroundColor3=Color3.fromRGB(18,10,28);dRarity.BorderSizePixel=0;dRarity.Text="—";dRarity.TextColor3=Color3.fromRGB(180,180,200);dRarity.TextScaled=false;dRarity.TextSize=12;dRarity.Font=Enum.Font.GothamBold;dRarity.TextXAlignment=Enum.TextXAlignment.Center;dRarity.ZIndex=23;dRarity.Parent=detailScroll;C(dRarity,4)
 	y=y+28
 
 	local div0=Instance.new("Frame");div0.Size=UDim2.new(0,IW,0,1);div0.Position=UDim2.new(0,P,0,y);div0.BackgroundColor3=Color3.fromRGB(26,22,46);div0.BorderSizePixel=0;div0.ZIndex=22;div0.Parent=detailScroll; y=y+9
@@ -482,7 +495,7 @@ local function buildDetailPane(parent)
 		local cx=P+(i-1)*SW
 		local box=Instance.new("Frame");box.Size=UDim2.new(0,SW-4,0,46);box.Position=UDim2.new(0,cx,0,y);box.BackgroundColor3=sd.bg;box.BorderSizePixel=0;box.ZIndex=23;box.Parent=detailScroll;C(box,6)
 		S(box,Color3.fromRGB(40,36,54),1)
-		local slbl=Instance.new("TextLabel");slbl.Size=UDim2.new(1,0,0,13);slbl.BackgroundTransparency=1;slbl.Text=sd.label;slbl.TextColor3=sd.valCol and Color3.new(sd.valCol.R*0.6,sd.valCol.G*0.6,sd.valCol.B*0.6) or Color3.fromRGB(100,80,140);slbl.TextScaled=false;slbl.TextSize=9;slbl.Font=Enum.Font.GothamBold;slbl.TextXAlignment=Enum.TextXAlignment.Center;slbl.ZIndex=24;slbl.Parent=box
+		local slbl=Instance.new("TextLabel");slbl.Size=UDim2.new(1,0,0,13);slbl.BackgroundTransparency=1;slbl.Text=sd.label;slbl.TextColor3=sd.valCol and Color3.new(sd.valCol.R*0.6,sd.valCol.G*0.6,sd.valCol.B*0.6) or Color3.fromRGB(100,80,140);slbl.TextScaled=false;slbl.TextSize=11;slbl.Font=Enum.Font.GothamBold;slbl.TextXAlignment=Enum.TextXAlignment.Center;slbl.ZIndex=24;slbl.Parent=box
 		if i==1 then
 			dATK=Instance.new("TextLabel");dATK.Size=UDim2.new(1,0,0,28);dATK.Position=UDim2.new(0,0,0,14);dATK.BackgroundTransparency=1;dATK.Text="—";dATK.TextColor3=sd.valCol;dATK.TextScaled=false;dATK.TextSize=22;dATK.Font=Enum.Font.GothamBold;dATK.TextXAlignment=Enum.TextXAlignment.Center;dATK.ZIndex=24;dATK.Parent=box
 		elseif i==2 then
@@ -517,7 +530,7 @@ local function buildDetailPane(parent)
 	local function nextOrder() order=order+1; return order end
 	local function divider() local d=Instance.new("Frame");d.Size=UDim2.new(1,0,0,1);d.BackgroundColor3=Color3.fromRGB(30,26,50);d.BorderSizePixel=0;d.LayoutOrder=nextOrder();d.ZIndex=22;d.Parent=stack end
 	local function header(text)
-		local h=Instance.new("TextLabel");h.Size=UDim2.new(1,0,0,14);h.BackgroundTransparency=1;h.Text=text;h.TextColor3=Color3.fromRGB(110,105,145);h.TextScaled=false;h.TextSize=10;h.Font=Enum.Font.GothamBold;h.TextXAlignment=Enum.TextXAlignment.Left;h.LayoutOrder=nextOrder();h.ZIndex=23;h.Parent=stack
+		local h=Instance.new("TextLabel");h.Size=UDim2.new(1,0,0,16);h.BackgroundTransparency=1;h.Text=text;h.TextColor3=Color3.fromRGB(165,160,200);h.TextScaled=false;h.TextSize=12;h.Font=Enum.Font.GothamBold;h.TextXAlignment=Enum.TextXAlignment.Left;h.LayoutOrder=nextOrder();h.ZIndex=23;h.Parent=stack
 		return h
 	end
 	local function line(size,font,color)
@@ -527,26 +540,31 @@ local function buildDetailPane(parent)
 
 	-- ROLE
 	divider(); header("ROLE")
-	dRoleLine=line(14,Enum.Font.GothamBold,Color3.fromRGB(230,230,245))
-	dRoleDesc=line(12,Enum.Font.Gotham,Color3.fromRGB(160,160,190))
+	dRoleLine=line(16,Enum.Font.GothamBold,Color3.fromRGB(235,235,250))
+	dRoleDesc=line(14,Enum.Font.Gotham,Color3.fromRGB(200,200,220))
 
 	-- PASSIVE / TRAIT
 	divider(); dPassiveHdr=header("PASSIVE")
-	local pRow=Instance.new("Frame");pRow.Size=UDim2.new(1,0,0,18);pRow.BackgroundTransparency=1;pRow.BorderSizePixel=0;pRow.LayoutOrder=nextOrder();pRow.ZIndex=23;pRow.Parent=stack
-	dPassiveChip=Instance.new("Frame");dPassiveChip.Size=UDim2.new(0,78,0,16);dPassiveChip.Position=UDim2.new(0,0,0,1);dPassiveChip.BackgroundColor3=Color3.fromRGB(100,100,180);dPassiveChip.BorderSizePixel=0;dPassiveChip.ZIndex=23;dPassiveChip.Parent=pRow;C(dPassiveChip,3)
-	local chipLbl=Instance.new("TextLabel");chipLbl.Name="Lbl";chipLbl.Size=UDim2.new(1,0,1,0);chipLbl.BackgroundTransparency=1;chipLbl.Text="—";chipLbl.TextColor3=Color3.new(1,1,1);chipLbl.TextScaled=false;chipLbl.TextSize=9;chipLbl.Font=Enum.Font.GothamBold;chipLbl.ZIndex=24;chipLbl.Parent=dPassiveChip
-	dCardPassiveName=Instance.new("TextLabel");dCardPassiveName.Size=UDim2.new(1,-86,1,0);dCardPassiveName.Position=UDim2.new(0,86,0,0);dCardPassiveName.BackgroundTransparency=1;dCardPassiveName.Text="";dCardPassiveName.TextColor3=Color3.fromRGB(230,205,110);dCardPassiveName.TextScaled=false;dCardPassiveName.TextSize=13;dCardPassiveName.Font=Enum.Font.GothamBold;dCardPassiveName.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveName.TextTruncate=Enum.TextTruncate.AtEnd;dCardPassiveName.ZIndex=23;dCardPassiveName.Parent=pRow
-	dCardPassiveDesc=line(13,Enum.Font.Gotham,Color3.fromRGB(175,178,200))
-	dPassiveRule=line(12,Enum.Font.GothamBold,Color3.fromRGB(150,150,185))
+	local pRow=Instance.new("Frame");pRow.Size=UDim2.new(1,0,0,22);pRow.BackgroundTransparency=1;pRow.BorderSizePixel=0;pRow.LayoutOrder=nextOrder();pRow.ZIndex=23;pRow.Parent=stack
+	dPassiveChip=Instance.new("Frame");dPassiveChip.Size=UDim2.new(0,92,0,20);dPassiveChip.Position=UDim2.new(0,0,0,1);dPassiveChip.BackgroundColor3=Color3.fromRGB(100,100,180);dPassiveChip.BorderSizePixel=0;dPassiveChip.ZIndex=23;dPassiveChip.Parent=pRow;C(dPassiveChip,3)
+	local chipLbl=Instance.new("TextLabel");chipLbl.Name="Lbl";chipLbl.Size=UDim2.new(1,0,1,0);chipLbl.BackgroundTransparency=1;chipLbl.Text="—";chipLbl.TextColor3=Color3.new(1,1,1);chipLbl.TextScaled=false;chipLbl.TextSize=11;chipLbl.Font=Enum.Font.GothamBold;chipLbl.ZIndex=24;chipLbl.Parent=dPassiveChip
+	dCardPassiveName=Instance.new("TextLabel");dCardPassiveName.Size=UDim2.new(1,-100,1,0);dCardPassiveName.Position=UDim2.new(0,100,0,0);dCardPassiveName.BackgroundTransparency=1;dCardPassiveName.Text="";dCardPassiveName.TextColor3=Color3.fromRGB(230,205,110);dCardPassiveName.TextScaled=false;dCardPassiveName.TextSize=15;dCardPassiveName.Font=Enum.Font.GothamBold;dCardPassiveName.TextXAlignment=Enum.TextXAlignment.Left;dCardPassiveName.TextTruncate=Enum.TextTruncate.AtEnd;dCardPassiveName.ZIndex=23;dCardPassiveName.Parent=pRow
+	dCardPassiveDesc=line(15,Enum.Font.GothamMedium,Color3.fromRGB(215,215,235))
+	dPassiveRule=line(13,Enum.Font.Gotham,Color3.fromRGB(175,175,200))  -- full Trait text, under More info
 
 	-- ABILITY
 	divider(); header("ABILITY")
-	local aRow=Instance.new("Frame");aRow.Size=UDim2.new(1,0,0,18);aRow.BackgroundTransparency=1;aRow.BorderSizePixel=0;aRow.LayoutOrder=nextOrder();aRow.ZIndex=23;aRow.Parent=stack
-	local costChip=Instance.new("Frame");costChip.Size=UDim2.new(0,78,0,16);costChip.Position=UDim2.new(0,0,0,1);costChip.BackgroundColor3=Color3.fromRGB(70,45,120);costChip.BorderSizePixel=0;costChip.ZIndex=23;costChip.Parent=aRow;C(costChip,3)
-	dActiveCost=Instance.new("TextLabel");dActiveCost.Size=UDim2.new(1,0,1,0);dActiveCost.BackgroundTransparency=1;dActiveCost.Text="";dActiveCost.TextColor3=Color3.fromRGB(215,190,255);dActiveCost.TextScaled=false;dActiveCost.TextSize=9;dActiveCost.Font=Enum.Font.GothamBold;dActiveCost.ZIndex=24;dActiveCost.Parent=costChip
-	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(1,-86,1,0);dActiveName.Position=UDim2.new(0,86,0,0);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(200,165,255);dActiveName.TextScaled=false;dActiveName.TextSize=13;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.TextTruncate=Enum.TextTruncate.AtEnd;dActiveName.ZIndex=23;dActiveName.Parent=aRow
-	dActiveDesc=line(13,Enum.Font.Gotham,ACTIVE_DESC_COLOR)
-	line(11,Enum.Font.Gotham,Color3.fromRGB(110,105,145)).Text="Fires automatically when mana is full. Cards gain +1 mana per hit they land."
+	local aRow=Instance.new("Frame");aRow.Size=UDim2.new(1,0,0,22);aRow.BackgroundTransparency=1;aRow.BorderSizePixel=0;aRow.LayoutOrder=nextOrder();aRow.ZIndex=23;aRow.Parent=stack
+	local costChip=Instance.new("Frame");costChip.Size=UDim2.new(0,92,0,20);costChip.Position=UDim2.new(0,0,0,1);costChip.BackgroundColor3=Color3.fromRGB(70,45,120);costChip.BorderSizePixel=0;costChip.ZIndex=23;costChip.Parent=aRow;C(costChip,3)
+	dActiveCost=Instance.new("TextLabel");dActiveCost.Size=UDim2.new(1,0,1,0);dActiveCost.BackgroundTransparency=1;dActiveCost.Text="";dActiveCost.TextColor3=Color3.fromRGB(215,190,255);dActiveCost.TextScaled=false;dActiveCost.TextSize=11;dActiveCost.Font=Enum.Font.GothamBold;dActiveCost.ZIndex=24;dActiveCost.Parent=costChip
+	dActiveName=Instance.new("TextLabel");dActiveName.Size=UDim2.new(1,-100,1,0);dActiveName.Position=UDim2.new(0,100,0,0);dActiveName.BackgroundTransparency=1;dActiveName.Text="";dActiveName.TextColor3=Color3.fromRGB(200,165,255);dActiveName.TextScaled=false;dActiveName.TextSize=15;dActiveName.Font=Enum.Font.GothamBold;dActiveName.TextXAlignment=Enum.TextXAlignment.Left;dActiveName.TextTruncate=Enum.TextTruncate.AtEnd;dActiveName.ZIndex=23;dActiveName.Parent=aRow
+	dActiveDesc=line(15,Enum.Font.GothamMedium,ACTIVE_DESC_COLOR)
+	dActiveDetail=line(13,Enum.Font.Gotham,Color3.fromRGB(175,175,200))  -- exact numbers, under More info
+	line(12,Enum.Font.Gotham,Color3.fromRGB(160,155,195)).Text="Fires on its own when mana is full. +1 mana for every hit."
+	detailsBtn=B(stack,"More info: exact numbers",UDim2.new(1,0,0,30),UDim2.new(0,0,0,0),Color3.fromRGB(30,26,52),23)
+	detailsBtn.Name="DetailsToggle";detailsBtn.TextScaled=false;detailsBtn.TextSize=13;detailsBtn.Font=Enum.Font.GothamBold;detailsBtn.TextColor3=Color3.fromRGB(215,205,255);detailsBtn.LayoutOrder=nextOrder();S(detailsBtn,Color3.fromRGB(70,55,120),1)
+	hoverBtn(detailsBtn,Color3.fromRGB(30,26,52),Color3.fromRGB(44,36,76))
+	detailsBtn.MouseButton1Click:Connect(function() showDetails=not showDetails; if selectedCard then showCard(selectedCard) end end)
 
 	-- SYNERGIES
 	divider(); header("SYNERGIES")
@@ -578,18 +596,18 @@ local function buildSynergiesTab(parent)
 		local iList=Instance.new("UIListLayout");iList.Parent=inner;iList.Padding=UDim.new(0,4);iList.SortOrder=Enum.SortOrder.LayoutOrder
 		local ipad=Instance.new("UIPadding");ipad.Parent=inner;ipad.PaddingTop=UDim.new(0,8);ipad.PaddingBottom=UDim.new(0,8)
 		local hdr=Instance.new("Frame");hdr.Size=UDim2.new(1,0,0,18);hdr.BackgroundTransparency=1;hdr.BorderSizePixel=0;hdr.LayoutOrder=1;hdr.ZIndex=23;hdr.Parent=inner
-		local nameLbl=Instance.new("TextLabel");nameLbl.Size=UDim2.new(0.65,0,1,0);nameLbl.BackgroundTransparency=1;nameLbl.Text=synName;nameLbl.TextColor3=sc;nameLbl.TextScaled=false;nameLbl.TextSize=13;nameLbl.Font=Enum.Font.GothamBold;nameLbl.TextXAlignment=Enum.TextXAlignment.Left;nameLbl.ZIndex=24;nameLbl.Parent=hdr
-		local maxLbl=Instance.new("TextLabel");maxLbl.Size=UDim2.new(0.35,0,1,0);maxLbl.Position=UDim2.new(0.65,0,0,0);maxLbl.BackgroundTransparency=1;maxLbl.Text="max "..synDef.maxCount;maxLbl.TextColor3=Color3.fromRGB(70,70,90);maxLbl.TextScaled=false;maxLbl.TextSize=10;maxLbl.Font=Enum.Font.Gotham;maxLbl.TextXAlignment=Enum.TextXAlignment.Right;maxLbl.ZIndex=24;maxLbl.Parent=hdr
+		local nameLbl=Instance.new("TextLabel");nameLbl.Size=UDim2.new(0.65,0,1,0);nameLbl.BackgroundTransparency=1;nameLbl.Text=synName;nameLbl.TextColor3=sc;nameLbl.TextScaled=false;nameLbl.TextSize=16;nameLbl.Font=Enum.Font.GothamBold;nameLbl.TextXAlignment=Enum.TextXAlignment.Left;nameLbl.ZIndex=24;nameLbl.Parent=hdr
+		local maxLbl=Instance.new("TextLabel");maxLbl.Size=UDim2.new(0.35,0,1,0);maxLbl.Position=UDim2.new(0.65,0,0,0);maxLbl.BackgroundTransparency=1;maxLbl.Text="max "..synDef.maxCount;maxLbl.TextColor3=Color3.fromRGB(160,160,185);maxLbl.TextScaled=false;maxLbl.TextSize=12;maxLbl.Font=Enum.Font.Gotham;maxLbl.TextXAlignment=Enum.TextXAlignment.Right;maxLbl.ZIndex=24;maxLbl.Parent=hdr
 		for tierIdx,thresh in ipairs(synDef.thresholds) do
 			local tierRow=Instance.new("Frame");tierRow.Size=UDim2.new(1,0,0,26);tierRow.AutomaticSize=Enum.AutomaticSize.Y;tierRow.BackgroundColor3=Color3.new(sc.R*0.06,sc.G*0.06,sc.B*0.06);tierRow.BorderSizePixel=0;tierRow.LayoutOrder=1+tierIdx;tierRow.ZIndex=23;tierRow.Parent=inner;C(tierRow,4)
 			local cb=Instance.new("Frame");cb.Size=UDim2.new(0,22,0,18);cb.Position=UDim2.new(0,5,0,4);cb.BackgroundColor3=sc;cb.BorderSizePixel=0;cb.ZIndex=24;cb.Parent=tierRow;C(cb,4)
 			local cl=Instance.new("TextLabel");cl.Size=UDim2.new(1,0,1,0);cl.BackgroundTransparency=1;cl.Text=tostring(thresh.count);cl.TextColor3=Color3.new(1,1,1);cl.TextScaled=false;cl.TextSize=11;cl.Font=Enum.Font.GothamBold;cl.ZIndex=25;cl.Parent=cb
-			local bl=Instance.new("TextLabel");bl.Size=UDim2.new(1,-34,0,26);bl.Position=UDim2.new(0,30,0,0);bl.AutomaticSize=Enum.AutomaticSize.Y;bl.BackgroundTransparency=1;bl.Text=thresh.bonus;bl.TextColor3=Color3.fromRGB(190,215,190);bl.TextScaled=false;bl.TextSize=10;bl.Font=Enum.Font.Gotham;bl.TextXAlignment=Enum.TextXAlignment.Left;bl.TextWrapped=true;bl.TextYAlignment=Enum.TextYAlignment.Center;bl.ZIndex=24;bl.Parent=tierRow
+			local bl=Instance.new("TextLabel");bl.Size=UDim2.new(1,-34,0,26);bl.Position=UDim2.new(0,30,0,0);bl.AutomaticSize=Enum.AutomaticSize.Y;bl.BackgroundTransparency=1;bl.Text=thresh.bonus;bl.TextColor3=Color3.fromRGB(215,235,215);bl.TextScaled=false;bl.TextSize=13;bl.Font=Enum.Font.Gotham;bl.TextXAlignment=Enum.TextXAlignment.Left;bl.TextWrapped=true;bl.TextYAlignment=Enum.TextYAlignment.Center;bl.ZIndex=24;bl.Parent=tierRow
 		end
 		local unitNames={}; if cardDb then for _,c2 in ipairs(cardDb:GetBySeries(synName)) do table.insert(unitNames,c2.name) end end
 		if #unitNames>0 then
 			local mRow=Instance.new("Frame");mRow.Size=UDim2.new(1,0,0,14);mRow.AutomaticSize=Enum.AutomaticSize.Y;mRow.BackgroundTransparency=1;mRow.BorderSizePixel=0;mRow.LayoutOrder=20;mRow.ZIndex=23;mRow.Parent=inner
-			local mLbl=Instance.new("TextLabel");mLbl.Size=UDim2.new(1,0,0,14);mLbl.AutomaticSize=Enum.AutomaticSize.Y;mLbl.BackgroundTransparency=1;mLbl.Text=table.concat(unitNames," · ");mLbl.TextColor3=Color3.fromRGB(60,60,80);mLbl.TextScaled=false;mLbl.TextSize=9;mLbl.Font=Enum.Font.Gotham;mLbl.TextXAlignment=Enum.TextXAlignment.Left;mLbl.TextWrapped=true;mLbl.TextYAlignment=Enum.TextYAlignment.Top;mLbl.ZIndex=24;mLbl.Parent=mRow
+			local mLbl=Instance.new("TextLabel");mLbl.Size=UDim2.new(1,0,0,14);mLbl.AutomaticSize=Enum.AutomaticSize.Y;mLbl.BackgroundTransparency=1;mLbl.Text="Members: "..table.concat(unitNames," · ");mLbl.TextColor3=Color3.fromRGB(175,175,200);mLbl.TextScaled=false;mLbl.TextSize=12;mLbl.Font=Enum.Font.Gotham;mLbl.TextXAlignment=Enum.TextXAlignment.Left;mLbl.TextWrapped=true;mLbl.TextYAlignment=Enum.TextYAlignment.Top;mLbl.ZIndex=24;mLbl.Parent=mRow
 		end
 	end
 end

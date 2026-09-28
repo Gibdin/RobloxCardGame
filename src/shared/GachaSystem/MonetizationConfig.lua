@@ -61,13 +61,12 @@ MonetizationConfig.BattlePass = {
 -- is "active" is now computed automatically from BannerRotation below rather
 -- than a hand-flipped flag (see BannerService:GetActiveBanner).
 MonetizationConfig.Banners = {
-	{ id = "banner_launch",      name = "Launch Banner",              featuredCardId = 44, rateMult = 4, guaranteeAfter = 50  },
-	{ id = "banner_sage",        name = "Hundred-Heal Sage Banner",    featuredCardId = 45, rateMult = 4, guaranteeAfter = 50  },
-	{ id = "banner_honored",     name = "The Honored Guy Banner",      featuredCardId = 46, rateMult = 4, guaranteeAfter = 50  },
-	{ id = "banner_tidewarden",  name = "Tide Warden Banner",          featuredCardId = 47, rateMult = 4, guaranteeAfter = 50  },
-	{ id = "banner_illusion",    name = "Illusion Sovereign Banner",   featuredCardId = 48, rateMult = 4, guaranteeAfter = 80  },
+	{ id = "banner_vessel",      name = "Cursed Vessel Banner",        featuredCardId = 51, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_rika",        name = "Rika's Beloved Banner",       featuredCardId = 52, rateMult = 4, guaranteeAfter = 50  },
+	{ id = "banner_honored",     name = "The Honored One Banner",      featuredCardId = 46, rateMult = 4, guaranteeAfter = 150 },
+	{ id = "banner_sorcererkiller", name = "Sorcerer Killer Banner",   featuredCardId = 53, rateMult = 4, guaranteeAfter = 30  },
 	{ id = "banner_worldcutter", name = "World Cutter Banner",         featuredCardId = 49, rateMult = 4, guaranteeAfter = 150 },
-	{ id = "banner_nameless",    name = "The Nameless Banner",         featuredCardId = 50, rateMult = 4, guaranteeAfter = 250 },
+	{ id = "banner_wheel",       name = "Eight-Handled Wheel Banner",  featuredCardId = 74, rateMult = 4, guaranteeAfter = 250 },
 }
 
 -- Automatic weekly rotation cadence. Which banner is live in any given week
@@ -79,8 +78,8 @@ MonetizationConfig.BannerRotation = {
 	RotationEpoch = 1751328000, -- fixed anchor timestamp for week 0 (2025-07-01T00:00:00Z)
 	DurationDays  = 7,
 	Order = {
-		"banner_launch", "banner_sage", "banner_honored", "banner_tidewarden",
-		"banner_illusion", "banner_worldcutter", "banner_nameless",
+		"banner_vessel", "banner_rika", "banner_honored", "banner_sorcererkiller",
+		"banner_worldcutter", "banner_wheel",
 	},
 }
 
