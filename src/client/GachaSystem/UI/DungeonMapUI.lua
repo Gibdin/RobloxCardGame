@@ -157,8 +157,14 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 	panel.Name = "DungeonMapPanel"
 	-- Fills the space between the NEXT banner (top) and the run team strip
 	-- (RunTeamPanel, anchored 214px above the bottom) so neither is covered.
-	panel.Size = UDim2.new(0, 440, 1, -282)
 	panel.Position = UDim2.new(0.5, -220, 0, 60)
+	local function fitHeight()
+		-- Compact: the run strip sits at the bottom (team bar hidden), so the
+		-- map can extend down to just above it.
+		panel.Size = gui:GetAttribute("Compact") and UDim2.new(0, 440, 1, -154) or UDim2.new(0, 440, 1, -282)
+	end
+	gui:GetAttributeChangedSignal("Compact"):Connect(fitHeight)
+	fitHeight()
 	panel.BackgroundColor3 = CURSED_BG
 	panel.BackgroundTransparency = 0.08
 	panel.BorderSizePixel = 0

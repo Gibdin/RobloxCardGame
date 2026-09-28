@@ -70,6 +70,9 @@ local rfGetInventory, rfGetTeam, rfSetTeam
 
 local allCards     = {}
 -- false = empty slot; avoids nil holes in the array across RemoteFunctions
+-- Horizontal offset from centre; on compact screens the panel shifts right
+-- so its top-left corner clears Roblox's top-bar buttons and the side menu.
+local baseX = 0
 -- Shared with GlobalTeamBar (same table): see TeamBuilderUI:Init.
 local team         = { false, false, false, false, false }
 local globalTeamBar
@@ -704,7 +707,21 @@ end
 -- ── Build: full panel ─────────────────────────────────────────────────────────
 local function buildPanel(gui)
 	panel = F(gui, "TeamBuilderPanel", Color3.fromRGB(14, 14, 22), 0, 0, PW, PH, 20)
-	panel.Position = UDim2.new(0.5, -PW / 2, 0.5, -PH / 2)
+	-- Centered on its anchor so the fit scale below shrinks it in place.
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	-- Short (phone) screens: the slot column is fixed-position, so the whole
+	-- panel scales down to the available height instead of being cut off.
+	local fit = Instance.new("UIScale"); fit.Name = "FitScale"; fit.Parent = panel
+	local function refit()
+		local h = gui:GetAttribute("CanvasHeight") or PH
+		fit.Scale = math.min(1, (h - 16) / PH)
+		baseX = gui:GetAttribute("Compact") and 60 or 0
+		panel.Position = UDim2.new(0.5, baseX, 0.5, 0)
+	end
+	gui:GetAttributeChangedSignal("CanvasHeight"):Connect(refit)
+	gui:GetAttributeChangedSignal("Compact"):Connect(refit)
+	refit()
 	panel.Visible = false; panel.ClipsDescendants = true
 	corner(panel, 12)
 	stroke(panel, 1, Color3.fromRGB(40, 40, 60))
@@ -830,10 +847,10 @@ function TeamBuilderUI:Init(gui, db, rc, roleC, rfInv, rfGT, rfST, gtb)
 end
 
 function TeamBuilderUI:Show()
-	panel.Position = UDim2.new(0.5, -PW/2, 0.5, -PH/2 + 18)
+	panel.Position = UDim2.new(0.5, baseX, 0.5, 18)
 	panel.Visible = true
 	TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{Position = UDim2.new(0.5, -PW/2, 0.5, -PH/2)}):Play()
+		{Position = UDim2.new(0.5, baseX, 0.5, 0)}):Play()
 	selectedCard  = nil
 	selectCard(nil)
 	task.spawn(loadData)
@@ -841,7 +858,7 @@ end
 
 function TeamBuilderUI:Hide()
 	TweenService:Create(panel, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{Position = UDim2.new(0.5, -PW/2, 0.5, -PH/2 + 14)}):Play()
+		{Position = UDim2.new(0.5, baseX, 0.5, 14)}):Play()
 	task.delay(0.14, function() if panel then panel.Visible = false end end)
 end
 

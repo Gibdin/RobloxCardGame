@@ -31,7 +31,13 @@ function RunTeamPanel:Init(gui, cardDb, rarityConf, roleConf, dungeonConf, sound
 	panel = Instance.new("Frame")
 	panel.Name = "RunTeamPanel"
 	panel.Size = UDim2.new(0, 572, 0, 76)
-	panel.Position = UDim2.new(0.5, -286, 1, -214)
+	-- Normally above the team bar; on compact screens the team bar hides
+	-- during a run (see the controller), so the strip sits at the bottom.
+	local function place()
+		panel.Position = gui:GetAttribute("Compact") and UDim2.new(0.5, -286, 1, -86) or UDim2.new(0.5, -286, 1, -214)
+	end
+	gui:GetAttributeChangedSignal("Compact"):Connect(place)
+	place()
 	panel.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
 	panel.BackgroundTransparency = 0.12
 	panel.BorderSizePixel = 0

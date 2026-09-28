@@ -724,11 +724,15 @@ end
 
 -- ── panel builder ─────────────────────────────────────────────────────────────
 local function buildPanel(gui)
-	panel=Instance.new("Frame");panel.Name="INVENTORYPanel";panel.Size=UDim2.new(0,PW,0,PH);panel.Position=UDim2.new(0.5,-PW/2,0,4);panel.BackgroundColor3=Color3.fromRGB(10,10,20);panel.BackgroundTransparency=0.10;panel.BorderSizePixel=0;panel.ZIndex=20;panel.Visible=false;panel.Parent=gui;C(panel,12);S(panel,Color3.fromRGB(38,38,58),1)
+	-- Below Roblox's top-bar buttons; takes the available height (capped at
+	-- PH). Grid and detail pane both scroll, so short (phone) screens work.
+	local TOP=60
+	panel=Instance.new("Frame");panel.Name="INVENTORYPanel";panel.Size=UDim2.new(0,PW,1,-(TOP+8));panel.Position=UDim2.new(0.5,-PW/2,0,TOP);
+	local cap=Instance.new("UISizeConstraint");cap.MaxSize=Vector2.new(PW,PH);cap.Parent=panel;panel.BackgroundColor3=Color3.fromRGB(10,10,20);panel.BackgroundTransparency=0.10;panel.BorderSizePixel=0;panel.ZIndex=20;panel.Visible=false;panel.Parent=gui;C(panel,12);S(panel,Color3.fromRGB(38,38,58),1)
 	buildTopBar()
-	unitsBody=Instance.new("Frame");unitsBody.Name="UnitsBody";unitsBody.Size=UDim2.new(1,0,0,BODY_H);unitsBody.Position=UDim2.new(0,0,0,BODY_Y);unitsBody.BackgroundTransparency=1;unitsBody.BorderSizePixel=0;unitsBody.ZIndex=21;unitsBody.Parent=panel
+	unitsBody=Instance.new("Frame");unitsBody.Name="UnitsBody";unitsBody.Size=UDim2.new(1,0,1,-BODY_Y);unitsBody.Position=UDim2.new(0,0,0,BODY_Y);unitsBody.BackgroundTransparency=1;unitsBody.BorderSizePixel=0;unitsBody.ZIndex=21;unitsBody.Parent=panel
 	buildGridPane(unitsBody);buildDetailPane(unitsBody)
-	synergiesBody=Instance.new("Frame");synergiesBody.Name="SynergiesBody";synergiesBody.Size=UDim2.new(1,0,0,BODY_H);synergiesBody.Position=UDim2.new(0,0,0,BODY_Y);synergiesBody.BackgroundTransparency=1;synergiesBody.BorderSizePixel=0;synergiesBody.ZIndex=21;synergiesBody.Visible=false;synergiesBody.Parent=panel
+	synergiesBody=Instance.new("Frame");synergiesBody.Name="SynergiesBody";synergiesBody.Size=UDim2.new(1,0,1,-BODY_Y);synergiesBody.Position=UDim2.new(0,0,0,BODY_Y);synergiesBody.BackgroundTransparency=1;synergiesBody.BorderSizePixel=0;synergiesBody.ZIndex=21;synergiesBody.Visible=false;synergiesBody.Parent=panel
 	buildSynergiesTab(synergiesBody)
 	tabUnitsBtn.MouseButton1Click:Connect(function() switchTab("units") end)
 	tabSynBtn.MouseButton1Click:Connect(function() switchTab("synergies") end)

@@ -338,12 +338,18 @@ local rootUIScale = Instance.new("UIScale")
 rootUIScale.Parent = screenGui
 
 -- Screen-size fit: the UI is laid out in fixed pixels for a desktop-sized
--- screen (DESIGN_W x DESIGN_H). Smaller screens (phones: ~844x390 points)
--- scale the whole UI down to fit, but never below MIN_AUTO_SCALE, so text
--- stays readable; at the floor a phone gets a ~1360x630 virtual canvas.
--- The player's own UI Scale setting multiplies on top.
+-- screen (DESIGN_W x DESIGN_H). Smaller screens scale the whole UI down, but
+-- never below MIN_AUTO_SCALE so text stays readable; a phone (~844x390
+-- points) gets a ~1125x520 virtual canvas. The player's UI Scale setting
+-- multiplies on top.
+--
+-- Screens read two attributes published on screenGui to adapt their layout:
+--   CanvasHeight  the height available in UI units (after scaling)
+--   Compact       true on short canvases (phones): panels fit to height and
+--                 the team bar hides while a menu is open.
 local DESIGN_W, DESIGN_H = 1280, 720
-local MIN_AUTO_SCALE = 0.62
+local MIN_AUTO_SCALE = 0.75
+local COMPACT_CANVAS_H = 620
 local userUIScale = 1
 local function autoUIScale()
 	local size = screenGui.AbsoluteSize
@@ -351,10 +357,48 @@ local function autoUIScale()
 	return math.clamp(math.min(size.X / DESIGN_W, size.Y / DESIGN_H), MIN_AUTO_SCALE, 1)
 end
 local function applyUIScale()
-	rootUIScale.Scale = userUIScale * autoUIScale()
+	local scale = userUIScale * autoUIScale()
+	rootUIScale.Scale = scale
+	local canvasH = screenGui.AbsoluteSize.Y / scale
+	screenGui:SetAttribute("CanvasHeight", canvasH)
+	screenGui:SetAttribute("Compact", canvasH > 0 and canvasH < COMPACT_CANVAS_H)
 end
 screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyUIScale)
 applyUIScale()
+
+-- Compact screens: the team bar (and its synergy tracker) would cover the
+-- bottom of any open menu, so it hides while one is open and comes back
+-- when the player is back on the main screen.
+local MENU_PANELS = {
+	"INVENTORYPanel", "TeamBuilderPanel", "QuestPanel", "ShopStorePanel", "SocialPanel",
+	"ArenaPanel", "LeaderboardPanel", "SettingsPanel", "ModeSelectPanel", "TowerPanel",
+	"BattlePanel", "ShopPanel", "EliteBuffPanel", "DungeonMapPanel", "PackRipFrame", "RevealPanel",
+}
+-- On screen only if it and every container above it are visible (e.g. the
+-- reveal panel stays Visible and is shown/hidden by its RevealStage parent).
+local function onScreen(obj)
+	while obj and obj ~= screenGui do
+		if obj:IsA("GuiObject") and not obj.Visible then return false end
+		obj = obj.Parent
+	end
+	return obj == screenGui
+end
+task.spawn(function()
+	while screenGui.Parent do
+		local hide = false
+		if screenGui:GetAttribute("Compact") then
+			for _, name in ipairs(MENU_PANELS) do
+				local p = screenGui:FindFirstChild(name, true)
+				if p and onScreen(p) then hide = true break end
+			end
+		end
+		for _, name in ipairs({ "GlobalTeamBar", "SynergyTracker" }) do
+			local f = screenGui:FindFirstChild(name, true)
+			if f then f.Visible = not hide end
+		end
+		task.wait(0.2)
+	end
+end)
 
 local settingsSaveDebounce = nil
 local function applySettings(s)

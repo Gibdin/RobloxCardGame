@@ -382,3 +382,13 @@ The full first-session loop was played on an emulated phone screen (844x390 poin
 
 **Known limitation:** at the 62% floor, the smallest text is about 7pt on a phone. A dedicated mobile layout (bigger phone type, hiding the team bar while a panel is open, full-height panels) is the proper next step. Roblox's touch jump button and thumbstick (bottom corners) were not emulated and may overlap the team bar's ends.
 
+**Mobile pass (same day):** replaced "scale everything down until it fits" with a phone layout:
+- **Scale floor raised 62% → 75%:** a phone gets a ~1125x520 canvas and text is about 20% larger (menu labels ~10pt, card text ~11pt).
+- **Screens adapt through two ScreenGui attributes** set by the controller: `CanvasHeight` and `Compact` (canvas under 620 units tall, i.e. phones).
+- **Team bar hides while any menu is open** on compact screens (it covered the bottom of every panel), and returns on the main screen.
+- **Inventory** starts below Roblox's top bar and takes the available height (capped at its desktop size); its grid and detail pane scroll.
+- **Team builder** is anchored at its center, scales to the available height on short screens, and shifts right on phones so its title clears Roblox's buttons.
+- **Dungeon:** on phones the run strip moves to the bottom (team bar hidden during runs) and the map grows into the freed space: 3 rows of tappable nodes instead of 2.
+
+Desktop layout is unchanged (verified). Still worth a check on a real device: Roblox's touch jump button and thumbstick in the bottom corners.
+
