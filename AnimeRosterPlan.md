@@ -311,6 +311,12 @@ Why same-rarity fodder: with duplicates only, maxing even a Common would take ab
 
 Migration note: the existing `awakening` counter (+1 per duplicate pulled, max 10, no stat effect today) should convert into fusion material rather than levels, since it was earned from exact duplicates only.
 
+**Implementation (2026-09-28):**
+- **Data:** each save gets `spares[cardId]` (spare copies usable as fuel) and `fusion[cardId]` (level 0-10). Duplicates pulled from packs now add a spare copy instead of the old cosmetic awakening counter; existing awakening counts convert into spares on load, so no pulled duplicate is lost.
+- **Rules live in one shared module** (`FusionConfig`), used by the server to validate a fuse and by the cards menu to preview it. The fuse picks fuel automatically: for +5/+10 it spends one real copy first; otherwise it spends other same-rarity spares first (from the cards you have the most of) and real copies last, since those are worth double.
+- **Stats:** the fusion bonus multiplies ATK and HP in dungeon, tower and PvP battles, and the cards menu shows the fused numbers.
+- **UI:** "+N" badges on tiles, a red dot on cards that can fuse right now, a Fuse button with a level-up burst, and silver (+5) / gold (+10) foil borders.
+
 Showcase: an interactive page demoing the Itadori card, sparring math, chain odds and this fusion ladder was published as an artifact (The Cursed Vessel).
 
 ### 11.10 JJK-only roster and readability pass (decided 2026-09-28)
