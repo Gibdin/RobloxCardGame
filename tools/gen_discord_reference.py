@@ -142,6 +142,24 @@ stat_lines = ['# Card stats formula',
               '- Subrole: ' + ', '.join('%s %gx ATK / %gx HP' % (n, *subrole_mod[n]) for n in subrole_mod)]
 posts.append('\n'.join(stat_lines))
 
+fc = read('FusionConfig.lua')
+fusion_max = int(num(fc, 'FusionConfig.MaxLevel'))
+fusion_step = num(fc, 'FusionConfig.StatPerLevel')
+posts.append('\n'.join([
+    '# Fusion (levelling cards with spares)',
+    '- Every duplicate you pull becomes a **spare copy** (fusion fuel).',
+    '- Cards level from +0 to +%d. Reaching +N costs **N points** of fuel from the **same rarity**.' % fusion_max,
+    '- A spare copy of the **same card** is worth **%d points**; any other same-rarity spare is worth **%d**.' % (
+        num(fc, 'FusionConfig.CopyPoints'), num(fc, 'FusionConfig.OtherPoints')),
+    '- **+5 and +10 are milestones:** they need at least one real copy of that card.',
+    '- Each level adds **+%s** of the card\'s base ATK and HP (**+%s at +%d**), rounded to the nearest 10.' % (
+        pct(fusion_step), pct(fusion_step * fusion_max), fusion_max),
+    '- Maxing a card costs %d points in total. The Fuse button spends other spares first and real copies last.' % (
+        fusion_max * (fusion_max + 1) // 2),
+    '- +5 unlocks a silver foil border, +10 an animated gold one.',
+]))
+
+
 def faction_tier(tier_text):
     parts = []
     atk, hp = num(tier_text, 'atkPct'), num(tier_text, 'hpPct')
