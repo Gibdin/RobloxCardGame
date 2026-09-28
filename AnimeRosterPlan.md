@@ -313,3 +313,18 @@ Migration note: the existing `awakening` counter (+1 per duplicate pulled, max 1
 
 Showcase: an interactive page demoing the Itadori card, sparring math, chain odds and this fusion ladder was published as an artifact (The Cursed Vessel).
 
+### 11.10 JJK-only roster and readability pass (decided 2026-09-28)
+
+**Placeholders removed.** The 47 generic fantasy placeholder cards (ids 1-45, 47, 48) and their 8 fantasy factions are gone. The game now ships the 26 JJK cards plus The Nameless One (admin-only). Knock-on changes:
+- **Banners** now feature JJK cards: The Cursed Vessel (Itadori), Rika's Beloved (Yuta), The Honored One (Gojo), World Cutter (Sukuna), The Sorcerer Killer (Toji) and The Eight-Handled Wheel (Mahoraga). The Nameless One banner was removed, since its pull guarantee would have handed out an admin-only card.
+- **Mythic has no cards yet,** so its pull weight is 0 and its pity step (150 rolls) is removed; the shop odds list hides empty rarities. Tower top floors roll God instead of Mythic, and dungeon bosses roll God (2/3) or Secret (1/3).
+- **Saved data:** inventories drop unknown card ids on load, and team slots holding them are cleared.
+
+**Card text for the target audience.** Card text was too heavy: several abilities ran 30-45 words with many numbers. Mechanics stay as they are (the game auto-battles, so players only need to understand them, not operate them), but every card now has:
+- a **one-line summary** (`active.short`, and `passive_short` for Traits) of about 12 words, shown as the main text;
+- the **exact numbers** behind a "More info" toggle in the cards menu.
+
+Standard role passives show only their one rule line (generated from `CombatConfig.Passives`), not a flavour sentence as well.
+
+**Cards menu readability pass:** minimum text size raised to about 11 px (body 13-14 px), low-contrast labels brightened, tile names and badges enlarged.
+
