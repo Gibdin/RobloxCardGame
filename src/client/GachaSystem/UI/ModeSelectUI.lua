@@ -81,7 +81,8 @@ function ModeSelectUI:Init(gui, cbs)
 	corner(closeBtn, 6)
 	closeBtn.MouseButton1Click:Connect(function() self:Hide() end)
 
-	dungeonBtn, dungeonSub = modeButton(panel, 56, "DUNGEON RUN", Color3.fromRGB(200, 120, 60))
+	dungeonBtn, dungeonSub = modeButton(panel, 56, "SHIBUYA INCIDENT", Color3.fromRGB(175, 90, 235))
+	dungeonBtn.Name = "DungeonModeBtn"
 	towerBtn, towerSub = modeButton(panel, 146, "ENDLESS TOWER", Color3.fromRGB(110, 100, 220))
 
 	dungeonBtn.MouseButton1Click:Connect(function()
@@ -98,7 +99,7 @@ function ModeSelectUI:Show(info)
 	towerSub.Text = info.towerActive and "Run in progress — tap to resume"
 		or ("Best: Floor " .. (info.towerBest or 0))
 	dungeonSub.Text = info.dungeonActive and "Run in progress — tap to resume"
-		or ("Best: Row " .. (info.dungeonBest or 0) .. " • shops • elites • boss")
+		or ("Best: Row " .. (info.dungeonBest or 0) .. " • earn 💎 Gems + packs • beat the Domain")
 	panel.Visible = true
 end
 

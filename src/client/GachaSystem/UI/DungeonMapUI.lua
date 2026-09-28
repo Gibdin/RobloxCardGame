@@ -23,15 +23,20 @@ local ROW_HEIGHT = 74
 local NODE_SIZE = 50
 local PANEL_W = 380
 
-local TYPE_ICON = { Mob = "S", Elite = "E", Shop = "$", Rest = "R", Boss = "B" }
-local TYPE_NAME = { Mob = "Battle", Elite = "ELITE", Shop = "Shop", Rest = "Rest", Boss = "BOSS" }
+local TYPE_ICON = { Mob = "⚔", Elite = "☠", Shop = "$", Rest = "✚", Boss = "♛" }
+local TYPE_NAME = { Mob = "Cursed Spirits", Elite = "Special Grade", Shop = "Cursed Tool Dealer", Rest = "Infirmary", Boss = "Domain Expansion" }
 local TYPE_COLOR = {
-	Mob   = Color3.fromRGB(150, 60, 60),
-	Elite = Color3.fromRGB(160, 60, 160),
-	Shop  = Color3.fromRGB(60, 140, 160),
-	Rest  = Color3.fromRGB(60, 160, 90),
-	Boss  = Color3.fromRGB(220, 180, 40),
+	Mob   = Color3.fromRGB(175, 55, 75),
+	Elite = Color3.fromRGB(150, 60, 215),
+	Shop  = Color3.fromRGB(40, 150, 165),
+	Rest  = Color3.fromRGB(55, 170, 110),
+	Boss  = Color3.fromRGB(235, 70, 55),
 }
+local CURSED_BG     = Color3.fromRGB(16, 10, 24)
+local CURSED_ACCENT = Color3.fromRGB(150, 70, 225)
+local GEM_COL       = Color3.fromRGB(110, 225, 255)
+local BOSS_SCALE    = 1.4   -- the boss node is drawn larger than the rest
+local themeTitle, themeSubtitle = "DUNGEON", ""
 
 local RewardHint  -- from DungeonConfig.Preview
 local CardDatabase, RarityConfig  -- for resolving preview.cards into name/rarity chips
@@ -68,6 +73,11 @@ local function showTooltip(node, nodePos)
 	local risky = node.type == "Elite" or node.type == "Boss"
 
 	ttTitle.Text = TYPE_NAME[node.type] or node.type
+	-- Name the boss after its centerpiece card: builds anticipation.
+	if node.type == "Boss" and node.preview and node.preview.cards and CardDatabase then
+		local bossCard = CardDatabase:GetById(node.preview.cards[1])
+		if bossCard then ttTitle.Text = "DOMAIN: " .. bossCard.name end
+	end
 	ttTitle.TextColor3 = TYPE_COLOR[node.type] or Color3.fromRGB(220, 220, 240)
 
 	if isBattle and node.preview then
@@ -110,7 +120,7 @@ local function showTooltip(node, nodePos)
 	ttCards.Size = UDim2.new(1, -12, 0, cardRowsHeight)
 
 	ttReward.Text = RewardHint and RewardHint(node.type, node.row) or ""
-	ttButton.Text = risky and "RISK IT" or (isBattle and "FIGHT" or "GO")
+	ttButton.Text = node.type == "Boss" and "ENTER THE DOMAIN" or (risky and "RISK IT" or (isBattle and "EXORCISE" or "GO"))
 	ttButton.BackgroundColor3 = risky and Color3.fromRGB(190, 55, 55) or Color3.fromRGB(70, 150, 90)
 
 	-- Position beside the node, clamped inside the scroll canvas.
@@ -133,6 +143,10 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 		return require(ReplicatedStorage:WaitForChild("GachaSystem"):WaitForChild("DungeonConfig"))
 	end)
 	if ok and conf.Preview then RewardHint = conf.Preview.RewardHint end
+	if ok and conf.Theme then
+		themeTitle, themeSubtitle = conf.Theme.Title, conf.Theme.Subtitle or ""
+		for k, v in pairs(conf.Theme.NodeName or {}) do TYPE_NAME[k] = v end
+	end
 	pcall(function()
 		local folder = ReplicatedStorage:WaitForChild("GachaSystem")
 		CardDatabase = require(folder:WaitForChild("CardDatabase"))
@@ -143,26 +157,39 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 	panel.Name = "DungeonMapPanel"
 	panel.Size = UDim2.new(0, 440, 0, 560)
 	panel.Position = UDim2.new(0.5, -220, 0.5, -280)
-	panel.BackgroundColor3 = Color3.fromRGB(14, 14, 24)
-	panel.BackgroundTransparency = 0.1
+	panel.BackgroundColor3 = CURSED_BG
+	panel.BackgroundTransparency = 0.08
 	panel.BorderSizePixel = 0
 	panel.ZIndex = 25
 	panel.Visible = false
 	panel.Parent = gui
 	corner(panel, 12)
-	local stroke = Instance.new("UIStroke"); stroke.Color = Color3.fromRGB(200, 120, 60); stroke.Thickness = 1; stroke.Parent = panel
+	local stroke = Instance.new("UIStroke"); stroke.Color = CURSED_ACCENT; stroke.Thickness = 2; stroke.Parent = panel
+	local bgGrad = Instance.new("UIGradient")
+	bgGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(150, 110, 190))
+	bgGrad.Rotation = 90; bgGrad.Parent = panel
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0.5, 0, 0, 32); title.Position = UDim2.new(0, 16, 0, 8)
+	title.Size = UDim2.new(0.55, 0, 0, 26); title.Position = UDim2.new(0, 16, 0, 6)
 	title.BackgroundTransparency = 1
-	title.Text = "DUNGEON"
-	title.TextColor3 = Color3.fromRGB(220, 220, 245)
-	title.TextScaled = true; title.Font = Enum.Font.GothamBold
+	title.Text = themeTitle
+	title.TextColor3 = Color3.fromRGB(235, 215, 255)
+	title.TextScaled = true; title.Font = Enum.Font.GothamBlack
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.ZIndex = 26; title.Parent = panel
 
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Size = UDim2.new(0.6, 0, 0, 14); subtitle.Position = UDim2.new(0, 16, 0, 32)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Text = themeSubtitle
+	subtitle.TextColor3 = Color3.fromRGB(185, 160, 220)
+	subtitle.TextSize = 12; subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	subtitle.ZIndex = 26; subtitle.Parent = panel
+
 	goldLabel = Instance.new("TextLabel")
-	goldLabel.Size = UDim2.new(0.3, 0, 0, 28); goldLabel.Position = UDim2.new(0.5, 0, 0, 10)
+	goldLabel.Size = UDim2.new(0.34, 0, 0, 24); goldLabel.Position = UDim2.new(0.56, -16, 0, 12)
+	goldLabel.RichText = true
 	goldLabel.BackgroundTransparency = 1
 	goldLabel.TextColor3 = Color3.fromRGB(255, 210, 90)
 	goldLabel.TextScaled = true; goldLabel.Font = Enum.Font.GothamBold
@@ -181,8 +208,8 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 	closeBtn.MouseButton1Click:Connect(function() self:Hide() end)
 
 	scrollFrame = Instance.new("ScrollingFrame")
-	scrollFrame.Size = UDim2.new(1, -20, 1, -92)
-	scrollFrame.Position = UDim2.new(0, 10, 0, 46)
+	scrollFrame.Size = UDim2.new(1, -20, 1, -100)
+	scrollFrame.Position = UDim2.new(0, 10, 0, 52)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.BorderSizePixel = 0
 	scrollFrame.ScrollBarThickness = 6
@@ -192,11 +219,11 @@ function DungeonMapUI:Init(gui, cbs, soundManager)
 
 	abandonBtn = Instance.new("TextButton")
 	abandonBtn.Size = UDim2.new(1, -32, 0, 34); abandonBtn.Position = UDim2.new(0, 16, 1, -42)
-	abandonBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+	abandonBtn.BackgroundColor3 = Color3.fromRGB(38, 26, 50)
 	abandonBtn.BorderSizePixel = 0
-	abandonBtn.Text = "ABANDON RUN"
-	abandonBtn.TextColor3 = Color3.fromRGB(200, 150, 150)
-	abandonBtn.TextScaled = true; abandonBtn.Font = Enum.Font.GothamBold
+	abandonBtn.Text = "LEAVE SHIBUYA (ends the run)"
+	abandonBtn.TextColor3 = Color3.fromRGB(200, 160, 175)
+	abandonBtn.TextScaled = false; abandonBtn.TextSize = 14; abandonBtn.Font = Enum.Font.GothamBold
 	abandonBtn.ZIndex = 26; abandonBtn.Parent = panel
 	corner(abandonBtn, 8)
 	abandonBtn.MouseButton1Click:Connect(function()
@@ -342,9 +369,11 @@ function DungeonMapUI:Render(run)
 	for r = 1, maxRow do
 		for _, node in ipairs(rows[r]) do
 			local pos = positions[node.id]
+			local size = node.type == "Boss" and math.floor(NODE_SIZE * BOSS_SCALE) or NODE_SIZE
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(0, NODE_SIZE, 0, NODE_SIZE)
-			btn.Position = UDim2.new(0, pos.X - NODE_SIZE / 2, 0, pos.Y - NODE_SIZE / 2)
+			btn.Name = "Node_" .. node.id
+			btn.Size = UDim2.new(0, size, 0, size)
+			btn.Position = UDim2.new(0, pos.X - size / 2, 0, pos.Y - size / 2)
 			btn.BackgroundColor3 = TYPE_COLOR[node.type] or Color3.fromRGB(100, 100, 100)
 			btn.Text = TYPE_ICON[node.type] or "?"
 			btn.TextColor3 = Color3.new(1, 1, 1)
@@ -352,7 +381,11 @@ function DungeonMapUI:Render(run)
 			btn.Font = Enum.Font.GothamBlack
 			btn.ZIndex = 27
 			btn.Parent = scrollFrame
-			corner(btn, NODE_SIZE / 2)
+			corner(btn, size / 2)
+			local pad = Instance.new("UIPadding")
+			pad.PaddingTop = UDim.new(0.18, 0); pad.PaddingBottom = UDim.new(0.18, 0)
+			pad.PaddingLeft = UDim.new(0.18, 0); pad.PaddingRight = UDim.new(0.18, 0)
+			pad.Parent = btn
 
 			-- Selection highlight ring (toggled by showTooltip).
 			local sel = Instance.new("UIStroke")
@@ -383,6 +416,13 @@ function DungeonMapUI:Render(run)
 			elseif reachable[node.id] then
 				btn.BackgroundTransparency = 0
 				btn.AutoButtonColor = true
+				-- "Pick me" pulse: a breathing glow ring on every node you can choose.
+				local glow = Instance.new("UIStroke")
+				glow.Color = Color3.fromRGB(255, 230, 150)
+				glow.Thickness = 2
+				glow.Parent = btn
+				TweenService:Create(glow, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Thickness = 5, Transparency = 0.5 }):Play()
 				btn.MouseButton1Click:Connect(function()
 					if selectedNodeId == node.id then
 						commitNode(node.id)
@@ -406,7 +446,7 @@ function DungeonMapUI:Render(run)
 		end
 	end
 
-	goldLabel.Text = run.gold .. "g"
+	goldLabel.Text = ('<font color="#FFD25A">%dg</font>   <font color="#6EE1FF">💎 +%d</font>'):format(run.gold or 0, run.gemsEarned or 0)
 
 	-- Scroll to the player's current row (or the bottom, at run start).
 	local scrollY = run.position and positions[run.position] and positions[run.position].Y or (maxRow * ROW_HEIGHT)

@@ -1,4 +1,5 @@
--- Dungeon run constants: map generation, XP/leveling, gold economy, elite buff
+-- Dungeon run constants (the JJK "Shibuya Incident" run): map generation,
+-- XP/leveling, gold and Gem economy, theme names, elite buff
 -- pool, shop item pool, rewards, and enemy scaling. Edit values here to
 -- rebalance dungeon runs. The buff pool is shared with the Endless Tower.
 
@@ -45,27 +46,52 @@ DungeonConfig.Gold = {
 	Boss  = function() return 250 end,
 }
 
+-- ── Gems (the persistent currency that buys packs) ────────────────────────────
+-- Granted the moment a battle is won, so they're kept even if the run ends in
+-- defeat. A full clear is worth roughly one Standard Pack (80 Gems) on top of
+-- the Special Grade/boss pack drops. AnimeRosterPlan.md §11.11.
+DungeonConfig.Gems = {
+	Mob   = function(row) return 3 + math.floor(row / 3) end,
+	Elite = function() return 10 end,
+	Boss  = function() return 40 end,
+}
+
+-- ── Theme: the Shibuya Incident (JJK) ─────────────────────────────────────────
+-- Player-facing names for the run and its node types. Internal type keys
+-- (Mob/Elite/Shop/Rest/Boss) stay unchanged.
+DungeonConfig.Theme = {
+	Title    = "SHIBUYA INCIDENT",
+	Subtitle = "Clear the cursed station. Reach the Domain.",
+	NodeName = {
+		Mob   = "Cursed Spirits",
+		Elite = "Special Grade",
+		Shop  = "Cursed Tool Dealer",
+		Rest  = "Infirmary",
+		Boss  = "Domain Expansion",
+	},
+}
+
 -- ── Rest node ─────────────────────────────────────────────────────────────────
 DungeonConfig.RestHealPct = 0.35
 
 -- ── HP carryover (shared behavior with tower) ─────────────────────────────────
-DungeonConfig.WinHealPct = 0.15
+DungeonConfig.WinHealPct = 0.25
 DungeonConfig.RevivePct  = 0.25
 
 -- ── Elite buff pool ───────────────────────────────────────────────────────────
 -- Win an elite → 3 seeded offers, pick 1 + a target card. Run-scoped, stacking.
 -- Effect keys match RunModifiers.Compute mod names.
 DungeonConfig.Buffs = {
-	berserk    = { name = "Berserker's Edge",    desc = "+30% ATK",                          effects = { atkMult = 1.30 } },
-	titan      = { name = "Titan's Heart",       desc = "+35% Max HP",                       effects = { hpMult = 1.35 } },
-	focus      = { name = "Focused Mind",        desc = "+50% MP gain",                      effects = { mpGainMult = 1.50 } },
-	vamp       = { name = "Vampiric Touch",      desc = "15% lifesteal",                     effects = { lifestealPct = 0.15 } },
-	deadeye    = { name = "Assassin's Eye",      desc = "+15% crit chance",                  effects = { critChanceBonus = 0.15 } },
-	thorns     = { name = "Thorned Armor",       desc = "Reflect 20% of damage taken",       effects = { reflectPct = 0.20 } },
-	ward       = { name = "Guardian's Blessing", desc = "Take 15% less damage",              effects = { damageTakenMult = 0.85 } },
-	overcharge = { name = "Overcharge",          desc = "Active ability effect +40%",        effects = { activePowerMult = 1.40 } },
-	execute    = { name = "Executioner's Mark",  desc = "+40% damage vs enemies below 30% HP", effects = { executeBonusPct = 0.40 } },
-	regen      = { name = "Living Bark",         desc = "Heal 4% Max HP each round",         effects = { regenPctPerRound = 0.04 } },
+	berserk    = { name = "Vow of Fury",           desc = "Big ATK boost",                        effects = { atkMult = 1.30 } },
+	titan      = { name = "Vow of Endurance",      desc = "Big Max HP boost",                     effects = { hpMult = 1.35 } },
+	focus      = { name = "Cursed Energy Surge",   desc = "Fills mana much faster",               effects = { mpGainMult = 1.50 } },
+	vamp       = { name = "Blood Manipulation",    desc = "Heals from the damage it deals",       effects = { lifestealPct = 0.15 } },
+	deadeye    = { name = "Six Eyes Glimpse",      desc = "Lands many more crits",                effects = { critChanceBonus = 0.15 } },
+	thorns     = { name = "Curse Backlash",        desc = "Hurts enemies that hit it",            effects = { reflectPct = 0.20 } },
+	ward       = { name = "Simple Domain",         desc = "Takes less damage",                    effects = { damageTakenMult = 0.85 } },
+	overcharge = { name = "Domain Amplification",  desc = "Much stronger ability",                effects = { activePowerMult = 1.40 } },
+	execute    = { name = "Executioner's Sword",   desc = "Finishes off weakened enemies",        effects = { executeBonusPct = 0.40 } },
+	regen      = { name = "Reverse Cursed Energy", desc = "Heals a little every round",           effects = { regenPctPerRound = 0.04 } },
 }
 DungeonConfig.BuffOfferCount = 3
 
@@ -73,18 +99,18 @@ DungeonConfig.BuffOfferCount = 3
 -- Bought at shop nodes, equipped to one team card. Run-scoped.
 DungeonConfig.MaxItemsPerCard = 2
 DungeonConfig.Items = {
-	rusty_sword     = { name = "Rusty Sword",      desc = "+12% ATK",                        price = 90,  effects = { atkMult = 1.12 } },
-	iron_shield     = { name = "Iron Shield",      desc = "+15% Max HP",                     price = 90,  effects = { hpMult = 1.15 } },
-	gold_chalice    = { name = "Golden Chalice",   desc = "+30% XP gained by this card",     price = 100, effects = { xpGainMult = 1.30 } },
-	mana_crystal    = { name = "Mana Crystal",     desc = "+25% MP gain",                    price = 110, effects = { mpGainMult = 1.25 } },
-	lucky_coin      = { name = "Lucky Coin",       desc = "+8% crit chance",                 price = 120, effects = { critChanceBonus = 0.08 } },
-	spiked_plate    = { name = "Spiked Plate",     desc = "Reflect 10% of damage taken",     price = 120, effects = { reflectPct = 0.10 } },
-	vamp_fang       = { name = "Vampire Fang",     desc = "8% lifesteal",                    price = 130, effects = { lifestealPct = 0.08 } },
-	war_banner      = { name = "Berserker Banner", desc = "+20% ATK while below 50% HP",     price = 140, effects = { lowHpAtkBonus = 0.20 } },
-	heal_charm      = { name = "Healing Charm",    desc = "Heal 3% Max HP each round",       price = 150, effects = { regenPctPerRound = 0.03 } },
-	giants_gauntlet = { name = "Giant's Gauntlet", desc = "+20% ATK",                        price = 170, effects = { atkMult = 1.20 } },
-	dragon_scale    = { name = "Dragon Scale",     desc = "+25% Max HP",                     price = 170, effects = { hpMult = 1.25 } },
-	phoenix_feather = { name = "Phoenix Feather",  desc = "Revive once at 30% HP",           price = 220, effects = { reviveOnce = true } },
+	rusty_sword     = { name = "Slaughter Demon",        desc = "ATK boost",                        price = 90,  effects = { atkMult = 1.12 } },
+	iron_shield     = { name = "Barrier Talisman",       desc = "Max HP boost",                     price = 90,  effects = { hpMult = 1.15 } },
+	gold_chalice    = { name = "Sorcerer's Notebook",    desc = "Learns faster (more XP)",          price = 100, effects = { xpGainMult = 1.30 } },
+	mana_crystal    = { name = "Cursed Energy Vial",     desc = "Fills mana faster",                price = 110, effects = { mpGainMult = 1.25 } },
+	lucky_coin      = { name = "Jackpot Token",          desc = "Lands more crits",                 price = 120, effects = { critChanceBonus = 0.08 } },
+	spiked_plate    = { name = "Straw Doll",             desc = "Hurts enemies that hit it",        price = 120, effects = { reflectPct = 0.10 } },
+	vamp_fang       = { name = "Blood Vial",             desc = "Heals from the damage it deals",   price = 130, effects = { lifestealPct = 0.08 } },
+	war_banner      = { name = "Brotherly Bond",         desc = "Hits harder when hurt",            price = 140, effects = { lowHpAtkBonus = 0.20 } },
+	heal_charm      = { name = "Healing Talisman",       desc = "Heals a little every round",       price = 150, effects = { regenPctPerRound = 0.03 } },
+	giants_gauntlet = { name = "Playful Cloud",          desc = "Big ATK boost",                    price = 170, effects = { atkMult = 1.20 } },
+	dragon_scale    = { name = "Heavenly Armor",         desc = "Big Max HP boost",                 price = 170, effects = { hpMult = 1.25 } },
+	phoenix_feather = { name = "Sukuna's Finger",        desc = "Comes back once after being knocked out", price = 220, effects = { reviveOnce = true } },
 }
 
 -- ── Shop layout ───────────────────────────────────────────────────────────────
@@ -92,8 +118,8 @@ DungeonConfig.Shop = {
 	OfferCount = 4,
 	RerollBase = 25, RerollStep = 15,   -- 25g, then 40g, 55g, ...
 	Services = {
-		potion = { name = "Potion",     desc = "Heal one card 40% Max HP",  price = 40, healPct = 0.40, target = "one" },
-		tonic  = { name = "Team Tonic", desc = "Heal all cards 20% Max HP", price = 90, healPct = 0.20, target = "all" },
+		potion = { name = "Medic's Kit",      desc = "Big heal for one card",  price = 40, healPct = 0.40, target = "one" },
+		tonic  = { name = "Shoko's Treatment", desc = "Heals the whole team",   price = 90, healPct = 0.20, target = "all" },
 	},
 }
 
@@ -105,9 +131,10 @@ DungeonConfig.Rewards = {
 
 -- ── Bonus loot: rare surprise drop on Mob/Elite wins (Boss always pays) ───────
 DungeonConfig.BonusLoot = {
-	Chance  = 0.12,
-	Weights = { goldJackpot = 50, freeItem = 30, bonusPack = 20 },
+	Chance  = 0.15,
+	Weights = { goldJackpot = 40, gemJackpot = 25, freeItem = 20, bonusPack = 15 },
 	GoldJackpot = { MultLo = 2, MultHi = 3 },   -- × the node's normal gold award
+	GemJackpot  = { Lo = 15, Hi = 30 },         -- flat Gems (pack currency)
 	BonusPack   = { StandardPack = 1 },
 }
 
@@ -123,15 +150,15 @@ DungeonConfig.Preview = {
 	end,
 	RewardHint = function(kind, row)
 		if kind == "Mob" then
-			return "~" .. (45 + 6 * row + 5) .. "g + XP"
+			return "Gems + gold + XP"
 		elseif kind == "Elite" then
-			return "Pack + Blessing + " .. (100 + 8 * row) .. "g"
+			return "Pack + Binding Vow + Gems"
 		elseif kind == "Boss" then
-			return "2x Rare Pack + 250g"
+			return "2 Rare Packs + lots of Gems"
 		elseif kind == "Rest" then
-			return "Heal team 35% HP"
+			return "Heals your whole team"
 		elseif kind == "Shop" then
-			return "Buy items & heals"
+			return "Cursed tools & heals"
 		end
 		return ""
 	end,
@@ -145,17 +172,19 @@ DungeonConfig.Enemies = {
 		else return 5 end
 	end,
 	RarityBands = {
-		{ maxRow = 4,  pool = { Common = 0.6, Uncommon = 0.4 } },
-		{ maxRow = 8,  pool = { Uncommon = 0.3, Rare = 0.4, Epic = 0.3 } },
-		{ maxRow = math.huge, pool = { Rare = 0.3, Epic = 0.4, Legendary = 0.3 } },
+		-- Tuned 2026-09-28 by simulated runs (AnimeRosterPlan.md §11.11): a
+		-- starter team should get deep and sometimes clear; rarity still matters.
+		{ maxRow = 4,  pool = { Common = 0.7, Uncommon = 0.3 } },
+		{ maxRow = 8,  pool = { Common = 0.2, Uncommon = 0.4, Rare = 0.3, Epic = 0.1 } },
+		{ maxRow = math.huge, pool = { Uncommon = 0.2, Rare = 0.4, Epic = 0.3, Legendary = 0.1 } },
 	},
-	MobMult   = function(row) return 0.70 + 0.06 * row end,
+	MobMult   = function(row) return 0.60 + 0.045 * row end,
 	EliteMult = 1.25,   -- times the mob multiplier for that row
 	-- Boss: one high-rarity centerpiece plus Legendary adds.
 	Boss = {
 		CenterpieceRarities = { "God", "God", "Secret" },  -- Sukuna/Gojo, or a rare Mahoraga
-		CenterpieceMult = 1.3,
-		AddRarity = "Legendary",
+		CenterpieceMult = 1.0,
+		AddRarity = "Epic",
 		AddCount = 2,
 		AddMult = 1.0,
 	},

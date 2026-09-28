@@ -253,6 +253,13 @@ local function rollBonusLoot(userId, run, nodeSeed, goldAward)
 		kind = "goldJackpot"
 	end
 
+	if kind == "gemJackpot" then
+		local gems = rng:NextInteger(conf.GemJackpot.Lo, conf.GemJackpot.Hi)
+		InventoryService:AddGems(userId, gems)
+		run.gemsEarned = run.gemsEarned + gems
+		return { kind = "gemJackpot", gems = gems }
+	end
+
 	if kind == "goldJackpot" then
 		local mult = rng:NextInteger(conf.GoldJackpot.MultLo, conf.GoldJackpot.MultHi)
 		local extra = goldAward * mult
@@ -279,6 +286,7 @@ function DungeonService:GetState(userId)
 		map = run.map,
 		position = run.position,
 		gold = run.gold,
+		gemsEarned = run.gemsEarned,
 		team = run.team,
 		cards = cardsOut,
 		pendingBuffChoices = run.pendingBuffChoices,
@@ -323,6 +331,7 @@ function DungeonService:Start(userId)
 		team = team, cards = cards,
 		pendingBuffChoices = nil, shopStock = {},
 		state = "Map", inBattle = false, deepestRow = 0,
+		gemsEarned = 0,  -- Gems banked this run (already in the player's balance)
 	}
 	bakePreviews(run)
 	runs[userId] = run
@@ -395,7 +404,14 @@ function DungeonService:ChooseNode(userId, nodeId)
 				or DungeonConfig.Gold.Boss()
 			run.gold = run.gold + goldAward
 
-			payload.rewards = { xp = xpReport, gold = goldAward }
+			-- Gems (pack currency) are banked immediately, so they survive a defeat later in the run.
+			local gemAward = (node.type == "Mob" and DungeonConfig.Gems.Mob(row))
+				or (node.type == "Elite" and DungeonConfig.Gems.Elite(row))
+				or DungeonConfig.Gems.Boss()
+			InventoryService:AddGems(userId, gemAward)
+			run.gemsEarned = run.gemsEarned + gemAward
+
+			payload.rewards = { xp = xpReport, gold = goldAward, gems = gemAward }
 
 			-- Career-best check BEFORE finishRun records this run.
 			payload.newDeepest = run.deepestRow > InventoryService:GetDungeonStats(userId).deepestRow
@@ -419,6 +435,7 @@ function DungeonService:ChooseNode(userId, nodeId)
 				payload.rewards.bonus = rollBonusLoot(userId, run, nodeSeed, goldAward)
 			end
 
+			payload.runGems = run.gemsEarned
 			if node.type == "Boss" then
 				finishRun(userId, run, "Complete")
 				payload.records = InventoryService:GetDungeonStats(userId)
@@ -426,6 +443,7 @@ function DungeonService:ChooseNode(userId, nodeId)
 		else
 			payload.runOver = true
 			payload.deepestRow = run.deepestRow
+			payload.runGems = run.gemsEarned
 			payload.newDeepest = run.deepestRow > InventoryService:GetDungeonStats(userId).deepestRow
 			finishRun(userId, run, "Dead")
 			payload.records = InventoryService:GetDungeonStats(userId)

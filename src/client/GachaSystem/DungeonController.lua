@@ -74,7 +74,7 @@ end
 
 local function buildBonus(bonus)
 	if not bonus then return nil end
-	local out = { kind = bonus.kind, gold = bonus.gold }
+	local out = { kind = bonus.kind, gold = bonus.gold, gems = bonus.gems }
 	if bonus.kind == "freeItem" then
 		local item = deps.DungeonConfig.Items[bonus.itemId]
 		out.itemName = item and item.name or bonus.itemId
@@ -281,8 +281,8 @@ local function chooseNode(nodeId)
 
 		-- Mob / Elite / Boss: play the battle.
 		DungeonMapUI:Hide()
-		local label = res.nodeType == "Boss" and "DUNGEON — BOSS"
-			or (res.nodeType == "Elite" and "DUNGEON — ELITE" or "DUNGEON")
+		local theme = deps.DungeonConfig.Theme
+		local label = theme.Title .. " — " .. string.upper(theme.NodeName[res.nodeType] or res.nodeType)
 		BattleController:Play(res.battle, label)
 
 		if res.victory then
@@ -304,13 +304,15 @@ local function chooseNode(nodeId)
 				end
 				BattleUI:ShowResult({
 					victory = true,
-					title = "DUNGEON CLEARED",
+					title = "DOMAIN SHATTERED!",
 					summary = buildSummary(res.battle),
+					gems = res.rewards and res.rewards.gems,
 					gold = res.rewards and res.rewards.gold,
 					xpTotal = xpTotal,
 					cardXp = cardXp,
 					levelUps = levelUps,
 					packs = res.rewards and res.rewards.packs,
+					lines = res.runGems and { "Shibuya cleared! 💎 " .. res.runGems .. " Gems earned this run" } or nil,
 					recordLabel = (res.newDeepest and res.records) and ("NEW DEEPEST ROW: " .. res.records.deepestRow) or nil,
 					buttons = withOpenNow({
 						{ text = "CLOSE", color = Color3.fromRGB(70, 170, 90), cb = closeCb },
@@ -325,8 +327,9 @@ local function chooseNode(nodeId)
 				end
 				BattleUI:ShowResult({
 					victory = true,
-					title = res.nodeType == "Elite" and "ELITE DEFEATED" or "VICTORY",
+					title = res.nodeType == "Elite" and "SPECIAL GRADE EXORCISED!" or "CURSES EXORCISED!",
 					summary = buildSummary(res.battle),
+					gems = res.rewards and res.rewards.gems,
 					gold = res.rewards and res.rewards.gold,
 					xpTotal = xpTotal,
 					cardXp = cardXp,
@@ -351,7 +354,11 @@ local function chooseNode(nodeId)
 				victory = false,
 				title = "DEFEATED",
 				summary = buildSummary(res.battle),
-				lines = { "You fell at row " .. deepest },
+				-- Softens the loss and points at the next run: Gems were banked as they dropped.
+				lines = {
+					"You fell at row " .. deepest,
+					(res.runGems and res.runGems > 0) and ("You keep the 💎 " .. res.runGems .. " Gems you earned!") or nil,
+				},
 				recordLabel = res.newDeepest and ("NEW DEEPEST ROW: " .. deepest) or nil,
 				buttons = { { text = "CLOSE", color = Color3.fromRGB(60, 60, 90), cb = closeCb } },
 			})

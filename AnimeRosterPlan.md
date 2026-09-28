@@ -341,4 +341,14 @@ The dungeon run is now JJK-themed end to end, and it pays out the currency that 
 - **Run loot is JJK-flavoured, number-free:** shop items are cursed tools (e.g. Sukuna's Finger = revive once, Jackpot Token = more crits) and elite rewards are Binding Vows (e.g. Simple Domain = take less damage, Six Eyes Glimpse = more crits).
 - **Map presentation:** cursed-energy palette, glyph icons per node type, a pulsing glow on nodes you can pick, a larger boss node, and a live "gems earned this run" counter. Result screens count up Gems alongside gold and XP.
 - **Monetization guardrail:** everything in the run is earned through play. No timers or prompts pushing real-money purchases; much of the Roblox audience is young, and pack odds stay disclosed in the shop.
+- **Difficulty tuned by simulation (30 runs per team, smart pathing).** Before tuning, even a Rare/Epic team never cleared and a starter team died around rows 5-9 (the HP rescale made fights longer, so damage carried over between nodes piled up). Changes: gentler enemy scaling per row, lower-rarity enemy pools in late rows, a slightly softer boss (centerpiece at normal strength, Epic adds), and more healing after each win. Results:
+
+| Team | Boss clears | Typical depth | Gems per run |
+|---|---|---|---|
+| Starter Commons | 0/30 | rows 8-10 of 13 | ~33 |
+| Uncommons | 8/30 | rows 10-13 | ~58 |
+| Rare/Epic | 13/30 | half clear | ~67 |
+| Top tier (God/Secret) | 30/30 | always clears | ~101 |
+
+The intended loop: a starter team gets deep and earns Gems every run, the boss is a visible goal that better pulls unlock, and every run pays something even on a loss.
 

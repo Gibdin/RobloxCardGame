@@ -31,6 +31,7 @@ local SH_COL  = Color3.fromRGB(200, 220, 255)
 local FRAME_BG = Color3.fromRGB(22, 22, 38)
 local HIT_BG   = Color3.fromRGB(120, 35, 45)
 local GOLD_COL = Color3.fromRGB(255, 210, 90)
+local GEM_COL  = Color3.fromRGB(110, 225, 255)
 
 local MAX_LOG_LINES = 60
 
@@ -691,6 +692,15 @@ function BattleUI:ShowResult(payload)
 				{ prefix = "+", suffix = "g", tickEvery = resultsConf.tickEvery, sound = { mgr = Sound, name = "gold_tick" } })
 		end
 	end
+	-- Gems are the pack currency, so they get the biggest, brightest row.
+	if payload.gems and payload.gems > 0 then
+		local lbl = addRow("+0 Gems", GEM_COL, 34, nil, Enum.Font.GothamBlack)
+		rows[#rows].onShow = function()
+			FxUtil.countUp(lbl, 0, payload.gems, resultsConf.countUpTime,
+				{ prefix = "💎 +", suffix = " Gems", tickEvery = resultsConf.tickEvery, sound = { mgr = Sound, name = "gold_tick" } })
+			FxUtil.floatText(lbl, "PACK MONEY!", GEM_COL, { yStart = 0 })
+		end
+	end
 	if payload.xpTotal and payload.xpTotal > 0 then
 		local lbl = addRow("+0 XP", Color3.fromRGB(170, 140, 255), 26, nil, Enum.Font.GothamBold)
 		rows[#rows].onShow = function()
@@ -792,6 +802,8 @@ function BattleUI:ShowResult(payload)
 		local detailText = ""
 		if b.kind == "goldJackpot" then
 			detailText = "Gold jackpot: +" .. (b.gold or 0) .. "g"
+		elseif b.kind == "gemJackpot" then
+			detailText = "💎 GEM JACKPOT: +" .. (b.gems or 0) .. " Gems!"
 		elseif b.kind == "freeItem" then
 			detailText = (b.itemName or "Item") .. " → " .. (b.cardName or "?")
 		elseif b.kind == "bonusPack" then
