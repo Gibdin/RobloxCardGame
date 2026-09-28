@@ -330,3 +330,15 @@ Standard role passives show only their one rule line (generated from `CombatConf
 
 **Update (same day): numbers move to Discord.** The in-game text is now number-free wherever possible: card summaries, standard passive rules and faction bonuses are plain words, team role bonuses show as stars, and the "More info" toggle is gone. Exact numbers (full `desc` text, stats formula, mana, counters, role bonuses, traits, factions) live in a generated Discord reference, `docs/discord/card-reference.md`, split into posts under Discord's 2,000-character limit. Numbers that stay in game: ATK/HP, mana pips, battle damage numbers, and shop pull odds (Roblox requires odds disclosure for paid random items).
 
+### 11.11 JJK dungeon: the Shibuya Incident (built 2026-09-28)
+
+The dungeon run is now JJK-themed end to end, and it pays out the currency that buys packs.
+
+- **Theme:** the run is the *Shibuya Incident*. Node types are Cursed Spirits (battle), Special Grade (elite), Cursed Tool Dealer (shop), Infirmary (rest) and Domain Expansion (boss, titled with the boss card's name). Enemies are already JJK-only.
+- **Gems (pack currency) from every win,** kept even if the run ends in defeat: small on Cursed Spirits (growing with depth), more on Special Grades, a big payout on the boss. A full clear is worth roughly one Standard Pack in Gems, on top of the packs below. Numbers live in `DungeonConfig.Gems`.
+- **Packs:** Special Grade wins still drop a Standard Pack and the boss still drops 2 Rare Packs.
+- **Surprise drops:** the bonus-loot roll gains a **Gem Jackpot** and becomes slightly more frequent, so any win can pop.
+- **Run loot is JJK-flavoured, number-free:** shop items are cursed tools (e.g. Sukuna's Finger = revive once, Jackpot Token = more crits) and elite rewards are Binding Vows (e.g. Simple Domain = take less damage, Six Eyes Glimpse = more crits).
+- **Map presentation:** cursed-energy palette, glyph icons per node type, a pulsing glow on nodes you can pick, a larger boss node, and a live "gems earned this run" counter. Result screens count up Gems alongside gold and XP.
+- **Monetization guardrail:** everything in the run is earned through play. No timers or prompts pushing real-money purchases; much of the Roblox audience is young, and pack odds stay disclosed in the shop.
+
