@@ -66,6 +66,7 @@ function BattleController:Play(battle, floorLabel)
 		synergy = function(ev) BattleUI:ShowSynergy(ev) end,
 		maxhp_shred = function(ev) BattleUI:PlayMaxHpShred(ev) end,
 		status  = function(ev) BattleUI:ShowStatus(ev) end,
+		swap    = function(ev) BattleUI:PlaySwap(ev) end,
 		["end"] = function() end,
 	}
 

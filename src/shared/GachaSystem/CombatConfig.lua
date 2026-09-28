@@ -43,6 +43,10 @@ CombatConfig.Battle = {
 	CritChance = 0.05,
 	CritMult   = 1.5,
 	MaxEvents  = 4000,   -- safety cap on event log length
+	-- Sudden Death: from this round on, all damage grows each round, so
+	-- Tank/healer standoffs (e.g. Mahoraga vs Mahoraga) can't stall forever.
+	SuddenDeathRound   = 15,
+	SuddenDeathPerRound = 0.25,  -- +25% damage per round from SuddenDeathRound
 }
 
 -- ── Mana economy (whole points; card.mp is the ability's mana cost, 2-5) ─────
@@ -178,6 +182,7 @@ CombatConfig.Playback = {
 	synergy = 0.60,
 	maxhp_shred = 0.40,
 	status  = 0.35,
+	swap    = 0.50,
 	["end"] = 0.50,
 	Speeds  = { 1, 2 },
 }

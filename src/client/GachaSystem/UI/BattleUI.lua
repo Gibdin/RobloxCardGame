@@ -435,6 +435,10 @@ local function logDamage(entry, ev)
 	local suffix = ev.crit and "  CRIT!" or ""
 	if ev.source == "reflect" then
 		logLine(entry.name .. " takes " .. ev.amount .. " reflected damage", Color3.fromRGB(200, 160, 120))
+	elseif ev.source == "backlash" then
+		logLine(entry.name .. " pays " .. ev.amount .. " HP to cast", Color3.fromRGB(200, 120, 160))
+	elseif ev.source == "Burn" or ev.source == "Cleave" then
+		logLine(entry.name .. " takes " .. ev.amount .. " from " .. ev.source, Color3.fromRGB(255, 150, 80))
 	elseif ev.source == "chain" then
 		logLine((lastActor and lastActor.name or "?") .. " chains to " .. entry.name .. " for " .. ev.amount .. suffix, Color3.fromRGB(140, 190, 255))
 	else
@@ -573,6 +577,14 @@ function BattleUI:PlayMaxHpShred(ev)
 	entry.maxHp = ev.newMaxHp
 	FxUtil.floatText(entry.frame, "-" .. math.floor(ev.pct * 100) .. "% Max HP", Color3.fromRGB(200, 100, 220))
 	logLine(entry.name .. "'s Max HP is permanently cut by " .. math.floor(ev.pct * 100) .. "%", Color3.fromRGB(200, 100, 220))
+end
+
+-- Boogie Woogie: two units on one side trade places in the row.
+function BattleUI:PlaySwap(ev)
+	local a, b = frames[ev.side .. ev.a], frames[ev.side .. ev.b]
+	if not (a and b) then return end
+	a.frame.LayoutOrder, b.frame.LayoutOrder = b.frame.LayoutOrder, a.frame.LayoutOrder
+	logLine(a.name .. " and " .. b.name .. " swap places!", Color3.fromRGB(235, 210, 120))
 end
 
 -- Short callouts from traits and crowd control (STUNNED, INFINITY, RIKA!, ...).

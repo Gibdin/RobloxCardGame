@@ -137,6 +137,7 @@ function BattleEngine.BuildUnit(card, slot, teamContext, mods)
 	-- unchanged from before this system existed.
 	local activeSpec = card.active and card.active.effects
 	local activeName = card.active and card.active.name
+	local activeAlt  = card.active and card.active.alternate  -- { {name, effects}, ... } cycled per cast
 
 	return {
 		cardId  = card.id,
@@ -157,12 +158,18 @@ function BattleEngine.BuildUnit(card, slot, teamContext, mods)
 		mp     = 0,
 		shield = 0,
 		alive  = true,
+		pos     = slot,  -- targeting order; can change mid-battle (see front())
 		stunned = 0,   -- turns of basic attacks to skip
+		silenced = 0,  -- rounds this unit can't gain mana
+		dots    = {},  -- damage over time: { perTick, rounds, trueDamage, srcSide, src, name }
+		nails   = 0,   -- Resonance nails in this unit
+		altIndex = 0,  -- which alternating technique fired last
 		adapt   = {},  -- adaptation trait: hits taken per attacker key
 		lastSwings = {},  -- final damage of the last two basic-attack swings (black_flash)
 
 		activeSpec = activeSpec,
 		activeName = activeName,
+		activeAlt  = activeAlt,
 		stackAtkBonus = 0,  -- permanent self ATK% from stack_atk_buff active steps
 
 		rageStacks = 0,
@@ -218,6 +225,8 @@ local function newSide(key, units)
 		customDrShred   = 0,
 		-- Stacking team ATK buff from this side's own actives (team_atk_buff).
 		customAtkBuff   = 0,
+		castCount       = 0,    -- abilities this side has cast (Maximum Uzumaki)
+		lastAllyCast    = nil,  -- { caster, name, steps } for Copy (Yuta)
 	}
 end
 
@@ -230,10 +239,30 @@ local function ref(side, unit)
 	return { side = side.key, slot = unit.slot }
 end
 
+-- Targeting order uses `pos`, not `slot`: `slot` is the unit's permanent
+-- identity (events, UI frames, post-battle XP), while `pos` can change when an
+-- ability swaps positions (Boogie Woogie). Frontline = lowest living pos.
 local function front(side)
 	local best
 	for _, u in ipairs(side.units) do
-		if u.alive and (not best or u.slot < best.slot) then best = u end
+		if u.alive and (not best or u.pos < best.pos) then best = u end
+	end
+	return best
+end
+
+local function backline(side)
+	local best
+	for _, u in ipairs(side.units) do
+		if u.alive and (not best or u.pos > best.pos) then best = u end
+	end
+	return best
+end
+
+-- Next living unit in line behind `target` (cleaves, chains).
+local function nextInLine(side, target)
+	local best
+	for _, u in ipairs(side.units) do
+		if u.alive and u ~= target and (not best or u.pos < best.pos) then best = u end
 	end
 	return best
 end
@@ -306,6 +335,7 @@ end
 
 function Resolver:gainMana(side, unit, amount)
 	if not unit.alive or amount <= 0 then return end
+	if unit.silenced > 0 then return end  -- Confiscation: can't gain mana
 	giveMp(unit, amount)
 	self:emitMp(side, unit)
 end
@@ -400,6 +430,10 @@ function Resolver:applyDamage(srcSide, src, dstSide, dst, final, source, crit, a
 	if source == "attack" and src then
 		table.insert(src.lastSwings, final)
 		if #src.lastSwings > 2 then table.remove(src.lastSwings, 1) end
+	end
+
+	if self.suddenDeathMult > 1 then
+		final = math.floor(final * self.suddenDeathMult)
 	end
 
 	local absorbed = ignoreShield and 0 or math.min(dst.shield, final)
@@ -577,14 +611,60 @@ function Resolver:runActiveStep(side, unit, enemySide, step)
 	local pw = unit.mods.activePowerMult
 	local sp = supportPower(side, unit)
 
+	-- Overtime (Nanami): from a given round on, this step hits harder.
+	if step.overtimeRound and self.round >= step.overtimeRound then
+		pw = pw * step.overtimeMult
+		if not unit.flags.overtimeAnnounced then
+			unit.flags.overtimeAnnounced = true
+			self:status(side, unit, "OVERTIME!")
+		end
+	end
+
 	if step.op == "single_damage" then
-		-- target: "front" (default) or "lowest" (lowest current HP enemy).
-		local target = step.target == "lowest" and lowestHpAlive(enemySide.units) or front(enemySide)
-		if target then
-			self:dealDamage(side, unit, enemySide, target, step.mult * pw, "active", {
+		-- target: "front" (default), "lowest" (lowest current HP enemy) or
+		-- "mostAdapted" (the enemy that has hit this unit the most).
+		-- Extras, all optional: hits, stunTurns, bonusVsStunned, targetMaxHpPct,
+		-- selfMaxHpPct, drainTargetMana, onKillMana.
+		for _ = 1, step.hits or 1 do
+			local target
+			if step.target == "lowest" then
+				target = lowestHpAlive(enemySide.units)
+			elseif step.target == "mostAdapted" then
+				local bestHits = 0
+				for _, e in ipairs(enemySide.units) do
+					local hits = unit.adapt[enemySide.key .. e.slot] or 0
+					if e.alive and hits > bestHits then target, bestHits = e, hits end
+				end
+				target = target or front(enemySide)
+			else
+				target = front(enemySide)
+			end
+			if not target or not unit.alive then break end
+
+			local mult = step.mult * pw
+			if step.bonusVsStunned and target.stunned > 0 then
+				mult = mult + step.bonusVsStunned * pw
+				self:status(enemySide, target, "SHATTER!")
+			end
+			local flat = (step.targetMaxHpPct and target.maxHp * step.targetMaxHpPct or 0)
+				+ (step.selfMaxHpPct and unit.maxHp * step.selfMaxHpPct or 0)
+			self:dealDamage(side, unit, enemySide, target, mult, "active", {
 				forceCrit = step.guaranteedCrit, critMult = step.critMult,
 				trueDamage = step.trueDamage, ignoreShield = step.ignoreShield,
+				flatBonus = flat > 0 and flat * pw or nil,
 			})
+
+			if target.alive then
+				if step.stunTurns then self:stun(enemySide, target, step.stunTurns) end
+				if step.drainTargetMana and target.mp > 0 then
+					target.mp = 0
+					self:emitMp(enemySide, target)
+					self:status(enemySide, target, "NULLIFIED")
+				end
+			elseif step.onKillMana then
+				self:status(side, unit, "RELOAD!")
+				self:gainMana(side, unit, step.onKillMana)
+			end
 		end
 
 	elseif step.op == "black_flash" then
@@ -603,7 +683,7 @@ function Resolver:runActiveStep(side, unit, enemySide, step)
 			local target = front(enemySide)
 			if not target or not unit.alive then break end
 			if hit > 1 then
-				self:status(side, unit, (unit.activeName or "HIT") .. " x" .. hit .. "!")
+				self:status(side, unit, (step.label or "Black Flash") .. " x" .. hit .. "!")
 			end
 			local amount = math.floor((prev2 + prev1) * pw + (target.maxHp - target.hp) * step.missingHpPct)
 			self:applyDamage(side, unit, enemySide, target, amount, "active", true, false, false)
@@ -624,13 +704,38 @@ function Resolver:runActiveStep(side, unit, enemySide, step)
 			if target then self:stun(enemySide, target, step.turns or 1) end
 		end
 
+	elseif step.op == "silence" then
+		-- Confiscation: wipes the target's mana and blocks mana gain for `turns` rounds.
+		local target = front(enemySide)
+		if target then
+			target.mp = 0
+			target.silenced = math.max(target.silenced, step.turns or 2)
+			self:emitMp(enemySide, target)
+			self:status(enemySide, target, "CONFISCATED")
+		end
+
 	elseif step.op == "team_atk_buff" then
 		side.customAtkBuff = math.min((side.customAtkBuff or 0) + step.pct * sp, step.cap)
 
 	elseif step.op == "grant_mana" then
-		for _, ally in ipairs(side.units) do
-			if ally.alive and not (step.excludeSelf and ally == unit) then
-				self:gainMana(side, ally, step.amount)
+		-- target: nil = every ally, "closest" = the ally nearest to casting.
+		if step.target == "closest" then
+			local best, bestRatio = nil, -1
+			for _, ally in ipairs(side.units) do
+				if ally.alive and ally ~= unit and ally.silenced <= 0 then
+					local ratio = ally.mp / ally.maxMp
+					if ratio < 1 and ratio > bestRatio then best, bestRatio = ally, ratio end
+				end
+			end
+			if best then
+				self:status(side, best, "+" .. step.amount .. " MANA")
+				self:gainMana(side, best, step.amount)
+			end
+		else
+			for _, ally in ipairs(side.units) do
+				if ally.alive and not (step.excludeSelf and ally == unit) then
+					self:gainMana(side, ally, step.amount)
+				end
 			end
 		end
 
@@ -658,12 +763,107 @@ function Resolver:runActiveStep(side, unit, enemySide, step)
 			self:status(side, unit, "JACKPOT!")
 			self:heal(side, unit, unit.maxHp, "jackpot")
 			unit.stackAtkBonus = unit.stackAtkBonus + step.atkPct
+			if step.refillMana then
+				-- Fever: mana refills, so the next swing casts again.
+				self:status(side, unit, "FEVER!")
+				self:gainMana(side, unit, unit.maxMp)
+			end
 		end
 
 	elseif step.op == "aoe_damage" then
+		-- excludeFront: hits everyone but the frontline (Hollow Purple's splash).
+		-- perEnemyCastBonus/bonusCap: +x per ability the enemy team has cast.
+		local mult = step.mult * pw
+		if step.perEnemyCastBonus then
+			mult = mult * (1 + math.min(enemySide.castCount * step.perEnemyCastBonus, step.bonusCap or math.huge))
+		end
+		local skip = step.excludeFront and front(enemySide) or nil
+		for _, e in ipairs(enemySide.units) do
+			if e.alive and e ~= skip then
+				self:dealDamage(side, unit, enemySide, e, mult, "active", { forceCrit = step.guaranteedCrit })
+			end
+		end
+
+	elseif step.op == "dot_all" then
+		-- Burns / lingering cleaves: every enemy takes `mult` of the caster's
+		-- current ATK at the start of each of the next `rounds` rounds.
+		local perTick = math.max(1, math.floor(currentAtk(side, unit) * step.mult * pw))
 		for _, e in ipairs(enemySide.units) do
 			if e.alive then
-				self:dealDamage(side, unit, enemySide, e, step.mult * pw, "active", { forceCrit = step.guaranteedCrit })
+				table.insert(e.dots, {
+					perTick = perTick, rounds = step.rounds, trueDamage = step.trueDamage,
+					srcSide = side, src = unit, name = step.name or "burn",
+				})
+				self:status(enemySide, e, string.upper(step.name or "burn"))
+			end
+		end
+
+	elseif step.op == "nail_resonance" then
+		-- Hammer a nail into the frontline, then every nailed enemy takes
+		-- perNail true damage per nail. Nails persist all battle.
+		local target = front(enemySide)
+		if target then
+			self:dealDamage(side, unit, enemySide, target, step.mult * pw, "active")
+			if target.alive then target.nails = target.nails + 1 end
+		end
+		for _, e in ipairs(enemySide.units) do
+			if e.alive and e.nails > 0 then
+				self:status(enemySide, e, "RESONANCE x" .. e.nails)
+				self:dealDamage(side, unit, enemySide, e, step.perNail * e.nails * pw, "active", { trueDamage = true })
+			end
+		end
+
+	elseif step.op == "swap_front_back" then
+		-- Boogie Woogie: the enemy frontline and backline trade places.
+		local f, b = front(enemySide), backline(enemySide)
+		if f and b and f ~= b then
+			f.pos, b.pos = b.pos, f.pos
+			self:emit({ t = "swap", side = enemySide.key, a = f.slot, b = b.slot })
+			self:status(enemySide, b, "SWAPPED")
+			self:emit({ t = "advance", side = enemySide.key, newFrontSlot = b.slot })
+		end
+
+	elseif step.op == "self_cost" then
+		-- Pay HP to cast (never lethal): pctCurrent of current HP + pctMax of Max HP.
+		local cost = math.floor(unit.hp * (step.pctCurrent or 0) + unit.maxHp * (step.pctMax or 0))
+		if cost >= 1 and unit.hp > 1 then
+			unit.hp = math.max(1, unit.hp - cost)
+			self:emit({ t = "damage", dst = ref(side, unit), amount = cost, newHp = unit.hp, newShield = unit.shield, crit = false, source = "backlash" })
+		end
+
+	elseif step.op == "cleanse" then
+		for _, ally in ipairs(side.units) do
+			if ally.alive and (ally.stunned > 0 or ally.silenced > 0) then
+				ally.stunned, ally.silenced = 0, 0
+				self:status(side, ally, "CLEANSED")
+			end
+		end
+
+	elseif step.op == "random" then
+		-- Picks one option ({ name, effects }) at random and runs it.
+		local pick = step.options[self.rng:NextInteger(1, #step.options)]
+		self:status(side, unit, string.upper(pick.name))
+		for _, sub in ipairs(pick.effects) do
+			self:runActiveStep(side, unit, enemySide, sub)
+		end
+
+	elseif step.op == "by_form" then
+		-- Runs a different kit depending on the unit's current role (Three Cores).
+		for _, sub in ipairs(step[unit.currentRole] or {}) do
+			self:runActiveStep(side, unit, enemySide, sub)
+		end
+
+	elseif step.op == "copy_ally" then
+		-- Copy: re-run the last ability an ally cast, as this unit.
+		local last = side.lastAllyCast
+		if last and last.caster ~= unit then
+			self:status(side, unit, "COPY: " .. string.upper(last.name))
+			for _, sub in ipairs(last.steps) do
+				if sub.op ~= "copy_ally" then self:runActiveStep(side, unit, enemySide, sub) end
+			end
+		else
+			for _, sub in ipairs(step.fallback or {}) do
+				self:runActiveStep(side, unit, enemySide, sub)
 			end
 		end
 
@@ -747,11 +947,29 @@ function Resolver:castActive(side, unit)
 		end
 	end
 
-	if unit.activeSpec then
-		self:emit({ t = "cast", src = ref(side, unit), activeName = unit.activeName or (unit.role .. " Active"), role = unit.role })
+	side.castCount = side.castCount + 1
+
+	-- Alternating kits (Gojo, Mechamaru) cycle through their techniques.
+	local steps, name = unit.activeSpec, unit.activeName
+	if unit.activeAlt then
+		unit.altIndex = unit.altIndex % #unit.activeAlt + 1
+		local alt = unit.activeAlt[unit.altIndex]
+		steps, name = alt.effects, alt.name
+	end
+
+	if steps then
+		self:emit({ t = "cast", src = ref(side, unit), activeName = name or (unit.role .. " Active"), role = unit.role })
 		if unit.mp > 0 then self:emitMp(side, unit) end
+		-- Remember it for Copy (Yuta) before running, so a copier never copies itself.
+		local isCopier = false
+		for _, st in ipairs(steps) do
+			if st.op == "copy_ally" then isCopier = true end
+		end
+		if not isCopier then
+			side.lastAllyCast = { caster = unit, name = name or "Ability", steps = steps }
+		end
 		for _ = 1, casts do
-			for _, step in ipairs(unit.activeSpec) do
+			for _, step in ipairs(steps) do
 				self:runActiveStep(side, unit, enemySide, step)
 			end
 		end
@@ -811,12 +1029,7 @@ function Resolver:basicAttack(side, attacker)
 
 		-- Dismantle: each swing also slashes the next enemy in line.
 		if attacker.trait == "dismantle" and attacker.alive then
-			local cleaveTarget
-			for _, u in ipairs(enemySide.units) do
-				if u.alive and u ~= target and (not cleaveTarget or u.slot < cleaveTarget.slot) then
-					cleaveTarget = u
-				end
-			end
+			local cleaveTarget = nextInLine(enemySide, target)
 			if cleaveTarget then
 				self:dealDamage(side, attacker, enemySide, cleaveTarget, Traits.dismantle.cleavePct, "chain")
 			end
@@ -841,12 +1054,7 @@ function Resolver:basicAttack(side, attacker)
 
 	-- Storm Riders: chance to chain to the next unit in the enemy death queue.
 	if attacker.alive and (side.syn.chainChance or 0) > 0 and self.rng:NextNumber() < side.syn.chainChance then
-		local chainTarget
-		for _, u in ipairs(enemySide.units) do
-			if u.alive and u ~= target and (not chainTarget or u.slot < chainTarget.slot) then
-				chainTarget = u
-			end
-		end
+		local chainTarget = nextInLine(enemySide, target)
 		if chainTarget then
 			self:dealDamage(side, attacker, enemySide, chainTarget, side.syn.chainPct, "chain")
 		end
@@ -861,6 +1069,8 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 	local self = setmetatable({
 		rng = Random.new(seed),
 		events = {},
+		round = 0,
+		suddenDeathMult = 1,
 	}, Resolver)
 
 	local P = newSide("P", playerUnits)
@@ -894,7 +1104,15 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 	if not defeated(P) and not defeated(E) then
 		for round = 1, Battle.MaxRounds do
 			rounds = round
+			self.round = round
 			self:emit({ t = "round", round = round })
+			if round >= Battle.SuddenDeathRound then
+				self.suddenDeathMult = 1 + Battle.SuddenDeathPerRound * (round - Battle.SuddenDeathRound + 1)
+				for _, side in ipairs(self.sideList) do
+					local f = front(side)
+					if f then self:status(side, f, "SUDDEN DEATH +" .. math.floor((self.suddenDeathMult - 1) * 100 + 0.5) .. "%") end
+				end
+			end
 
 			-- 1. Round start: clear marks, reset per-round traits, regen.
 			for _, side in ipairs(self.sideList) do
@@ -916,6 +1134,21 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 					end
 				end
 			end
+
+			-- 1b. Damage over time (burns, lingering cleaves) ticks at round start.
+			for _, side in ipairs(self.sideList) do
+				for _, u in ipairs(side.units) do
+					for i = #u.dots, 1, -1 do
+						local dot = u.dots[i]
+						if u.alive then
+							self:applyDamage(dot.srcSide, dot.src, side, u, dot.perTick, dot.name, false, false, dot.trueDamage)
+						end
+						dot.rounds = dot.rounds - 1
+						if dot.rounds <= 0 or not u.alive then table.remove(u.dots, i) end
+					end
+				end
+			end
+			if defeated(P) or defeated(E) then break end
 
 			-- 2. Active casts.
 			for _, side in ipairs(self.sideList) do
@@ -957,6 +1190,12 @@ function BattleEngine.Resolve(playerUnits, enemyUnits, seed)
 							self:heal(side, target, target.maxHp * Passives.Medic.healPctLowestAlly * supportPower(side, u), "Medic")
 						end
 					end
+				end
+			end
+			-- Confiscation wears off one round at a time.
+			for _, side in ipairs(self.sideList) do
+				for _, u in ipairs(side.units) do
+					if u.silenced > 0 then u.silenced = u.silenced - 1 end
 				end
 			end
 		end

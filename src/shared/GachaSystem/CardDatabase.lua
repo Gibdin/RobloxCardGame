@@ -546,10 +546,9 @@ CardDatabase.Cards = {
 		passive_desc = "Each hit from the same enemy makes that enemy's later hits on it deal 10% less (up to 50%).",
 		active = {
 			name = "Sword of Extermination",
-			desc = "Deals 400% ATK true damage to the frontline enemy and stuns it for 1 turn.",
+			desc = "350% ATK true damage to the enemy that has hit this card the most, and stuns it for 1 turn.",
 			effects = {
-				{ op = "single_damage", mult = 4.0, trueDamage = true },
-				{ op = "stun", target = "front", turns = 1 },
+				{ op = "single_damage", target = "mostAdapted", mult = 3.5, trueDamage = true, stunTurns = 1 },
 			},
 		},
 		series = {},
@@ -564,10 +563,10 @@ CardDatabase.Cards = {
 		passive_desc = "Every basic attack also slashes the next enemy in line for 50% ATK.",
 		active = {
 			name = "Malevolent Shrine",
-			desc = "Deals 600% ATK true damage to every enemy and permanently cuts 10% off their Max HP.",
+			desc = "300% ATK true damage to every enemy, then the Shrine keeps cleaving: 80% ATK true damage to every enemy at the start of each of the next 3 rounds.",
 			effects = {
-				{ op = "true_damage_all", mult = 6.0 },
-				{ op = "maxhp_shred_all", pct = 0.10 },
+				{ op = "true_damage_all", mult = 3.0 },
+				{ op = "dot_all", mult = 0.8, rounds = 3, trueDamage = true, name = "Cleave" },
 			},
 		},
 		series = {},
@@ -579,11 +578,17 @@ CardDatabase.Cards = {
 		passive_name = "Infinity",
 		passive_desc = "The first hit this card takes each round deals no damage.",
 		active = {
-			name = "Hollow Purple",
-			desc = "Deals 500% ATK to every enemy and stuns them all for 1 turn.",
-			effects = {
-				{ op = "aoe_damage", mult = 5.0 },
-				{ op = "stun", target = "all", turns = 1 },
+			name = "Unlimited Void / Hollow Purple",
+			desc = "Alternates. Unlimited Void: stuns every enemy for 2 turns and hits them all for 150%. Hollow Purple: 600% ATK true damage to the frontline enemy and 200% to every other enemy.",
+			alternate = {
+				{ name = "Unlimited Void", effects = {
+					{ op = "stun", target = "all", turns = 2 },
+					{ op = "aoe_damage", mult = 1.5 },
+				} },
+				{ name = "Hollow Purple", effects = {
+					{ op = "single_damage", mult = 6.0, trueDamage = true },
+					{ op = "aoe_damage", mult = 2.0, excludeFront = true },
+				} },
 			},
 		},
 		series = {},
@@ -612,10 +617,11 @@ CardDatabase.Cards = {
 		passive_name = "Queen of Curses",
 		passive_desc = "The first time this card would die, it survives at 1 HP and gains a shield worth 30% of its Max HP.",
 		active = {
-			name = "Pure Love",
-			desc = "Deals 350% ATK to every enemy.",
+			name = "Copy",
+			desc = "Uses the last ability an ally cast this battle, then Rika hits every enemy for 150%. If no ally has cast yet: Pure Love, 350% to every enemy.",
 			effects = {
-				{ op = "aoe_damage", mult = 3.5 },
+				{ op = "copy_ally", fallback = { { op = "aoe_damage", mult = 3.5 } } },
+				{ op = "aoe_damage", mult = 1.5 },
 			},
 		},
 		series = {},
@@ -629,10 +635,10 @@ CardDatabase.Cards = {
 		passive_name = "Heavenly Restriction",
 		passive_desc = "Can't be stunned, ignores enemy ATK debuffs, and has +10% crit chance.",
 		active = {
-			name = "Inverted Spear",
-			desc = "Deals 300% ATK to the lowest-HP enemy, ignoring shields.",
+			name = "Inverted Spear of Heaven",
+			desc = "280% ATK to the lowest-HP enemy, ignoring shields, and nullifies its technique (wipes all its mana).",
 			effects = {
-				{ op = "single_damage", target = "lowest", mult = 3.0, ignoreShield = true },
+				{ op = "single_damage", target = "lowest", mult = 2.8, ignoreShield = true, drainTargetMana = true },
 			},
 		},
 		series = {},
@@ -645,9 +651,9 @@ CardDatabase.Cards = {
 		passive_desc = "Gains 1 mana whenever an enemy casts an ability.",
 		active = {
 			name = "Maximum Uzumaki",
-			desc = "Deals 150% ATK to every enemy and shreds 5% of their defense (stacking to 20%).",
+			desc = "100% ATK to every enemy, +15% for every ability the enemy team has cast this battle (up to +150%), and shreds 5% of their defense (stacking to 20%).",
 			effects = {
-				{ op = "aoe_damage", mult = 1.5 },
+				{ op = "aoe_damage", mult = 1.0, perEnemyCastBonus = 0.15, bonusCap = 1.5 },
 				{ op = "enemy_dr_shred", pct = 0.05, cap = 0.20 },
 			},
 		},
@@ -660,11 +666,16 @@ CardDatabase.Cards = {
 		passive_name = "Cursed Spirit Manipulation",
 		passive_desc = "All allies start the battle with 1 mana.",
 		active = {
-			name = "Spirit Swarm",
-			desc = "Gives every other ally 1 mana and +6% ATK (stacking to 18%).",
+			name = "Curse Release",
+			desc = "Gives every other ally 1 mana, then releases a random cursed spirit: Rainbow Dragon (220% to the frontline, ignoring shields), Smallpox Deity (stuns the frontline 2 turns), Mouth Curse (enemy ATK -6%) or Fly Swarm (60% to every enemy).",
 			effects = {
 				{ op = "grant_mana", amount = 1, excludeSelf = true },
-				{ op = "team_atk_buff", pct = 0.06, cap = 0.18 },
+				{ op = "random", options = {
+					{ name = "Rainbow Dragon", effects = { { op = "single_damage", mult = 2.2, ignoreShield = true } } },
+					{ name = "Smallpox Deity", effects = { { op = "stun", target = "front", turns = 2 } } },
+					{ name = "Mouth Curse", effects = { { op = "enemy_atk_shred", pct = 0.06, cap = 0.18 } } },
+					{ name = "Fly Swarm", effects = { { op = "aoe_damage", mult = 0.6 } } },
+				} },
 			},
 		},
 		series = {},
@@ -679,9 +690,10 @@ CardDatabase.Cards = {
 		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
 		active = {
 			name = "Idle Transfiguration",
-			desc = "Reshapes souls: 120% ATK true damage to every enemy.",
+			desc = "90% ATK true damage to every enemy, and permanently reshapes their souls: -6% Max HP (stacks).",
 			effects = {
-				{ op = "true_damage_all", mult = 1.2 },
+				{ op = "true_damage_all", mult = 0.9 },
+				{ op = "maxhp_shred_all", pct = 0.06 },
 			},
 		},
 		series = {},
@@ -694,9 +706,10 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Maximum: Meteor",
-			desc = "Drops a meteor on the enemy team: 160% ATK to every enemy.",
+			desc = "110% ATK to every enemy and sets them ablaze: 30% ATK burn at the start of each of the next 3 rounds.",
 			effects = {
-				{ op = "aoe_damage", mult = 1.6 },
+				{ op = "aoe_damage", mult = 1.1 },
+				{ op = "dot_all", mult = 0.3, rounds = 3, name = "Burn" },
 			},
 		},
 		series = {},
@@ -709,9 +722,9 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Split Soul Katana",
-			desc = "Deals 250% ATK to the frontline enemy.",
+			desc = "Cuts the soul, not the body: 150% ATK + 10% of the target's Max HP to the frontline enemy.",
 			effects = {
-				{ op = "single_damage", mult = 2.5 },
+				{ op = "single_damage", mult = 1.5, targetMaxHpPct = 0.10 },
 			},
 		},
 		series = {},
@@ -724,10 +737,10 @@ CardDatabase.Cards = {
 		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
 		active = {
 			name = "Boogie Woogie",
-			desc = "A clap that scrambles the battlefield: 120% ATK to the frontline enemy and stuns it for 1 turn.",
+			desc = "Claps to swap the enemy frontline with their backline unit, dragging their most fragile member forward, then hits it for 120%.",
 			effects = {
+				{ op = "swap_front_back" },
 				{ op = "single_damage", mult = 1.2 },
-				{ op = "stun", target = "front", turns = 1 },
 			},
 		},
 		series = { "Best Friends" },
@@ -740,10 +753,10 @@ CardDatabase.Cards = {
 		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
 		active = {
 			name = "Ratio 7:3",
-			desc = "A guaranteed critical 150% ATK strike on the frontline enemy, then shields every ally for 10% of their Max HP.",
+			desc = "A guaranteed-crit 150% ATK strike on the frontline enemy, then shields every ally for 10% of their Max HP. Overtime: from round 6, both are doubled.",
 			effects = {
-				{ op = "single_damage", mult = 1.5, guaranteedCrit = true },
-				{ op = "shield_all", pct = 0.10 },
+				{ op = "single_damage", mult = 1.5, guaranteedCrit = true, overtimeRound = 6, overtimeMult = 2 },
+				{ op = "shield_all", pct = 0.10, overtimeRound = 6, overtimeMult = 2 },
 			},
 		},
 		series = {},
@@ -758,9 +771,9 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Bonbaye",
-			desc = "A mass-loaded punch: 280% ATK to the frontline enemy.",
+			desc = "Adds mass to the punch: 150% ATK + 20% of this card's own Max HP to the frontline enemy.",
 			effects = {
-				{ op = "single_damage", mult = 2.8 },
+				{ op = "single_damage", mult = 1.5, selfMaxHpPct = 0.20 },
 			},
 		},
 		series = {},
@@ -773,9 +786,9 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Idle Death Gamble",
-			desc = "120% ATK to the frontline enemy. 1-in-3 jackpot: fully heals and gains +10% ATK permanently.",
+			desc = "120% ATK to the frontline enemy. 1-in-3 JACKPOT: fully heals, +10% ATK permanently, and Fever refills mana so it casts again right away.",
 			effects = {
-				{ op = "jackpot", mult = 1.2, chance = 1 / 3, atkPct = 0.10 },
+				{ op = "jackpot", mult = 1.2, chance = 1 / 3, atkPct = 0.10, refillMana = true },
 			},
 		},
 		series = {},
@@ -788,10 +801,9 @@ CardDatabase.Cards = {
 		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
 		active = {
 			name = "24 Frames",
-			desc = "140% ATK to the frontline enemy and freezes (stuns) it for 1 turn.",
+			desc = "140% ATK to the frontline enemy and freezes it for 1 turn. Hitting an already frozen or stunned target shatters it for +100% damage.",
 			effects = {
-				{ op = "single_damage", mult = 1.4 },
-				{ op = "stun", target = "front", turns = 1 },
+				{ op = "single_damage", mult = 1.4, bonusVsStunned = 1.0, stunTurns = 1 },
 			},
 		},
 		series = {},
@@ -804,10 +816,12 @@ CardDatabase.Cards = {
 		passive_desc = "Odd rounds: Tank form (-20% damage taken). Even rounds: Gorilla form (+25% ATK, counts as DPS for counters).",
 		active = {
 			name = "Drumming Beat",
-			desc = "150% ATK to the frontline enemy and stuns it for 1 turn.",
+			desc = "Changes with his form. Tank form: stuns the frontline enemy for 1 turn and shields Panda for 20% Max HP. Gorilla form: two 110% hits that ignore shields.",
 			effects = {
-				{ op = "single_damage", mult = 1.5 },
-				{ op = "stun", target = "front", turns = 1 },
+				{ op = "by_form",
+					Tank = { { op = "stun", target = "front", turns = 1 }, { op = "shield_self", pct = 0.20 } },
+					DPS  = { { op = "single_damage", mult = 1.1, ignoreShield = true, hits = 2 } },
+				},
 			},
 		},
 		series = {},
@@ -820,25 +834,27 @@ CardDatabase.Cards = {
 		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
 		active = {
 			name = "Reverse Cursed Technique",
-			desc = "Heals every ally for 14% of their Max HP.",
+			desc = "Heals the most injured ally for 40% of their Max HP, heals every ally for 8%, and cleanses stuns and silences from the team.",
 			effects = {
-				{ op = "heal_all", pct = 0.14 },
+				{ op = "heal_lowest", pct = 0.40 },
+				{ op = "heal_all", pct = 0.08 },
+				{ op = "cleanse" },
 			},
 		},
 		series = {},
 	},
 	{
 		id = 66, name = "The Onigiri Speaker", rarity = "Uncommon",
-		stat = { atk = 1.00, hp = 0.95 }, mp = 3,
+		stat = { atk = 1.00, hp = 0.95 }, mp = 4,
 		role = "Support", subrole = "Hexer", passive = "Battery",
 		passive_name = "Salmon Roe",
 		passive_desc = "Restores 1 mana to allies whenever any unit dies (standard Battery passive).",
 		active = {
 			name = "Cursed Speech: Don't Move",
-			desc = "Stuns the frontline enemy for 1 turn and cuts enemy ATK by 4% (stacking to 12%).",
+			desc = "Stuns every enemy for 1 turn, but the backlash costs this card 15% of its Max HP.",
 			effects = {
-				{ op = "stun", target = "front", turns = 1 },
-				{ op = "enemy_atk_shred", pct = 0.04, cap = 0.12 },
+				{ op = "stun", target = "all", turns = 1 },
+				{ op = "self_cost", pctMax = 0.15 },
 			},
 		},
 		series = {},
@@ -853,9 +869,9 @@ CardDatabase.Cards = {
 		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
 		active = {
 			name = "Resonance",
-			desc = "Strikes the soul through a straw doll: 150% ATK true damage to the frontline enemy.",
+			desc = "Hammers a nail into the frontline enemy (100% ATK), then every enemy with nails takes 40% ATK true damage per nail. Nails stay all battle.",
 			effects = {
-				{ op = "single_damage", mult = 1.5, trueDamage = true },
+				{ op = "nail_resonance", mult = 1.0, perNail = 0.4 },
 			},
 		},
 		series = { "First Years" },
@@ -867,10 +883,15 @@ CardDatabase.Cards = {
 		passive_name = "Ten Shadows",
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
-			name = "Divine Dogs",
-			desc = "Shadow hounds maul the enemy team: 70% ATK to every enemy.",
+			name = "Ten Shadows",
+			desc = "Summons a random shikigami: Divine Dogs (70% to every enemy), Nue (120% to the frontline + 1-turn stun), Max Elephant (50% to every enemy, enemy ATK -5%) or Rabbit Escape (shields every ally for 6%).",
 			effects = {
-				{ op = "aoe_damage", mult = 0.7 },
+				{ op = "random", options = {
+					{ name = "Divine Dogs", effects = { { op = "aoe_damage", mult = 0.7 } } },
+					{ name = "Nue", effects = { { op = "single_damage", mult = 1.2, stunTurns = 1 } } },
+					{ name = "Max Elephant", effects = { { op = "aoe_damage", mult = 0.5 }, { op = "enemy_atk_shred", pct = 0.05, cap = 0.15 } } },
+					{ name = "Rabbit Escape", effects = { { op = "shield_all", pct = 0.06 } } },
+				} },
 			},
 		},
 		series = { "First Years" },
@@ -883,9 +904,10 @@ CardDatabase.Cards = {
 		passive_desc = "Gains a stacking ATK bonus with every attack landed this battle (standard Rage passive).",
 		active = {
 			name = "Supernova",
-			desc = "60% ATK to every enemy and shreds 3% of their defense (stacking to 12%).",
+			desc = "Pays 10% of current HP in blood to hit every enemy for 90% ATK and shred 3% of their defense (stacking to 12%).",
 			effects = {
-				{ op = "aoe_damage", mult = 0.6 },
+				{ op = "self_cost", pctCurrent = 0.10 },
+				{ op = "aoe_damage", mult = 0.9 },
 				{ op = "enemy_dr_shred", pct = 0.03, cap = 0.12 },
 			},
 		},
@@ -899,9 +921,9 @@ CardDatabase.Cards = {
 		passive_desc = "Deals amplified damage to targets already below 35% HP (standard Executioner passive).",
 		active = {
 			name = "Final Bullet",
-			desc = "160% ATK to the lowest-HP enemy.",
+			desc = "160% ATK to the lowest-HP enemy. If it kills, instantly reloads (+2 mana).",
 			effects = {
-				{ op = "single_damage", target = "lowest", mult = 1.6 },
+				{ op = "single_damage", target = "lowest", mult = 1.6, onKillMana = 2 },
 			},
 		},
 		series = {},
@@ -913,10 +935,11 @@ CardDatabase.Cards = {
 		passive_name = "Heavy Armor",
 		passive_desc = "Heals for a share of all damage dealt to this card (standard Drain passive).",
 		active = {
-			name = "Absolute Guard",
-			desc = "Shields every ally for 8% of their Max HP.",
-			effects = {
-				{ op = "shield_all", pct = 0.08 },
+			name = "Absolute Guard / Ultra Cannon",
+			desc = "Alternates. Absolute Guard: shields every ally for 10% of their Max HP. Ultra Cannon: 250% ATK to the frontline enemy.",
+			alternate = {
+				{ name = "Absolute Guard", effects = { { op = "shield_all", pct = 0.10 } } },
+				{ name = "Ultra Cannon", effects = { { op = "single_damage", mult = 2.5 } } },
 			},
 		},
 		series = {},
@@ -929,8 +952,9 @@ CardDatabase.Cards = {
 		passive_desc = "Heals the team's lowest-HP ally at the end of every round (standard Medic passive).",
 		active = {
 			name = "Solo Forbidden Area",
-			desc = "Every ally gains +4% ATK (stacking to 16%).",
+			desc = "Gives the ally closest to casting +1 mana, and every ally +4% ATK (stacking to 16%).",
 			effects = {
+				{ op = "grant_mana", target = "closest", amount = 1 },
 				{ op = "team_atk_buff", pct = 0.04, cap = 0.16 },
 			},
 		},
@@ -943,10 +967,10 @@ CardDatabase.Cards = {
 		passive_name = "Objection",
 		passive_desc = "Restores 1 mana to allies whenever any unit dies (standard Battery passive).",
 		active = {
-			name = "Confiscation",
-			desc = "Drains 2 mana from the frontline enemy.",
+			name = "Judgeman: Confiscation",
+			desc = "Confiscates the frontline enemy's technique: wipes all its mana, and it can't gain mana for 2 turns.",
 			effects = {
-				{ op = "drain_mana", target = "front", amount = 2 },
+				{ op = "silence", turns = 2 },
 			},
 		},
 		series = {},
